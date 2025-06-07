@@ -64,7 +64,6 @@ else{
         $data["title"] = osetri($_POST["title"]);
         $data["author"] = osetri($_POST["author"]);
         $data["capo"] = $_POST["capo"];
-        $data["owner"] = $song["owner"];
         $data["is_public"] = isset($_POST['is_public']) ? 1 : 0;
         $data["tags"] = "";
         $data["instruments"] = implode(",", $_POST["instruments"]);

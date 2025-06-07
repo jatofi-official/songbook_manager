@@ -105,12 +105,12 @@ function get_song($mysqli, $id){
 
 function add_song($mysqli,$data){
 	if(!$mysqli->connect_errno){
-    	$stmt = $mysqli->prepare("INSERT INTO songs (category, title, author, capo, owner, is_public, create_date, modified_date, tags, instruments, content) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?)");
+    	$stmt = $mysqli->prepare("INSERT INTO songs (category, title, author, capo, capo_alt, owner, is_public, create_date, modified_date, tags, instruments, content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?)");
 		if (!$stmt) {
         	return "Prepare failed: " . $mysqli->error;
 		}
 		
-		$stmt -> bind_param("issisisss",$data["category"],$data["title"],$data["author"],$data["capo"],$data["owner"],$data["is_public"],$data["tags"],$data["instruments"],$data["content"]);
+		$stmt -> bind_param("issiisisss",$data["category"],$data["title"],$data["author"],$data["capo"],$data["capo_alt"],$data["owner"],$data["is_public"],$data["tags"],$data["instruments"],$data["content"]);
 		
 
 
@@ -142,7 +142,6 @@ function edit_song($mysqli, $id, $data) {
                 title = ?, 
                 author = ?, 
                 capo = ?, 
-                owner = ?, 
                 is_public = ?, 
                 modified_date = NOW(), 
                 tags = ?, 
@@ -161,7 +160,6 @@ function edit_song($mysqli, $id, $data) {
             $data["title"],        // string (varchar 30)
             $data["author"],       // string (varchar 30)
             $data["capo"],         // int (4)
-            $data["owner"],        // string (varchar 20)
             $data["is_public"],    // int (tinyint 1)
             $data["tags"],         // string (varchar 50)
             $data["instruments"],  // string (varchar 50)

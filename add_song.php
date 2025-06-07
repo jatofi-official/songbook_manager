@@ -30,12 +30,19 @@ else{
         $data["title"] = osetri($_POST["title"]);
         $data["author"] = osetri($_POST["author"]);
         $data["capo"] = $_POST["capo"];
+        $data["capo_alt"] = ($_POST["capo_alt"] == "") ? NULL : $_POST["capo_alt"];
         $data["category"] = $_POST["category"];
         $data["instruments"] = implode(",", $_POST["instruments"]);
         $data["is_public"] = isset($_POST['is_public']) ? 1 : 0;
         $data["owner"] = $_SESSION["user"];
         $data["tags"] = "";
         $data["content"] = osetri($_POST["content"]);
+        
+        
+        // echo "post:'".$_POST["capo_alt"]."'<br>";
+        // echo "data:'".$data["capo_alt"]."'";
+        
+        
 
         $result = add_song($mysqli,$data);
 
@@ -66,6 +73,15 @@ else{
             <select name="capo" id="capo" class="form-select" required>
                 <option value="0">No capo</option>
                 <?php for ($i = 1; $i <= 7; $i++): ?>
+                    <option value="<?= $i ?>"><?= $i ?></option>
+                <?php endfor; ?>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="capo_alt" class="form-label">Capo alt</label>
+            <select name="capo_alt" id="capo_alt" class="form-select">
+                <option value="">No alt</option>
+                <?php for ($i = 0; $i <= 7; $i++): ?>
                     <option value="<?= $i ?>"><?= $i ?></option>
                 <?php endfor; ?>
             </select>
