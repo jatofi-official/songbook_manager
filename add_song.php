@@ -31,7 +31,7 @@ else{
         $data["author"] = osetri($_POST["author"]);
         $data["capo"] = $_POST["capo"];
         $data["category"] = $_POST["category"];
-        $data["instruments"] = $_POST["instruments"];
+        $data["instruments"] = implode(",", $_POST["instruments"]);
         $data["is_public"] = isset($_POST['is_public']) ? 1 : 0;
         $data["owner"] = $_SESSION["user"];
         $data["tags"] = "";

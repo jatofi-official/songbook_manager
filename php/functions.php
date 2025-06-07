@@ -86,8 +86,21 @@ function add_user($mysqli, $name, $username, $password, $zbor) {
 
 
 
-function select_song_titles(){
-    
+function get_song($mysqli, $id){
+	if(!$mysqli->connect_errno){
+		$stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
+		$stmt->bind_param("i", $id);
+		$stmt->execute();
+		$result = $stmt->get_result();
+
+		if ($result->num_rows === 0) {
+			echo "<p>Song not found.</p>";
+			echo "<p><a href='?'>Back to list</a></p>";
+			exit;
+		}
+
+		return $result->fetch_assoc();
+	}
 }
 
 function add_song($mysqli,$data){
@@ -119,6 +132,56 @@ function add_song($mysqli,$data){
 		return "Error connecting";
 	}
 }
+
+function edit_song($mysqli, $id, $data) {
+    if (!$mysqli->connect_errno) {
+        $stmt = $mysqli->prepare("
+            UPDATE songs 
+            SET 
+                category = ?, 
+                title = ?, 
+                author = ?, 
+                capo = ?, 
+                owner = ?, 
+                is_public = ?, 
+                modified_date = NOW(), 
+                tags = ?, 
+                instruments = ?, 
+                content = ?
+            WHERE id = ?
+        ");
+
+        if (!$stmt) {
+            return "Prepare failed: " . $mysqli->error;
+        }
+
+        $stmt->bind_param(
+            "issisisssi", 
+            $data["category"],     // int
+            $data["title"],        // string (varchar 30)
+            $data["author"],       // string (varchar 30)
+            $data["capo"],         // int (4)
+            $data["owner"],        // string (varchar 20)
+            $data["is_public"],    // int (tinyint 1)
+            $data["tags"],         // string (varchar 50)
+            $data["instruments"],  // string (varchar 50)
+            $data["content"],      // string (text)
+            $id                    // int (primary key)
+        );
+
+        if ($stmt->execute()) {
+            return true;
+        } else {
+            return "Error: " . $stmt->error;
+        }
+
+        $stmt->close();
+    } else {
+        return "Error connecting";
+    }
+}
+
+
 
 
 

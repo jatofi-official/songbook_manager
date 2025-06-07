@@ -17,18 +17,8 @@ if(isset($_SESSION["user"])){
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
 
-    $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows === 0) {
-        echo "<p>Song not found.</p>";
-        echo "<p><a href='?'>Back to list</a></p>";
-        exit;
-    }
-
-    $song = $result->fetch_assoc();
+   
+    $song = get_song($mysqli,$id);
     $can_display = FALSE;
 
     if($song["is_public"]==0){
