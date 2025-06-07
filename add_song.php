@@ -28,9 +28,11 @@ else{
     <?php if ($submitted): 
         $data = [];
         $data["title"] = osetri($_POST["title"]);
-        $data["author"] = osetri($_POST["author"]);
+        $data["artist"] = osetri($_POST["artist"]);
         $data["capo"] = $_POST["capo"];
-        $data["capo_alt"] = ($_POST["capo_alt"] == "") ? NULL : $_POST["capo_alt"];
+        // $data["capo_alt"] = ($_POST["capo_alt"] == "") ? NULL : $_POST["capo_alt"];
+        $data["capo_alt"] = $_POST["capo_alt"];
+
         $data["category"] = $_POST["category"];
         $data["instruments"] = implode(",", $_POST["instruments"]);
         $data["is_public"] = isset($_POST['is_public']) ? 1 : 0;
@@ -39,12 +41,8 @@ else{
         $data["content"] = osetri($_POST["content"]);
         
         
-        // echo "post:'".$_POST["capo_alt"]."'<br>";
-        // echo "data:'".$data["capo_alt"]."'";
-        
-        
-
         $result = add_song($mysqli,$data);
+        $result2 = add_activity($mysqli,$_SESSION["user"],"Added song","Added '".$data["title"]."' by ".$data["artist"]." to the database");
 
         if($result == true){
             echo ('<div class="alert alert-success">Submitted!</div>');
@@ -64,8 +62,8 @@ else{
         </div>
 
         <div class="mb-3">
-            <label for="author" class="form-label">Author</label>
-            <input type="text" name="author" id="author" class="form-control" maxlength="30" required>
+            <label for="artist" class="form-label">Artist</label>
+            <input type="text" name="artist" id="artist" class="form-control" maxlength="30" required>
         </div>
 
         <div class="mb-3">

@@ -1,110 +1,158 @@
+:root {
+--primary: #4361ee;
+--secondary: #3f37c9;
+--accent: #4cc9f0;
+--light: #f8f9fa;
+--dark: #212529;
+}
+
 body {
-	margin: 0;
-	font-family: Verdana, Arial, Helvetica, sans-serif; 
-}
-html, body {
-    height: 100%;
+background-color: #f5f7fb;
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-header {
-	/* background-image: url('images/logo.jpg'); */
-	background-repeat: no-repeat;
-	background-position: right top; 
-	background-color: #83AF9B;
-	height: 70px;
-}
-header h1 {
-	font-size: 2.5em;
-	color: #FAE8D6;
-	font-variant: small-caps;
-	margin: 0;
-}
-nav {
-	padding: 0.5%;
-	background-color: #C8C8A9;
-}
-nav a {
-	color: #000;
-	background-color: #F9CDAD;
-	font-weight: bold;
-	text-decoration: none;
-	padding: 0 1em;
-	border-radius: 8px;
-	margin-right: 2pt;
-	margin-left: 2pt;
-}
-nav a:hover {
-	color: #FFFFFF;
-	background-color: #BD5E00;
-}
-footer {
-	color: #004700;
-	background-color: #C8C8A9;
-	text-align: right;
-	/* height: 2pt; */
-}
-footer
-section, aside, footer {
-	padding: 1%;
-}
-section a {
-	color: #BD5E00;
-	font-weight: bold;
-}
-header h1 {
-	padding-left: 1%;
-}
-fieldset {
- 	border: 2px solid #BD5E00;
-	margin: 10px 0;
-}
-legend {
-	color: #BD5E00;
-	font-weight: bold;
-}
-.chyba {
-	color: #FF0000;
-}
-table {
-	border-collapse: collapse;
-}
-th, td {
-	border: 2px solid #BD5E00;
-	padding: 0.5em;
-}
-th {
-	background-color: #FAE8D6;
+.dashboard-header {
+background-color: white;
+padding: 20px 0;
+box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+margin-bottom: 30px;
 }
 
-
-.round_container {
-    margin: 1em;
-    border: 2px solid #333; 
-    border-radius: 12px;
-    padding: 2em;
-    background-color: #eeeeee; 
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1); 
+.navbar {
+background: linear-gradient(90deg, var(--primary), var(--secondary));
 }
 
-.round_container:not(.round_container) {
-    margin: 1em;
+.stat-card {
+text-align: center;
+padding: 20px;
+border-radius: 10px;
+background: white;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+margin-bottom: 20px;
+transition: transform 0.2s;
 }
 
-
-.round_container .btn-primary {
-    border-radius: 5px;
-    background-color: #007bff;
-    border-color: #007bff;
+.stat-card:hover {
+transform: translateY(-5px);
 }
 
-.round_container .btn-primary:hover {
-    background-color: #0056b3;
+.stat-card .number {
+font-size: 2.5rem;
+font-weight: bold;
+color: var(--primary);
 }
 
-@media (max-width: 600px) {
-    .round_container {
-        padding: 1.5em; /* Reduce padding on smaller screens */
-    }
+.stat-card .label {
+color: #6c757d;
+font-size: 0.9rem;
 }
 
+.card {
+border-radius: 10px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+border: none;
+transition: transform 0.2s;
+margin-bottom: 20px;
+}
 
+.card:hover {
+transform: translateY(-3px);
+}
+
+.song-card {
+height: 100%;
+}
+
+.songbook-card {
+border-left: 4px solid var(--accent);
+}
+
+.song-list-item {
+transition: background-color 0.2s;
+padding: 12px 15px;
+border-bottom: 1px solid #eee;
+}
+
+.song-list-item:hover {
+background-color: #f8f9fa;
+}
+
+.btn-primary {
+background-color: var(--primary);
+border-color: var(--primary);
+}
+
+.btn-primary:hover {
+background-color: var(--secondary);
+border-color: var(--secondary);
+}
+
+.btn-outline-primary {
+color: var(--primary);
+border-color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+background-color: var(--primary);
+border-color: var(--primary);
+color: white;
+}
+
+.page-title {
+font-weight: 600;
+color: var(--dark);
+margin-bottom: 20px;
+padding-bottom: 10px;
+border-bottom: 1px solid #dee2e6;
+}
+
+.song-detail {
+background-color: white;
+border-radius: 10px;
+padding: 25px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.chord {
+display: inline-block;
+background-color: #4361ee;
+color: white;
+padding: 2px 8px;
+border-radius: 4px;
+font-size: 0.85rem;
+margin: 0 2px;
+font-weight: 500;
+}
+
+.lyrics-container {
+font-family: monospace;
+white-space: pre-wrap;
+line-height: 1.8;
+background-color: #f8f9fa;
+padding: 20px;
+border-radius: 8px;
+margin-top: 20px;
+}
+
+.songbook-icon {
+width: 50px;
+height: 50px;
+background: linear-gradient(135deg, var(--primary), var(--accent));
+border-radius: 10px;
+display: flex;
+align-items: center;
+justify-content: center;
+color: white;
+font-size: 1.5rem;
+margin-right: 15px;
+}
+
+.songbook-title {
+font-weight: 600;
+margin-bottom: 0;
+}
+
+.songbook-subtitle {
+color: #6c757d;
+font-size: 0.9rem;
+}

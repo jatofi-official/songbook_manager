@@ -7,114 +7,205 @@ include("php/header.php");
 include('php/navigation.php');
 include("php/categories.php");
 
-if(isset($_SESSION["user"])){
-    // echo"Logged in <br>";
-}
+
+// ini_set('display_errors', 1);
+// ini_set('display_startup_errors', 1);
+// error_reporting(E_ALL);
+
+?>
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Dashboard</h1>
+                    <p class="text-muted mb-0">Manage your songs and songbooks</p>
+                </div>
+                <div class="d-flex">
+                    <div class="input-group me-2" style="width: 300px;">
+                        <input type="text" class="form-control" placeholder="Search songs...">
+                        <button class="btn btn-primary" type="button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <a class="btn btn-primary" href="add_song.php">
+                        <i class="bi bi-plus-lg"></i> New Song
+                    </a>
+
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Main Part -->
+    <div class="container">
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="number"><?php echo (get_number_of_songs($mysqli)); ?></div>
+                    <div class="label">Total Songs</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="number">0</div>
+                    <div class="label">Songbooks</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="number"><?php echo get_new_songs_this_week($mysqli); ?></div>
+                    <div class="label">New This Week</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="number"><?php echo get_total_users($mysqli);?></div>
+                    <div class="label">Total users</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-md-8">
+                <!-- Recent Activity -->
+                <div class="card mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+
+                            <?php
+                            $activities = get_recent_activity($mysqli, 5);
+
+                            foreach ($activities as $activity) {
+                                $timeAgo = time_elapsed_string($activity['time']);
+                                ?>
+                                <div class="list-group-item border-0">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1"><?php echo htmlspecialchars($activity['type']); ?></h6>
+                                        <small><?php echo $timeAgo; ?></small>
+                                    </div>
+                                    <p class="mb-1"><?php echo htmlspecialchars($activity['description']); ?></p>
+                                </div>
+                                <?php
+                            }
+                            ?>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column -->
+            <div class="col-md-4">
+                <!-- Quick Actions -->
+                <div class="card mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-outline-primary w-100 mb-3">
+                            <i class="bi bi-music-note-list"></i> Manage Songs
+                        </button>
+                        <button class="btn btn-outline-primary w-100 mb-3">
+                            <i class="bi bi-journal-plus"></i> Create Songbook
+                        </button>
+                        <button class="btn btn-outline-primary w-100 mb-3">
+                            <i class="bi bi-file-earmark-pdf"></i> Export Songbook
+                        </button>
+                        <button class="btn btn-outline-primary w-100">
+                            <i class="bi bi-cloud-arrow-up"></i> Import Songs
+                        </button>
+                    </div>
+                </div>
+                
+                
+            </div>
+        </div>
+        
+        <!-- Recently Added Songs -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recently Added Songs</h5>
+                        <a href="#" class="btn btn-sm btn-link">View All</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Artist</th>
+                                        <th>Genre</th>
+                                        <th>Key</th>
+                                        <th>Tempo</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Blinding Lights</td>
+                                        <td>The Weeknd</td>
+                                        <td>Synth-pop</td>
+                                        <td>F minor</td>
+                                        <td>171 BPM</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></button>
+                                            <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Dancing Queen</td>
+                                        <td>ABBA</td>
+                                        <td>Disco</td>
+                                        <td>A major</td>
+                                        <td>101 BPM</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></button>
+                                            <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Bohemian Rhapsody</td>
+                                        <td>Queen</td>
+                                        <td>Rock</td>
+                                        <td>B♭ major</td>
+                                        <td>72 BPM</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></button>
+                                            <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Watermelon Sugar</td>
+                                        <td>Harry Styles</td>
+                                        <td>Pop</td>
+                                        <td>E major</td>
+                                        <td>95 BPM</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></button>
+                                            <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
 
-// Show songs
+    </div>
 
-if (isset($_GET['id']) && is_numeric($_GET['id'])) {
-    $id = (int)$_GET['id'];
-
-   
-    $song = get_song($mysqli,$id);
-    $can_display = FALSE;
-
-    if($song["is_public"]==0){
-        if(isset($_SESSION["user"]) &&( $_SESSION["admin"]==1||$song["owner"]==$_SESSION["user"])){
-            $can_display = TRUE;
-        }
-    }
-    else{
-        $can_display=TRUE;
-    }
-    
-    if($can_display){
-        echo "<h2>" . htmlspecialchars($song['title']) . "</h2>";
-        echo "<p><strong>Author:</strong> " . htmlspecialchars($song['author']) . "</p>";
-        echo "<p><strong>Category:</strong> " . htmlspecialchars($song['category']) . "</p>";
-        echo "<p><strong>Capo:</strong> " . htmlspecialchars($song['capo']) . "</p>";
-        echo "<p><strong>Owner:</strong> " . htmlspecialchars($song['owner']) . "</p>";
-        echo "<p><strong>Public:</strong> " . ($song['is_public'] ? 'Yes' : 'No') . "</p>";
-        echo "<p><strong>Created:</strong> " . htmlspecialchars($song['create_date']) . "</p>";
-        echo "<p><strong>Modified:</strong> " . htmlspecialchars($song['modified_date']) . "</p>";
-        echo "<p><strong>Tags:</strong> " . htmlspecialchars($song['tags']) . "</p>";
-        echo "<p><strong>Instruments:</strong> " . htmlspecialchars($song['instruments']) . "</p>";
-        ?>
-        <a href="edit_song.php?id=<?= urlencode($id) ?>" class="btn btn-primary">Edit Song</a>
-
-        <?php
-        echo "<hr>";
-        echo "<pre>" . htmlspecialchars($song['content']) . "</pre>";
-    }
-    else{
-        echo "<p>You don't have access to this song</p>";
-    }
-
-
-    
-    echo "<p><a href='?'>Back to list</a></p>";
-
-} else {
-    $results_per_page = 10;
-    $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int) $_GET['page'] : 1;
-    if ($page < 1) $page = 1;
-    $offset = ($page - 1) * $results_per_page;
-
-    $count_result = $mysqli->query("SELECT COUNT(*) AS total FROM songs");
-    $total_rows = $count_result->fetch_assoc()['total'];
-    $total_pages = ceil($total_rows / $results_per_page);
-
-    $sql = "SELECT id, category, title, author, owner, is_public FROM songs ORDER BY title ASC LIMIT $results_per_page OFFSET $offset";
-    $result = $mysqli->query($sql);
-
-    echo "<h2>Songs list (page $page of $total_pages)</h2>";
-    echo "<table border='1' cellpadding='5' cellspacing='0'>";
-    echo "<thead>";
-    echo "<tr>";
-    echo "<th>Title</th>";
-    echo "<th>Author</th>";
-    echo "<th>Category</th>";
-    echo "</tr>";
-    echo "</thead>";
-    echo "<tbody>";
-
-    while ($row = $result->fetch_assoc()) {
-        $title = htmlspecialchars($row['title']);
-        $author = htmlspecialchars($row['author']);
-        $category = htmlspecialchars($row['category']);
-        $id = (int)$row['id'];
-        echo "<tr>";
-        echo "<td><a href='?id=$id'>$title</a></td>";
-        echo "<td>$author</td>";
-        echo "<td>$categories[$category]</td>";
-        echo "</tr>";
-    }
-
-    echo "</tbody>";
-    echo "</table>";
-
-    echo "<div style='margin-top: 10px;'>";
-    if ($page > 1) {
-        $prev = $page - 1;
-        echo "<a href='?page=$prev'>&laquo; Previous</a> ";
-    }
-    for ($i = 1; $i <= $total_pages; $i++) {
-        if ($i == $page) {
-            echo "<strong>$i</strong> ";
-        } else {
-            echo "<a href='?page=$i'>$i</a> ";
-        }
-    }
-    if ($page < $total_pages) {
-        $next = $page + 1;
-        echo "<a href='?page=$next'>Next &raquo;</a>";
-    }
-    echo "</div>";
-}
-
-
-
+<?php
 include('php/footer.php');
 ?>
