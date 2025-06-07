@@ -36,6 +36,9 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             $can_display = TRUE;
         }
     }
+    else{
+        $can_display=TRUE;
+    }
     
     if($can_display){
         echo "<h2>" . htmlspecialchars($song['title']) . "</h2>";

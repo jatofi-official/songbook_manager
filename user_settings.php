@@ -20,15 +20,23 @@ include('php/navigation.php');
 				$_SESSION["user"] = $result["username"];
 				$_SESSION["admin"] = $result["admin"];
 				$_SESSION["password"]=$result["password"];
-				$_SESSION["circle"]=$result["circle"];
 				$_SESSION["name"]=$result["name"];
 				$_SESSION["id"]=$result["id"];
+
+
+				// Redirect after successful login
+				header("Location: " . $_SERVER['PHP_SELF']);
+				exit();
 			}
 		}
 	}
 	if(isset($_POST["logout"])){
 		session_unset();
 		session_destroy();
+
+		// Redirect after logout to refresh the page and clear session data
+		header("Location: " . $_SERVER['PHP_SELF']);
+		exit();
 	}
 
 	if (isset($_SESSION["user"])){
