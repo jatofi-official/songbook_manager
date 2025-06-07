@@ -41,6 +41,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         echo "<p><strong>Modified:</strong> " . htmlspecialchars($song['modified_date']) . "</p>";
         echo "<p><strong>Tags:</strong> " . htmlspecialchars($song['tags']) . "</p>";
         echo "<p><strong>Instruments:</strong> " . htmlspecialchars($song['instruments']) . "</p>";
+        ?>
+        <a href="edit_song.php?id=<?= urlencode($id) ?>" class="btn btn-primary">Edit Song</a>
+
+        <?php
         echo "<hr>";
         echo "<pre>" . htmlspecialchars($song['content']) . "</pre>";
     }
@@ -49,8 +53,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     }
 
 
-
-
+    
     echo "<p><a href='?'>Back to list</a></p>";
 
 } else {

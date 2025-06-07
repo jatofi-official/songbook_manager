@@ -141,7 +141,8 @@ function edit_song($mysqli, $id, $data) {
                 category = ?, 
                 title = ?, 
                 author = ?, 
-                capo = ?, 
+                capo = ?,
+				capo_alt = ?, 
                 is_public = ?, 
                 modified_date = NOW(), 
                 tags = ?, 
@@ -155,11 +156,12 @@ function edit_song($mysqli, $id, $data) {
         }
 
         $stmt->bind_param(
-            "issisisssi", 
+            "issiiisssi", 
             $data["category"],     // int
             $data["title"],        // string (varchar 30)
             $data["author"],       // string (varchar 30)
             $data["capo"],         // int (4)
+			$data["capo_alt"],
             $data["is_public"],    // int (tinyint 1)
             $data["tags"],         // string (varchar 50)
             $data["instruments"],  // string (varchar 50)

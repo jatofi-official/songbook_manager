@@ -64,6 +64,7 @@ else{
         $data["title"] = osetri($_POST["title"]);
         $data["author"] = osetri($_POST["author"]);
         $data["capo"] = $_POST["capo"];
+        $data["capo_alt"] = $_POST["capo_alt"];
         $data["is_public"] = isset($_POST['is_public']) ? 1 : 0;
         $data["tags"] = "";
         $data["instruments"] = implode(",", $_POST["instruments"]);
@@ -104,6 +105,16 @@ else{
                 <option value="0">No capo</option>
                 <?php for ($i = 1; $i <= 7; $i++): ?>
                     <option value="<?= $i ?>" <?php if($i ==$song["capo"]) echo "selected";?>><?= $i ?></option>
+                <?php endfor; ?>
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label for="capo_alt" class="form-label">Capo alt</label>
+            <select name="capo_alt" id="capo_alt" class="form-select">
+                <option value="">No alt</option>
+                <?php for ($i = 0; $i <= 7; $i++): ?>
+                    <option value="<?= $i ?>" <?php if($i ==$song["capo_alt"]) echo "selected";?>><?= $i ?></option>
                 <?php endfor; ?>
             </select>
         </div>
