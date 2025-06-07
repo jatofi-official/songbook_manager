@@ -3,12 +3,7 @@ session_start();
 include 'php/db.php';
 include 'php/categories.php';   // sets $categories array
 include 'php/instruments.php';  // sets $instruments array
-
-// User must be logged in
-if (!isset($_SESSION["user"])) {
-    echo "You need to be logged in!";
-    exit;
-}
+include "php/functions.php";
 
 $submitted = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["submit"])) {
@@ -17,14 +12,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["submit"])) {
 
 include 'php/header.php';
 include 'php/navigation.php';
+
+// User must be logged in
+if (!isset($_SESSION["user"])) {
+    echo "You need to be logged in!";
+}
+else{
+
+
 ?>
 
 <div class="container mt-4">
     <h2>Add New Song</h2>
 
-    <?php if ($submitted): ?>
-        <div class="alert alert-success">Submitted!</div>
-    <?php endif; ?>
+    <?php if ($submitted): 
+        $data = [];
+        $data["title"] = osetri($_POST["title"]);
+        $data["author"] = osetri($_POST["author"]);
+        $data["capo"] = $_POST["capo"];
+        $data["category"] = $_POST["category"];
+        $data["instruments"] = $_POST["instruments"];
+        $data["is_public"] = isset($_POST['is_public']) ? 1 : 0;
+        $data["owner"] = $_SESSION["user"];
+        $data["tags"] = "";
+        $data["content"] = osetri($_POST["content"]);
+
+        $result = add_song($mysqli,$data);
+
+        if($result == true){
+            echo ('<div class="alert alert-success">Submitted!</div>');
+        }
+        else{
+            echo ('<div class="alert alert-danger">'.$result.'</div>');
+
+        }
+
+
+    endif; ?>
 
     <form method="post" action="">
         <div class="mb-3">
@@ -83,12 +107,16 @@ include 'php/navigation.php';
         </div>
 
         <div class="mb-3 form-check">
-            <input type="checkbox" class="form-check-input" id="is_public" name="is_public" value="0">
-            <label class="form-check-label" for="is_public">Private</label>
+            <input type="checkbox" class="form-check-input" id="is_public" name="is_public" value="1" checked>
+            <label class="form-check-label" for="is_public">Public (others can see this)</label>
         </div>
 
         <button type="submit" name="submit" class="btn btn-primary">Add Song</button>
     </form>
 </div>
 
-<?php include 'php/footer.php'; ?>
+<?php
+}
+
+
+include 'php/footer.php'; ?>

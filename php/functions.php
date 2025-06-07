@@ -90,5 +90,36 @@ function select_song_titles(){
     
 }
 
+function add_song($mysqli,$data){
+	if(!$mysqli->connect_errno){
+    	$stmt = $mysqli->prepare("INSERT INTO songs (category, title, author, capo, owner, is_public, create_date, modified_date, tags, instruments, content) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?)");
+		if (!$stmt) {
+        	return "Prepare failed: " . $mysqli->error;
+		}
+		
+		$stmt -> bind_param("issisisss",$data["category"],$data["title"],$data["author"],$data["capo"],$data["owner"],$data["is_public"],$data["tags"],$data["instruments"],$data["content"]);
+		
+
+
+		// Execute the statement
+		if ($stmt->execute()) {
+			return true;
+		} 
+		else {
+			return  "Error: " . $stmt->error;
+		}
+
+		// Close the statement
+		$stmt->close();
+
+
+	}
+
+	else{
+		return "Error connecting";
+	}
+}
+
+
 
 ?>
