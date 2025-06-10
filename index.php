@@ -2,6 +2,7 @@
 session_start();
 include('php/db.php');          
 include('php/data.php');      
+$website = "index";
 include('php/functions.php'); 
 include("php/header.php");
 include('php/navigation.php');

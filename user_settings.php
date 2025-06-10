@@ -2,58 +2,90 @@
 session_start();
 include('php/db.php');
 include('php/data.php');
+$website = "user";
 include('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 ?>
 <!-- Logging in -->
 <?php 
-	if(isset($_POST["submit"]) && isset($_POST["username"]) && isset($_POST["password"]) ){
-		// if ($_POST["subim"])
-		if ($_POST["submit"]=="Register"){
-			header("Location: register_user.php");
-			exit();
-		}
-		else{
-			$result = login_user($mysqli,$_POST["username"],$_POST["password"]);
-			if ($result){
-				$_SESSION["user"] = $result["username"];
-				$_SESSION["admin"] = $result["admin"];
-				$_SESSION["password"]=$result["password"];
-				$_SESSION["name"]=$result["name"];
-				$_SESSION["id"]=$result["id"];
-
-
-				// Redirect after successful login
-				header("Location: " . $_SERVER['PHP_SELF']);
-				exit();
-			}
-		}
-	}
-	if(isset($_POST["logout"])){
-		session_unset();
-		session_destroy();
-
-		// Redirect after logout to refresh the page and clear session data
-		header("Location: " . $_SERVER['PHP_SELF']);
+if(isset($_POST["submit"]) && isset($_POST["username"]) && isset($_POST["password"]) ){
+	// if ($_POST["subim"])
+	if ($_POST["submit"]=="Register"){
+		header("Location: register_user.php");
 		exit();
 	}
+	else{
+		$result = login_user($mysqli,$_POST["username"],$_POST["password"]);
+		if ($result){
+			$_SESSION["user"] = $result["username"];
+			$_SESSION["admin"] = $result["admin"];
+			$_SESSION["password"]=$result["password"];
+			$_SESSION["name"]=$result["name"];
+			$_SESSION["id"]=$result["id"];
+			$_SESSION["admin_view"] = false;
 
-	if (isset($_SESSION["user"])){
+
+			// Redirect after successful login
+			header("Location: " . $_SERVER['PHP_SELF']);
+			exit();
+		}
+	}
+}
+if(isset($_POST["logout"])){
+	session_unset();
+	session_destroy();
+
+	// Redirect after logout to refresh the page and clear session data
+	header("Location: " . $_SERVER['PHP_SELF']);
+	exit();
+}
+
+
+// PAGE CONTENT
+if (isset($_SESSION["user"])){
 
 	
 ?>
 <section>
 
 <p>Welcome!<strong><?php echo ($_SESSION["meno"]); ?></strong>.</p>
-<!-- <p>Click here to <a href="zmen_password.php">change password</a>.</p> -->
 
+<?php
+
+// Check if admin view toggle button was pressed
+if (isset($_POST['toggle_admin_view'])) {
+    if (isset($_SESSION['admin']) && $_SESSION['admin'] == true) {
+		if($_SESSION["admin_view"]==true){
+	        $_SESSION['admin_view'] = false;
+		}
+		else{	
+    	    $_SESSION['admin_view'] = true;
+		}}
+}
+
+// Display the form if user is admin
+if (isset($_SESSION["admin"]) && $_SESSION["admin"] == true) {
+?>
+    <form method="post">
+        <button class="btn btn-primary" type="submit" name="toggle_admin_view"><?php if($_SESSION["admin_view"]==true){echo "Disable Admin View";}else{echo "Enable Admin View";} ?></button>
+    </form>
+<?php
+}
+?>
+
+
+
+<!-- Log out -->
 <form method="post"> 
   <p> 
-    <input name="logout" type="submit" id="logout" value="Log out"> 
+    <input class="btn btn-danger" name="logout" type="submit" id="logout" value="Log out"> 
   </p> 
 </form> 
+
 <?php }
+
+// LOGIN 
 else{
 	
 	?>

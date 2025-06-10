@@ -6,9 +6,24 @@
     <title>Songbook Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
     <!-- Custom styles -->
     <link href="styles.css" rel="stylesheet">	
+    <style>
+    /* Remove padding from container-fluid to achieve true full width */
+    .container-fluid {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+</style>
+    <?php 
+    
+    if($website=="songs"){
+        echo '<link href="songs_styles.css" rel="stylesheet">	';
+    }
+
+    ?>
 </head>
 
 <body class="d-flex flex-column min-vh-100"> <!-- Full-height flex layout -->
-    <div class="flex-grow-1"> <!-- Main content container -->
+    <div class="container-fluid"> <!-- Main content container -->

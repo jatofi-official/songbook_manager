@@ -55,9 +55,9 @@ transition: transform 0.2s;
 margin-bottom: 20px;
 }
 
-.card:hover {
+/* .card:hover {
 transform: translateY(-3px);
-}
+} */
 
 .song-card {
 height: 100%;
