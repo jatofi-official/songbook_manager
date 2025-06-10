@@ -131,7 +131,7 @@ include("php/categories.php");
         </div>
         
         <!-- Recently Added Songs -->
-        <div class="row mt-4">
+        <!-- <div class="row mt-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -202,7 +202,7 @@ include("php/categories.php");
                     </div>
                 </div>
             </div>
-        </div>
+        </div> -->
 
 
     </div>

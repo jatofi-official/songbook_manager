@@ -73,7 +73,7 @@ else{
 
         $result = edit_song($mysqli,$id,$data);
         $result2 = add_activity($mysqli,$_SESSION["user"],"Updated song","Edited '".$data["title"]."' by ".$data["artist"],$data["is_public"]);
-
+owner
 
         if($result == true){
             echo ('<div class="alert alert-success">Submitted!</div>');
