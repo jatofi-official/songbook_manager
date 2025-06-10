@@ -1,9 +1,9 @@
 <?php
 session_start();
-include 'php/db.php';
-include 'php/categories.php';   // sets $categories array
-include 'php/instruments.php';  // sets $instruments array
-include "php/functions.php";
+require_once '../db.php';
+include_once '../categories.php';   // sets $categories array
+include_once '../instruments.php';  // sets $instruments array
+include_once "../functions.php";
 
 // User must be logged in
 if (!isset($_SESSION["user"])) {
@@ -122,9 +122,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
 // Now display the form with values (old or submitted on error)
 ?>
 
-<?php include 'php/header.php'; ?>
-<?php include 'php/navigation.php'; ?>
-
 <div class="container mt-4">
     <h2><?= $editing ? "Edit Song" : "Add New Song" ?></h2>
 
@@ -229,4 +226,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     </form>
 </div>
 
-<?php include 'php/footer.php'; ?>
+<?php include_once '../footer.php'; ?>

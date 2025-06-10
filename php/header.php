@@ -27,5 +27,5 @@
     ?>
 </head>
 
-<body class="d-flex flex-column min-vh-100"> <!-- Full-height flex layout -->
-    <div class="container-fluid"> <!-- Main content container -->
+<body class="d-flex flex-column min-vh-100"> 
+    <div class="container-fluid p-0"> 
