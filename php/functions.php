@@ -219,14 +219,14 @@ function get_total_users($mysqli) {
     return $row['total'];
 }
 
-function add_activity($mysqli,$username, $type,$description){
+function add_activity($mysqli,$username, $type,$description,$public){
 	if(!$mysqli->connect_errno){
-    	$stmt = $mysqli->prepare("INSERT INTO activity_log (username, type, time, description) VALUES (?, ?, NOW(), ?)");
+    	$stmt = $mysqli->prepare("INSERT INTO activity_log (username, type, time, description, is_public) VALUES (?, ?, NOW(), ?, ?)");
 		if (!$stmt) {
         	return "Prepare failed: " . $mysqli->error;
 		}
 
-		$stmt -> bind_param("sss",$username, $type, $description);
+		$stmt -> bind_param("sssi",$username, $type, $description,$public);
 		
 
 
@@ -245,15 +245,56 @@ function add_activity($mysqli,$username, $type,$description){
 	}
 }
 
+// function get_recent_activity($mysqli, $number) {
+// 	if (!$mysqli->connect_errno){
+// 		$sql = "SELECT username, type, time, description 
+// 				FROM activity_log 
+// 				ORDER BY time DESC 
+// 				LIMIT ?";
+
+// 		$stmt = $mysqli->prepare($sql);
+// 		$stmt->bind_param("i", $number);
+// 		$stmt->execute();
+// 		$result = $stmt->get_result();
+
+// 		$activities = [];
+// 		while ($row = $result->fetch_assoc()) {
+// 			$activities[] = $row;
+// 		}
+
+// 		return $activities;
+// 	}
+// 	else{
+// 		return [];
+// 	}
+// }
+
 function get_recent_activity($mysqli, $number) {
 	if (!$mysqli->connect_errno){
+		// Base query
 		$sql = "SELECT username, type, time, description 
-				FROM activity_log 
-				ORDER BY time DESC 
-				LIMIT ?";
+				FROM activity_log ";
+
+		$params = [];
+		$types = "";
+
+		// Apply visibility rules
+		if (!isset($_SESSION["admin"]) || $_SESSION["admin"] == false) {
+			// Not an admin: show public or own private entries
+			$sql .= "WHERE is_public = 1 OR username = ? ";
+			$params[] = $_SESSION["user"];
+			$types .= "s";
+		}
+		// Append ordering and limit
+		$sql .= "ORDER BY time DESC LIMIT ?";
+		$params[] = $number;
+		$types .= "i";
 
 		$stmt = $mysqli->prepare($sql);
-		$stmt->bind_param("i", $number);
+		if ($stmt === false) return [];
+
+		// Bind parameters dynamically
+		$stmt->bind_param($types, ...$params);
 		$stmt->execute();
 		$result = $stmt->get_result();
 
@@ -268,6 +309,7 @@ function get_recent_activity($mysqli, $number) {
 		return [];
 	}
 }
+
 
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;

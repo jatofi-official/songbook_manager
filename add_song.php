@@ -42,7 +42,7 @@ else{
         
         
         $result = add_song($mysqli,$data);
-        $result2 = add_activity($mysqli,$_SESSION["user"],"Added song","Added '".$data["title"]."' by ".$data["artist"]." to the database");
+        $result2 = add_activity($mysqli,$_SESSION["user"],"Added song","Added '".$data["title"]."' by ".$data["artist"]." to the database",$data["is_public"]);
 
         if($result == true){
             echo ('<div class="alert alert-success">Submitted!</div>');
@@ -58,12 +58,12 @@ else{
     <form method="post" action="">
         <div class="mb-3">
             <label for="title" class="form-label">Title</label>
-            <input type="text" name="title" id="title" class="form-control" maxlength="30" required>
+            <input type="text" name="title" id="title" class="form-control" maxlength="60" required>
         </div>
 
         <div class="mb-3">
             <label for="artist" class="form-label">Artist</label>
-            <input type="text" name="artist" id="artist" class="form-control" maxlength="30" required>
+            <input type="text" name="artist" id="artist" class="form-control" maxlength="60" required>
         </div>
 
         <div class="mb-3">

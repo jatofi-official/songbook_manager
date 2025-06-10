@@ -72,6 +72,8 @@ else{
 
 
         $result = edit_song($mysqli,$id,$data);
+        $result2 = add_activity($mysqli,$_SESSION["user"],"Updated song","Edited '".$data["title"]."' by ".$data["artist"],$data["is_public"]);
+
 
         if($result == true){
             echo ('<div class="alert alert-success">Submitted!</div>');
@@ -88,13 +90,13 @@ else{
     <form method="post" action="">
         <div class="mb-3">
             <label for="title" class="form-label">Title</label>
-            <input type="text" name="title" id="title" class="form-control" maxlength="30" required
+            <input type="text" name="title" id="title" class="form-control" maxlength="60" required
            value="<?= htmlspecialchars($song['title'] ?? '') ?>">
         </div>
 
         <div class="mb-3">
             <label for="artist" class="form-label">Artist</label>
-            <input type="text" name="artist" id="artist" class="form-control" maxlength="30" required
+            <input type="text" name="artist" id="artist" class="form-control" maxlength="60" required
             value="<?= htmlspecialchars($song['artist'] ?? '') ?>">
 
         </div>
