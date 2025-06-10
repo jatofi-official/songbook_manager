@@ -6,6 +6,34 @@ include('php/data.php');
 $website = "songs";
 
 include('php/functions.php'); 
+?>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const songItems = document.querySelectorAll(".song-list-item");
+    const detailContainer = document.querySelector(".song-detail-container");
+
+    songItems.forEach(item => {
+        item.addEventListener("click", () => {
+            const id = item.getAttribute("data-id");
+            console.log("Clicked song with ID:", id); // Add this
+            // Highlight selected
+            songItems.forEach(el => el.classList.remove("active"));
+            item.classList.add("active");
+
+            fetch(`php/get_song.php?id=${id}`)
+                .then(res => res.text())
+                .then(html => {
+                    detailContainer.innerHTML = html;
+                })
+                .catch(err => {
+                    detailContainer.innerHTML = "<p>Error loading song details.</p>";
+                });
+        });
+    });
+});
+</script>
+<?php
+
 include("php/header.php");
 include('php/navigation.php');
 include("php/categories.php");
@@ -46,78 +74,52 @@ include("php/instruments.php");
         </div>
         
         <div class="song-list">
-            <div class="song-list-item active">
-                <div class="song-title">Shape of You</div>
-                <div class="song-artist">Ed Sheeran</div>
-                <div class="mt-2">
-                    <span class="tag">pop</span>
-                    <span class="tag">modern</span>
-                    <span class="badge instrument-badge">Guitar</span>
-                    <?php if(isset($_SESSION["admin_view"]) && $_SESSION["admin_view"]==true) {?>
-                        <span class="badge bg-success visibility-badge">Public</span>
-                    <?php }?>
-                </div>
-            </div>
-            
-            
-        </div>
+
+<?php
+$songQuery = $mysqli->query("SELECT * FROM songs ORDER BY category, title");
+while ($song = $songQuery->fetch_assoc()) {
+    echo "<div class='song-list-item' data-id='{$song['id']}'>";
+    echo "<div class='song-title'>" . htmlspecialchars($song['title']) . "</div>";
+    echo "<div class='song-artist'>" . htmlspecialchars($song['artist']) . "</div>";
+    echo "<div class='mt-2'>";
+
+    if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
+        echo "<span class='badge " . ($song['is_public'] ? 'bg-success' : 'bg-secondary') . " visibility-badge'>" . ($song['is_public'] ? "Public" : "Private") . "</span>";    
+    }
+    
+    // Only display tags if they exist and aren't empty
+    if (!empty($song['tags']) && trim($song['tags']) !== '') {
+        foreach (explode(',', $song['tags']) as $tag) {
+            $trimmedTag = trim($tag);
+            if (!empty($trimmedTag)) {
+                echo "<span class='tag'>" . htmlspecialchars($trimmedTag) . "</span> ";
+            }
+        }
+    }
+
+    // Only display instruments if they exist and aren't empty
+    if (!empty($song['instruments']) && trim($song['instruments']) !== '') {
+        foreach (explode(',', $song['instruments']) as $inst) {
+            $trimmedInst = trim($inst);
+            if (!empty($trimmedInst)) {
+                echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
+            }
+        }
+    }
+
+    echo "</div></div>";
+}
+?>
+</div>
+
     </div>
     
     <!-- Song Detail Column -->
     <div class="col-md-7 col-lg-8 p-0 song-detail-container">
-        <div class="song-header">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <h2>Shape of You</h2>
-                    <h4 class="text-muted">Ed Sheeran</h4>
-                </div>
-                <div>
-                    <button class="btn btn-outline-secondary me-2">
-                        <i class="bi bi-pencil"></i> Edit
-                    </button>
-                    <button class="btn btn-primary">
-                        <i class="bi bi-printer"></i> Print
-                    </button>
-                </div>
-            </div>
-            
-            <div class="song-meta">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-2">
-                            <strong>Category:</strong> Pop
-                        </div>
-                        <div class="mb-2">
-                            <strong>Capo:</strong>
-                            <span class="capo-display">Original: 2nd fret</span>
-                            <span class="capo-display">Alt: 7th fret</span>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-2">
-                            <strong>Instruments:</strong>
-                            <span class="badge instrument-badge">Guitar</span>
-                        </div>
-                        <div class="mb-2">
-                            <strong>Tags:</strong>
-                            <span class="tag">pop</span>
-                            <span class="tag">modern</span>
-                            <span class="tag">dance</span>
-                        </div>
-                        <div class="mb-2">
-                            <strong>Visibility:</strong>
-                            <span class="badge bg-success">Public</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="song-content">
-            <p>test</p>
-        </div>
+        <div class="p-4 text-muted">Select a song from the list to view details.</div>
     </div>
-<?php
 
+<?php
+echo "tu";
 include("php/footer.php");
 ?>
