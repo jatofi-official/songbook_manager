@@ -11,6 +11,7 @@ $website = "songs";
 
 include('php/functions.php'); 
 ?>
+
 <script>
 document.querySelector('.navbar-toggler')?.addEventListener('click', () => {
   console.log("Navbar toggler clicked");
@@ -39,7 +40,29 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+// Add new song form
+document.addEventListener("DOMContentLoaded", () => {
+    const detailContainer = document.querySelector(".song-detail-container");
+    const newSongBtn = document.getElementById("newSongBtn");
+
+    newSongBtn?.addEventListener("click", () => {
+        // Remove active class from any song
+        document.querySelectorAll(".song-list-item.active").forEach(el => el.classList.remove("active"));
+
+        fetch("php/subpage/song_form.php")
+            .then(res => res.text())
+            .then(html => {
+                detailContainer.innerHTML = html;
+                history.pushState(null, "", "?new=1");
+            })
+            .catch(err => {
+                detailContainer.innerHTML = "<p>Error loading new song form.</p>";
+            });
+    });
+});
+
 </script>
+
 <?php
 
 include("php/header.php");
@@ -48,10 +71,17 @@ include("php/categories.php");
 include("php/instruments.php");
 
 ?>
-<div class="row h-100">
+<div class="row g-0">
     <!-- Song List Column -->
-    <div class="col-md-5 col-lg-4 p-0 song-list-container">
-        <div class="search-box">
+    <div class="col-md-5 col-lg-4 song-list-container">
+        
+        <div class="search-box p-2">
+            <div class="pb-2">
+                <button class="btn btn-sm btn-success w-100" id="newSongBtn">
+                    <i class="bi bi-plus-circle me-1"></i> New Song
+                </button>
+            </div>
+
             <form id="songFilterForm" method="get">
                 <div class="input-group mb-3">
                         <input type="text" name="search" class="form-control"
@@ -181,9 +211,9 @@ if (!empty($songs)) {
     
     // Previous button (disabled if on page 1)
     if ($page > 1) {
-        echo "<a href='?page=" . ($page - 1) . "' class='btn btn-sm btn-outline-primary'>Previous</a> ";
+        echo "<a href='?page=" . ($page - 1) . "' class='btn btn-sm btn-outline-primary'><</a> ";
     } else {
-        echo "<span class='btn btn-sm btn-outline-secondary disabled'>Previous</span> ";
+        echo "<span class='btn btn-sm btn-outline-secondary disabled'><</span> ";
     }
 
     // Page numbers (e.g., "1 2 3 ... 10")
@@ -197,9 +227,9 @@ if (!empty($songs)) {
 
     // Next button (disabled if on last page)
     if ($page < $totalPages) {
-        echo "<a href='?page=" . ($page + 1) . "' class='btn btn-sm btn-outline-primary'>Next</a>";
+        echo "<a href='?page=" . ($page + 1) . "' class='btn btn-sm btn-outline-primary'>></a>";
     } else {
-        echo "<span class='btn btn-sm btn-outline-secondary disabled'>Next</span>";
+        echo "<span class='btn btn-sm btn-outline-secondary disabled'>></span>";
     }
 
     echo "</div>";
