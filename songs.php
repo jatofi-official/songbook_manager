@@ -49,17 +49,22 @@ document.addEventListener("DOMContentLoaded", () => {
         // Remove active class from any song
         document.querySelectorAll(".song-list-item.active").forEach(el => el.classList.remove("active"));
 
-        fetch("php/subpage/song_form.php")
+        // Prepare the URL with embedded=1
+        let url = "php/subpage/song_form.php?embedded=1";
+
+        fetch(url)
             .then(res => res.text())
             .then(html => {
                 detailContainer.innerHTML = html;
-                history.pushState(null, "", "?new=1");
+                // Update browser URL to indicate new song form
+                history.pushState(null, "", "?new=1&embedded=1");
             })
             .catch(err => {
                 detailContainer.innerHTML = "<p>Error loading new song form.</p>";
             });
     });
 });
+
 
 </script>
 

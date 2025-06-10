@@ -1,11 +1,18 @@
 <?php
 session_start();
 require_once '../db.php';
-include_once '../categories.php';   // sets $categories array
-include_once '../instruments.php';  // sets $instruments array
-include_once "../functions.php";
+include_once '../categories.php';
+include_once '../instruments.php';
+include_once '../functions.php';
+include_once "../data.php";
+$embedded = isset($_GET['embedded']) && $_GET['embedded'] == '1';
 
-// User must be logged in
+if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){  
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+}
+
 if (!isset($_SESSION["user"])) {
     echo "You need to be logged in!";
     exit;
@@ -19,17 +26,17 @@ $song = [
     "capo_alt" => "",
     "category" => "",
     "instruments" => [],
+    "tags" => "",
     "content" => "",
     "is_public" => 1,
 ];
 
-// Check if editing an existing song
 if (isset($_GET['id'])) {
     $id = (int)$_GET['id'];
-
-    $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ? AND (owner = ? OR ? = 1)");
     $user = $_SESSION["user"];
     $isAdmin = $_SESSION["admin"] ?? false;
+
+    $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ? AND (owner = ? OR ? = 1)");
     $stmt->bind_param("isi", $id, $user, $isAdmin);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -55,13 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     $title = osetri($_POST["title"]);
     $artist = osetri($_POST["artist"]);
     $capo = (int)$_POST["capo"];
-    $capo_alt = $_POST["capo_alt"] === "" ? null : $_POST["capo_alt"];
+    $capo_alt = $_POST["capo_alt"] === "" ? 0 : (int)$_POST["capo_alt"];
     $category = $_POST["category"];
+    $tags = trim($_POST["tags"] ?? "");
     $instruments = isset($_POST["instruments"]) ? $_POST["instruments"] : [];
     $content = osetri($_POST["content"]);
     $is_public = isset($_POST['is_public']) ? 1 : 0;
 
-    // Validate required fields (example)
     if (!$title) $errors[] = "Title is required";
     if (!$artist) $errors[] = "Artist is required";
     if (!$category) $errors[] = "Category is required";
@@ -74,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
             "capo" => $capo,
             "capo_alt" => $capo_alt,
             "category" => $category,
+            "tags" => $tags,
             "instruments" => implode(",", $instruments),
             "content" => $content,
             "is_public" => $is_public,
@@ -81,77 +89,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
         ];
 
         if ($editing) {
-            // Update existing song
-            $stmt = $mysqli->prepare("UPDATE songs SET title = ?, artist = ?, capo = ?, capo_alt = ?, category = ?, instruments = ?, content = ?, is_public = ? WHERE id = ? AND (owner = ? OR ? = 1)");
-            $stmt->bind_param(
-                "ssisissisis",
-                $data["title"], $data["artist"], $data["capo"], $data["capo_alt"],
-                $data["category"], $data["instruments"], $data["content"],
-                $data["is_public"], $id, $data["owner"], $isAdmin
-            );
-            $ok = $stmt->execute();
-            $stmt->close();
-
-            if ($ok) {
-                add_activity($mysqli, $data["owner"], "Edited song", "Edited '".$data["title"]."' by ".$data["artist"], $data["is_public"]);
+            $ok = edit_song($mysqli, $id, $data);
+            if ($ok === true) {
+                add_activity($mysqli, $data["owner"], "Edited song", "Edited '{$data["title"]}' by {$data["artist"]}", $data["is_public"]);
                 echo '<div class="alert alert-success">Song updated successfully.</div>';
             } else {
-                echo '<div class="alert alert-danger">Failed to update the song.</div>';
+                echo '<div class="alert alert-danger">'.htmlspecialchars($ok).'</div>';
             }
         } else {
-            // Insert new song
             $ok = add_song($mysqli, $data);
-            if ($ok) {
-                add_activity($mysqli, $data["owner"], "Added song", "Added '".$data["title"]."' by ".$data["artist"], $data["is_public"]);
+            if ($ok === true) {
+                add_activity($mysqli, $data["owner"], "Added song", "Added '{$data["title"]}' by {$data["artist"]}", $data["is_public"]);
                 echo '<div class="alert alert-success">Song added successfully.</div>';
             } else {
-                echo '<div class="alert alert-danger">Failed to add the song.</div>';
+                echo '<div class="alert alert-danger">'.htmlspecialchars($ok).'</div>';
             }
         }
-
-        // Reload page to clear POST data or reset $editing to false if needed
-        // header("Location: make_song.php" . ($editing ? "?id=$id" : ""));
-        // exit;
     } else {
         foreach ($errors as $error) {
             echo '<div class="alert alert-danger">'.htmlspecialchars($error).'</div>';
         }
     }
 }
-
-// Now display the form with values (old or submitted on error)
 ?>
 
 <div class="container mt-4">
     <h2><?= $editing ? "Edit Song" : "Add New Song" ?></h2>
 
-    <form method="post" action="">
+    <form method="post" action="?<?= $editing ? "id=" . (int)$id : "" ?>">
         <?php if ($editing): ?>
             <input type="hidden" name="id" value="<?= (int)$id ?>">
         <?php endif; ?>
 
         <div class="mb-3">
             <label for="title" class="form-label">Title</label>
-            <input
-                type="text" name="title" id="title" class="form-control" maxlength="60" required
-                value="<?= htmlspecialchars($_POST["title"] ?? $song["title"]) ?>"
-            >
+            <input type="text" name="title" id="title" class="form-control" maxlength="60" required value="<?= htmlspecialchars($_POST["title"] ?? $song["title"]) ?>">
         </div>
 
         <div class="mb-3">
             <label for="artist" class="form-label">Artist</label>
-            <input
-                type="text" name="artist" id="artist" class="form-control" maxlength="60" required
-                value="<?= htmlspecialchars($_POST["artist"] ?? $song["artist"]) ?>"
-            >
+            <input type="text" name="artist" id="artist" class="form-control" maxlength="60" required value="<?= htmlspecialchars($_POST["artist"] ?? $song["artist"]) ?>">
         </div>
 
         <div class="mb-3">
             <label for="capo" class="form-label">Capo</label>
             <select name="capo" id="capo" class="form-select" required>
-                <option value="0" <?= ((isset($_POST['capo']) ? $_POST['capo'] : $song['capo']) == 0) ? "selected" : "" ?>>No capo</option>
-                <?php for ($i = 1; $i <= 7; $i++): ?>
-                    <option value="<?= $i ?>" <?= ((isset($_POST['capo']) ? $_POST['capo'] : $song['capo']) == $i) ? "selected" : "" ?>><?= $i ?></option>
+                <?php for ($i = 0; $i <= 7; $i++): ?>
+                    <option value="<?= $i ?>" <?= ((isset($_POST['capo']) ? $_POST['capo'] : $song['capo']) == $i) ? "selected" : "" ?>><?= $i === 0 ? "No capo" : $i ?></option>
                 <?php endfor; ?>
             </select>
         </div>
@@ -159,8 +143,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
         <div class="mb-3">
             <label for="capo_alt" class="form-label">Capo alt</label>
             <select name="capo_alt" id="capo_alt" class="form-select">
-                <option value="" <?= ((isset($_POST['capo_alt']) ? $_POST['capo_alt'] : $song['capo_alt']) === "" ? "selected" : "") ?>>No alt</option>
-                <?php for ($i = 0; $i <= 7; $i++): ?>
+                <option value="0">No alt</option>
+                <?php for ($i = 1; $i <= 7; $i++): ?>
                     <option value="<?= $i ?>" <?= ((isset($_POST['capo_alt']) ? $_POST['capo_alt'] : $song['capo_alt']) == $i) ? "selected" : "" ?>><?= $i ?></option>
                 <?php endfor; ?>
             </select>
@@ -172,9 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
                 <?php 
                 $catSelected = $_POST["category"] ?? $song["category"];
                 foreach ($categories as $id => $label): ?>
-                    <option value="<?= htmlspecialchars($id) ?>" <?= ($catSelected == $id) ? "selected" : "" ?>>
-                        <?= htmlspecialchars($label) ?>
-                    </option>
+                    <option value="<?= htmlspecialchars($id) ?>" <?= ($catSelected == $id) ? "selected" : "" ?>><?= htmlspecialchars($label) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -183,28 +165,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
             <label class="form-label">Instruments</label>
             <div>
                 <?php
-                // Determine selected instruments from POST or existing data
                 $selectedInstruments = $_POST["instruments"] ?? $song["instruments"];
                 if (!is_array($selectedInstruments)) $selectedInstruments = [];
-
                 foreach ($instruments as $instrument): 
                     $checked = in_array($instrument['name'], $selectedInstruments, true) ? 'checked' : '';
                 ?>
                     <div class="form-check form-check-inline">
-                        <input
-                            class="form-check-input"
-                            type="checkbox"
-                            id="inst_<?= htmlspecialchars($instrument['id']) ?>"
-                            name="instruments[]"
-                            value="<?= htmlspecialchars($instrument['name']) ?>"
-                            <?= $checked ?>
-                        >
-                        <label class="form-check-label" for="inst_<?= htmlspecialchars($instrument['id']) ?>">
-                            <?= htmlspecialchars($instrument['name']) ?>
-                        </label>
+                        <input class="form-check-input" type="checkbox" id="inst_<?= htmlspecialchars($instrument['id']) ?>" name="instruments[]" value="<?= htmlspecialchars($instrument['name']) ?>" <?= $checked ?>>
+                        <label class="form-check-label" for="inst_<?= htmlspecialchars($instrument['id']) ?>"><?= htmlspecialchars($instrument['name']) ?></label>
                     </div>
                 <?php endforeach; ?>
             </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="tags" class="form-label">Tags</label>
+            <input type="text" name="tags" id="tags" class="form-control" maxlength="50" value="<?= htmlspecialchars($_POST["tags"] ?? $song["tags"] ?? "") ?>">
         </div>
 
         <div class="mb-3">
@@ -226,4 +202,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     </form>
 </div>
 
-<?php include_once '../footer.php'; ?>
+<?php if (!$embedded): ?>
+    <?php include_once '../footer.php'; ?>
+<?php endif; ?>
