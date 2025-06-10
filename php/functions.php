@@ -310,74 +310,130 @@ function get_recent_activity($mysqli, $number) {
 	}
 }
 
-function get_all_songs($mysqli, $perPage, $page) {
-    if (!$mysqli->connect_errno) {
-        // Base query for fetching songs
-        $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments
-                FROM songs ";
-
-        $params = [];
-        $types = "";
-
-        // Apply visibility rules
-        if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
-            // Not an admin: show public or own private entries
-            $sql .= "WHERE is_public = 1 OR owner = ? ";
-            $params[] = $_SESSION["user"];
-            $types .= "s";
-        }
-
-        // Append ordering
-        $sql .= "ORDER BY create_date DESC ";
-
-        // Calculate offset for pagination
-        $offset = ($page - 1) * $perPage;
-        $sql .= "LIMIT ?, ?"; // LIMIT offset, perPage
-        $params[] = $offset;
-        $params[] = $perPage;
-        $types .= "ii"; // Both offset and perPage are integers
-
-        // Prepare and execute the query
-        $stmt = $mysqli->prepare($sql);
-        if ($stmt === false) return [];
-
-        // Bind parameters dynamically
-        $stmt->bind_param($types, ...$params);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        // Fetch songs
-        $songs = [];
-        while ($row = $result->fetch_assoc()) {
-            $songs[] = $row;
-        }
-
-        // (Optional) Get total count for pagination links
-        $totalSongs = 0;
-        $countSql = "SELECT COUNT(*) AS total FROM songs ";
-        if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
-            $countSql .= "WHERE is_public = 1 OR owner = ?";
-            $countStmt = $mysqli->prepare($countSql);
-            $countStmt->bind_param("s", $_SESSION["user"]);
-        } else {
-            $countStmt = $mysqli->prepare($countSql);
-        }
-        $countStmt->execute();
-        $totalSongs = $countStmt->get_result()->fetch_assoc()['total'];
-
-        return [
-            'songs' => $songs,
-            'total' => $totalSongs,
-            'totalPages' => ceil($totalSongs / $perPage)
-        ];
-    } else {
+function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments) {
+    if ($mysqli->connect_errno) {
         return [
             'songs' => [],
             'total' => 0,
             'totalPages' => 0
         ];
     }
+
+    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date FROM songs ";
+    $conditions = [];
+    $params = [];
+    $types = "";
+
+    // Visibility rules
+    if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
+        $conditions[] = "(is_public = 1 OR owner = ?)";
+        $params[] = $_SESSION["user"] ?? ''; // fallback empty string if user not set
+        $types .= "s";
+    }
+
+    // Search query - not case sensitive
+    if (!empty($searchQuery)) {
+        $conditions[] = "title LIKE ? ";
+        $params[] = "%" . $searchQuery . "%";
+        $types .= "s";
+    }
+
+    // Category filter (category is int, so use 'i')
+    if (!empty($category) && $category !== 'all') {
+        $conditions[] = "category = ?";
+        $params[] = (int)$category;
+        $types .= "i";
+    }
+
+    // Instruments filter: array of strings
+    if (!empty($instruments) && is_array($instruments)) {
+        foreach ($instruments as $instrument) {
+            if (strlen(trim($instrument)) > 0) {
+                $conditions[] = "instruments LIKE ?";
+                $params[] = "%" . trim($instrument) . "%";
+                $types .= "s";
+            }
+        }
+    }
+
+    // Combine WHERE clause
+    if (!empty($conditions)) {
+        $sql .= "WHERE " . implode(" AND ", $conditions) . " ";
+    }
+
+    // Ordering and pagination
+    $sql .= "ORDER BY create_date DESC LIMIT ?, ?";
+    $offset = ($page - 1) * $perPage;
+    $params[] = $offset;
+    $params[] = $perPage;
+    $types .= "ii";
+
+    $stmt = $mysqli->prepare($sql);
+    if ($stmt === false) {
+        // Prepare failed
+        return [
+            'songs' => [],
+            'total' => 0,
+            'totalPages' => 0
+        ];
+    }
+
+    // Bind params only if $types is non-empty
+    if ($types !== '') {
+        $stmt->bind_param($types, ...$params);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $songs = [];
+    while ($row = $result->fetch_assoc()) {
+        $songs[] = $row;
+    }
+    $stmt->close();
+
+    // Count total for pagination - reuse conditions and params except LIMIT
+    $countSql = "SELECT COUNT(*) AS total FROM songs ";
+    if (!empty($conditions)) {
+        $countSql .= "WHERE " . implode(" AND ", $conditions);
+    }
+
+    $countStmt = $mysqli->prepare($countSql);
+    if ($countStmt === false) {
+        return [
+            'songs' => $songs,
+            'total' => 0,
+            'totalPages' => 0
+        ];
+    }
+
+    // Remove last two params (LIMIT offset and limit) for count query
+    $countParams = $params;
+    $countTypes = $types;
+
+    // Remove last two 'i's for limit
+    $countTypes = substr($countTypes, 0, -2);
+    array_splice($countParams, -2);
+
+    if ($countTypes !== '') {
+        $countStmt->bind_param($countTypes, ...$countParams);
+    }
+
+    $countStmt->execute();
+    $countResult = $countStmt->get_result();
+    $totalSongs = $countResult->fetch_assoc()['total'] ?? 0;
+
+    $countStmt->close();
+
+    return [
+        'songs' => $songs,
+        'total' => (int)$totalSongs,
+        'totalPages' => $perPage > 0 ? (int)ceil($totalSongs / $perPage) : 1
+    ];
 }
+
+
+
 
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;

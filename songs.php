@@ -1,5 +1,9 @@
 <?php
 session_start();
+if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){  
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+}
 include('php/db.php');          
 include('php/data.php');    
 
@@ -48,35 +52,61 @@ include("php/instruments.php");
     <!-- Song List Column -->
     <div class="col-md-5 col-lg-4 p-0 song-list-container">
         <div class="search-box">
-            <div class="input-group mb-3">
-                <input type="text" class="form-control" placeholder="Search songs...">
-                <button class="btn btn-outline-secondary" type="button">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-            <div class="d-flex">
-                <select class="form-select form-select-sm me-2">
-
-                    <option value = "all">All Categories</option>
+            <form id="songFilterForm" method="get">
+                <div class="input-group mb-3">
+                        <input type="text" name="search" class="form-control"
+                            placeholder="Search songs..."
+                            value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">                    
+                        <button class="btn btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+                <div class="d-flex mb-2">
+                <!-- Category filter -->
+                <select name="category" class="form-select form-select-sm me-2">
+                    <option value="">All Categories</option>
                     <?php 
                         $index = 1;
                         foreach($categories as $category){
-                            echo "<option value='$index'>$category</option>";
-                            $index +=1;
+                            $selected = (isset($_GET['category']) && $_GET['category'] == $index) ? 'selected' : '';
+                            echo "<option value='$index' $selected>$category</option>";
+                            $index++;
                         }
                     ?>
                 </select>
-                <select class="form-select form-select-sm">
-                    <option value="0">All Instruments</option>
+
+                <!-- Instruments filter (single select) -->
+                <select name="instruments" class="form-select form-select-sm">
+                    <option value="">All Instruments</option>
                     <?php 
+                        $selectedInstrument = $_GET['instruments'] ?? '';
                         foreach($instruments as $instrument){
-                            echo "<option value='".$instrument["id"]."'>".$instrument["name"]."</option>";
+                            $name = $instrument["name"];
+                            $selected = ($selectedInstrument === $name) ? 'selected' : '';
+                            echo "<option value='$name' $selected>$name</option>";
                         }
                     ?>
                 </select>
             </div>
+
+            <input type="hidden" name="page" value="1">
+            </form>
         </div>
-        
+
+        <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const form = document.getElementById("songFilterForm");
+
+            form.querySelectorAll("select").forEach(sel => {
+                sel.addEventListener("change", () => {
+                    form.querySelector("input[name='page']").value = 1;
+                    form.submit();
+                });
+            });
+        });
+        </script>
+
+
         <div class="song-list">
 
 <?php
@@ -84,10 +114,30 @@ include("php/instruments.php");
 $perPage = 10; // Songs per page
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1; // Current page (default: 1)
 
-// Fetch paginated songs
-$songData = get_all_songs($mysqli, $perPage, $page);
+$search      = $_GET['search']      ?? '';
+$category    = $_GET['category']    ?? '';
+
+$instrumentsRaw = $_GET['instruments'] ?? '0';
+
+// Convert to array for compatibility with function
+if (is_array($instrumentsRaw)) {
+    $selectedInstruments = $instrumentsRaw;
+} else {
+    // if "0" or empty => no filter
+    if ($instrumentsRaw === '0' || $instrumentsRaw === '') {
+        $selectedInstruments = [];
+    } else {
+        $selectedInstruments = [$instrumentsRaw];
+    }
+}
+
+
+
+$songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments);
+
 $songs = $songData['songs'];
-$totalPages = $songData['totalPages'];
+$totalPages = $songData["totalPages"];
+
 
 // Display songs
 if (!empty($songs)) {
