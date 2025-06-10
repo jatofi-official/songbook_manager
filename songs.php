@@ -9,6 +9,7 @@ include('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 include("php/categories.php");
+include("php/instruments.php");
 
 ?>
 <div class="row h-100">
@@ -23,18 +24,23 @@ include("php/categories.php");
             </div>
             <div class="d-flex">
                 <select class="form-select form-select-sm me-2">
-                    <option>All Categories</option>
-                    <option>Rock</option>
-                    <option>Pop</option>
-                    <option>Jazz</option>
-                    <option>Classical</option>
+
+                    <option value = "all">All Categories</option>
+                    <?php 
+                        $index = 1;
+                        foreach($categories as $category){
+                            echo "<option value='$index'>$category</option>";
+                            $index +=1;
+                        }
+                    ?>
                 </select>
                 <select class="form-select form-select-sm">
-                    <option>All Instruments</option>
-                    <option>Guitar</option>
-                    <option>Piano</option>
-                    <option>Bass</option>
-                    <option>Drums</option>
+                    <option value="0">All Instruments</option>
+                    <?php 
+                        foreach($instruments as $instrument){
+                            echo "<option value='".$instrument["id"]."'>".$instrument["name"]."</option>";
+                        }
+                    ?>
                 </select>
             </div>
         </div>

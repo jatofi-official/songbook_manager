@@ -33,3 +33,4 @@ if (isset($_SESSION["admin"]) && $_SESSION["admin"] == 1) {
 if (isset($_SESSION["name"]) && !empty($_SESSION["name"])) {
     $categories['user_me'] = $_SESSION["name"];
 }
+?>
