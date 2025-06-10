@@ -23,40 +23,35 @@ if (isset($_GET['id'])) {
                 </div>
                 <div>
 
-                <?php
-                $canEditDelete = (($_SESSION["admin_view"] ?? false) === true) || ($song['owner'] === ($_SESSION["user"] ?? ''));
-                ?>
+                    <?php
+                    $canEditDelete = (($_SESSION["admin_view"] ?? false) === true) || ($song['owner'] === ($_SESSION["user"] ?? ''));
+                    ?>
 
-                <!-- Edit Button -->
-                <div class="d-flex gap-2">
-                    <!-- Edit Button -->
-                    <form method="GET" action="edit_song_page.php" class="d-inline">
-                        <input type="hidden" name="id" value="<?= $id ?>">
-                        <button type="submit" 
-                                class="btn btn-outline-secondary"
-                                <?= !$canEditDelete ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '' ?>>
-                            Edit
-                        </button>
-                    </form>
+                    <div class="d-flex gap-2">
+                        <!-- Edit Button -->
+                        <form method="GET" action="edit_song_page.php" class="d-inline">
+                            <input type="hidden" name="id" value="<?= $id ?>">
+                            <button type="submit" 
+                                    class="btn btn-secondary"
+                                    <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
+                                Edit
+                            </button>
+                        </form>
 
-                <!-- Delete Button -->
-                <form method="POST" action="php/subpage/delete_song.php"
-                    onsubmit="return confirm('Are you sure you want to delete this song?');"
-                    class="d-inline">
-                    <!-- This is the important part: the ID of the song to delete -->
-                    <input type="hidden" name="id" value="<?= $id ?>">
+                        <!-- Delete Button -->
+                        <form method="POST" action="php/subpage/delete_song.php"
+                            onsubmit="return confirm('Are you sure you want to delete this song?');"
+                            class="d-inline">
+                            <input type="hidden" name="id" value="<?= $id ?>">
 
-                    <!-- This keeps your search/category/instrument filters after delete -->
-                    <input type="hidden" name="redirect_params" value="<?= htmlspecialchars(http_build_query(array_diff_key($_GET, ['id' => '']))) ?>">
+                            <input type="hidden" name="redirect_params" value="<?= htmlspecialchars(http_build_query(array_diff_key($_GET, ['id' => '']))) ?>">
 
-                    <button type="submit" class="btn btn-outline-danger">
-                        Delete
-                    </button>
-                </form>
+                            <button type="submit" class="btn btn-danger" <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
+                                Delete
+                            </button>
+                        </form>
 
-
-                </div>
-
+                    </div>
 
                 </div>
             </div>
