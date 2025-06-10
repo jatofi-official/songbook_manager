@@ -279,7 +279,7 @@ function get_recent_activity($mysqli, $number) {
 		$types = "";
 
 		// Apply visibility rules
-		if (!isset($_SESSION["admin"]) || $_SESSION["admin"] == false) {
+		if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
 			// Not an admin: show public or own private entries
 			$sql .= "WHERE is_public = 1 OR username = ? ";
 			$params[] = $_SESSION["user"];
@@ -310,6 +310,74 @@ function get_recent_activity($mysqli, $number) {
 	}
 }
 
+function get_all_songs($mysqli, $perPage, $page) {
+    if (!$mysqli->connect_errno) {
+        // Base query for fetching songs
+        $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments
+                FROM songs ";
+
+        $params = [];
+        $types = "";
+
+        // Apply visibility rules
+        if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
+            // Not an admin: show public or own private entries
+            $sql .= "WHERE is_public = 1 OR owner = ? ";
+            $params[] = $_SESSION["user"];
+            $types .= "s";
+        }
+
+        // Append ordering
+        $sql .= "ORDER BY create_date DESC ";
+
+        // Calculate offset for pagination
+        $offset = ($page - 1) * $perPage;
+        $sql .= "LIMIT ?, ?"; // LIMIT offset, perPage
+        $params[] = $offset;
+        $params[] = $perPage;
+        $types .= "ii"; // Both offset and perPage are integers
+
+        // Prepare and execute the query
+        $stmt = $mysqli->prepare($sql);
+        if ($stmt === false) return [];
+
+        // Bind parameters dynamically
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        // Fetch songs
+        $songs = [];
+        while ($row = $result->fetch_assoc()) {
+            $songs[] = $row;
+        }
+
+        // (Optional) Get total count for pagination links
+        $totalSongs = 0;
+        $countSql = "SELECT COUNT(*) AS total FROM songs ";
+        if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
+            $countSql .= "WHERE is_public = 1 OR owner = ?";
+            $countStmt = $mysqli->prepare($countSql);
+            $countStmt->bind_param("s", $_SESSION["user"]);
+        } else {
+            $countStmt = $mysqli->prepare($countSql);
+        }
+        $countStmt->execute();
+        $totalSongs = $countStmt->get_result()->fetch_assoc()['total'];
+
+        return [
+            'songs' => $songs,
+            'total' => $totalSongs,
+            'totalPages' => ceil($totalSongs / $perPage)
+        ];
+    } else {
+        return [
+            'songs' => [],
+            'total' => 0,
+            'totalPages' => 0
+        ];
+    }
+}
 
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;

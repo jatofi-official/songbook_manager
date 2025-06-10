@@ -4,8 +4,8 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
 }
-include('db.php');
-include('categories.php');
+include_once('../db.php');
+include_once('../categories.php');
 
 if (isset($_GET['id'])) {
     $id = intval($_GET['id']);
@@ -25,13 +25,15 @@ if (isset($_GET['id'])) {
                     <h4 class="text-muted"><?= htmlspecialchars($song['artist']) ?></h4>
                 </div>
                 <div>
-                    <!-- <button class="btn btn-outline-secondary me-2"><i class="bi bi-pencil"> </i> Edit</button> -->
-                    <form method="POST" action="">
-                        <button type="submit" name="edit_redirect" class="btn btn-outline-secondary me-2">
-                            <i class="bi bi-pencil"></i> Edit
-                        </button>
-                    </form>
-                    <!-- <button class="btn btn-primary"><i class="bi bi-printer"></i> Print</button> -->
+                    <!-- Current solution, is not optimal yet -->
+                <?php if(isset($_SESSION["admin"])) ?>
+                <form method="GET" action="edit_song_page.php">
+
+                    <input type="hidden" name="id" value="<?= $id ?>">
+
+                    <button type="submit" class="btn btn-outline-secondary me-2">Edit</button>
+
+                </form>
                 </div>
             </div>
             <div class="song-meta">

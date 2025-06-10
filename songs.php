@@ -8,6 +8,11 @@ $website = "songs";
 include('php/functions.php'); 
 ?>
 <script>
+document.querySelector('.navbar-toggler')?.addEventListener('click', () => {
+  console.log("Navbar toggler clicked");
+});
+</script>
+<script>
 document.addEventListener("DOMContentLoaded", () => {
     const songItems = document.querySelectorAll(".song-list-item");
     const detailContainer = document.querySelector(".song-detail-container");
@@ -15,12 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
     songItems.forEach(item => {
         item.addEventListener("click", () => {
             const id = item.getAttribute("data-id");
-            console.log("Clicked song with ID:", id); // Add this
             // Highlight selected
             songItems.forEach(el => el.classList.remove("active"));
             item.classList.add("active");
 
-            fetch(`php/get_song.php?id=${id}`)
+            fetch(`php/subpage/get_song.php?id=${id}`)
                 .then(res => res.text())
                 .then(html => {
                     detailContainer.innerHTML = html;
@@ -76,38 +80,82 @@ include("php/instruments.php");
         <div class="song-list">
 
 <?php
-$songQuery = $mysqli->query("SELECT * FROM songs ORDER BY category, title");
-while ($song = $songQuery->fetch_assoc()) {
-    echo "<div class='song-list-item' data-id='{$song['id']}'>";
-    echo "<div class='song-title'>" . htmlspecialchars($song['title']) . "</div>";
-    echo "<div class='song-artist'>" . htmlspecialchars($song['artist']) . "</div>";
-    echo "<div class='mt-2'>";
+// Pagination setup
+$perPage = 10; // Songs per page
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1; // Current page (default: 1)
 
-    if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
-        echo "<span class='badge " . ($song['is_public'] ? 'bg-success' : 'bg-secondary') . " visibility-badge'>" . ($song['is_public'] ? "Public" : "Private") . "</span>";    
+// Fetch paginated songs
+$songData = get_all_songs($mysqli, $perPage, $page);
+$songs = $songData['songs'];
+$totalPages = $songData['totalPages'];
+
+// Display songs
+if (!empty($songs)) {
+    foreach ($songs as $song) {
+        echo "<div class='song-list-item' data-id='{$song['id']}'>";
+        echo "<div class='song-title'>" . htmlspecialchars($song['title']) . "</div>";
+        echo "<div class='song-artist'>" . htmlspecialchars($song['artist']) . "</div>";
+        echo "<div class='mt-2'>";
+
+        // Admin-only: Visibility badge
+        if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
+            echo "<span class='badge " . ($song['is_public'] ? 'bg-success' : 'bg-secondary') . " visibility-badge'>" 
+                . ($song['is_public'] ? "Public" : "Private") . "</span>";    
+        }
+
+        // Tags (if any)
+        if (!empty($song['tags']) && trim($song['tags']) !== '') {
+            foreach (explode(',', $song['tags']) as $tag) {
+                $trimmedTag = trim($tag);
+                if (!empty($trimmedTag)) {
+                    echo "<span class='tag'>" . htmlspecialchars($trimmedTag) . "</span> ";
+                }
+            }
+        }
+
+        // Instruments (if any)
+        if (!empty($song['instruments']) && trim($song['instruments']) !== '') {
+            foreach (explode(',', $song['instruments']) as $inst) {
+                $trimmedInst = trim($inst);
+                if (!empty($trimmedInst)) {
+                    echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
+                }
+            }
+        }
+
+        echo "</div></div>";
     }
+
+    // --- Pagination Controls ---
+    echo "<div class='pagination mt-4'>";
     
-    // Only display tags if they exist and aren't empty
-    if (!empty($song['tags']) && trim($song['tags']) !== '') {
-        foreach (explode(',', $song['tags']) as $tag) {
-            $trimmedTag = trim($tag);
-            if (!empty($trimmedTag)) {
-                echo "<span class='tag'>" . htmlspecialchars($trimmedTag) . "</span> ";
-            }
+    // Previous button (disabled if on page 1)
+    if ($page > 1) {
+        echo "<a href='?page=" . ($page - 1) . "' class='btn btn-sm btn-outline-primary'>Previous</a> ";
+    } else {
+        echo "<span class='btn btn-sm btn-outline-secondary disabled'>Previous</span> ";
+    }
+
+    // Page numbers (e.g., "1 2 3 ... 10")
+    for ($i = 1; $i <= $totalPages; $i++) {
+        if ($i == $page) {
+            echo "<span class='btn btn-sm btn-primary active'>$i</span> ";
+        } else {
+            echo "<a href='?page=$i' class='btn btn-sm btn-outline-primary'>$i</a> ";
         }
     }
 
-    // Only display instruments if they exist and aren't empty
-    if (!empty($song['instruments']) && trim($song['instruments']) !== '') {
-        foreach (explode(',', $song['instruments']) as $inst) {
-            $trimmedInst = trim($inst);
-            if (!empty($trimmedInst)) {
-                echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
-            }
-        }
+    // Next button (disabled if on last page)
+    if ($page < $totalPages) {
+        echo "<a href='?page=" . ($page + 1) . "' class='btn btn-sm btn-outline-primary'>Next</a>";
+    } else {
+        echo "<span class='btn btn-sm btn-outline-secondary disabled'>Next</span>";
     }
 
-    echo "</div></div>";
+    echo "</div>";
+
+} else {
+    echo "<p>No songs found.</p>";
 }
 ?>
 </div>
