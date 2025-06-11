@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){  
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
@@ -34,14 +36,16 @@ if (isset($_GET['id'])) {
 
                     <div class="d-flex gap-2">
                         <!-- Edit Button -->
-                        <form method="GET" action="edit_song_page.php" class="d-inline">
-                            <input type="hidden" name="id" value="<?= $id ?>">
+                        <form method="GET" action="song.php" class="d-inline">
+                            <input type="hidden" name="id" value="<?= (int)$id ?>">
+                            <input type="hidden" name="edit" value="1">
                             <button type="submit" 
                                     class="btn btn-secondary"
                                     <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
                                 Edit
                             </button>
                         </form>
+
 
                         <!-- Delete Button -->
                         <form method="POST" action="php/subpage/delete_song.php"

@@ -9,7 +9,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f5f7fb;
     height: 100vh;
-    overflow: hidden;
+    overflow: auto;
 }
 
 /* .song-list{
@@ -120,4 +120,7 @@ body {
     padding: 20px;
     /* border-radius: 10px; */
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+#content {
+    font-family: monospace;
 }

@@ -15,12 +15,6 @@ include('php/functions.php');
 ?>
 
 <script>
-document.querySelector('.navbar-toggler')?.addEventListener('click', () => {
-  console.log("Navbar toggler clicked");
-});
-</script>
-
-<script>
 
 document.addEventListener("DOMContentLoaded", () => {
     const songItems = document.querySelectorAll(".song-list-item");

@@ -9,6 +9,9 @@ if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
 
 include('php/db.php');
 include('php/data.php');
+
+$website = "songs";
+
 include('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
@@ -113,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                     $successMessage = "Song updated successfully.";
                     // reload for display
-                    $song = get_song_by_id($mysqli, $id);
+                    $song = get_song($mysqli, $id);
                     $song['instruments'] = explode(',', $song['instruments']);
                 } else {
                     $errors[] = $ok;
@@ -166,28 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Helper to fetch song by id
-function get_song_by_id($mysqli, $id) {
-    $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $song = $res->fetch_assoc();
-    $stmt->close();
-    return $song;
-}
 ?>
-
-<style>
-    /* Monospace for displayed content */
-    pre.song-content {
-        font-family: monospace;
-        background-color: #f8f9fa;
-        padding: 10px;
-        border-radius: 4px;
-        white-space: pre-wrap;
-    }
-</style>
 
 <div class="container mt-4">
 
@@ -306,28 +288,28 @@ function get_song_by_id($mysqli, $id) {
         </form>
 
     <?php else: ?>
+        <a href="songs.php" class="btn btn-outline-primary mb-3">
+    ← Back to All Songs
+</a>
+    <div id="song-display">
+        <p>Loading song...</p>
+    </div>
 
-        <h2><?= htmlspecialchars($song["title"]) ?></h2>
-        <p><strong>Artist:</strong> <?= htmlspecialchars($song["artist"]) ?></p>
-        <p><strong>Category:</strong> <?= htmlspecialchars($categories[$song["category"]] ?? "") ?></p>
-        <p><strong>Capo:</strong>
-            <?= $song["capo"] == 0 ? "No capo" : $song["capo"] ?>
-            <?= $song["capo_alt"] ? "(alt: {$song['capo_alt']})" : "" ?>
-        </p>
-        <p><strong>Instruments:</strong>
-            <?= htmlspecialchars(implode(", ", $song["instruments"])) ?>
-        </p>
-        <p><strong>Tags:</strong> <?= htmlspecialchars($song["tags"]) ?></p>
-        <hr>
-        <pre class="song-content"><?= htmlspecialchars($song["content"]) ?></pre>
-
-        <?php if (($song["owner"] ?? 0) == $userId || $isAdmin): ?>
-            <a href="song.php?id=<?= (int)$song['id'] ?>&edit=1" class="btn btn-secondary mt-3">
-                Edit Song
-            </a>
-        <?php endif; ?>
-
-    <?php endif; ?>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const id = <?= (int)$song['id'] ?>;
+        fetch("php/subpage/get_song.php?id=" + id)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById("song-display").innerHTML = html;
+            })
+            .catch(err => {
+                document.getElementById("song-display").innerHTML = "<p>Error loading song.</p>";
+                console.error(err);
+            });
+    });
+    </script>
+<?php endif; ?>
 
 </div>
 
