@@ -14,122 +14,118 @@ include("php/categories.php");
 // error_reporting(E_ALL);
 
 ?>
-    <!-- Dashboard Header -->
+   <!-- Dashboard Header -->
     <div class="dashboard-header">
-        <div class="container">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0">Dashboard</h1>
-                    <p class="text-muted mb-0">Manage your songs and songbooks</p>
-                </div>
-                <div class="d-flex">
-                    <div class="input-group me-2" style="width: 300px;">
-                        <input type="text" class="form-control" placeholder="Search songs...">
-                        <button class="btn btn-primary" type="button">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </div>
-                    <a class="btn btn-primary" href="song.php?new=1">
-                        <i class="bi bi-plus-lg"></i> New Song
-                    </a>
-
-                </div>
-            </div>
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1 class="h3 mb-0">Dashboard</h1>
+            <p class="text-muted mb-0">Manage your songs and songbooks</p>
         </div>
-        
+        <div class="d-flex flex-wrap gap-2 align-items-center w-100 w-md-auto">
+            <div class="input-group flex-grow-1 flex-md-grow-0" style="min-width: 250px; max-width: 300px;">
+            <input type="text" class="form-control" placeholder="Search songs...">
+            <button class="btn btn-primary" type="button">
+                <i class="bi bi-search"></i>
+            </button>
+            </div>
+            <a class="btn btn-primary flex-shrink-0" href="song.php?new=1">
+            <i class="bi bi-plus-lg"></i> New Song
+            </a>
+        </div>
+        </div>
+    </div>
     </div>
 
     <!-- Main Part -->
     <div class="container">
-        <!-- Stats Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="number"><?php echo (get_number_of_songs($mysqli)); ?></div>
-                    <div class="label">Total Songs</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="number">0</div>
-                    <div class="label">Songbooks</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="number"><?php echo get_new_songs_this_week($mysqli); ?></div>
-                    <div class="label">New This Week</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="number"><?php echo get_total_users($mysqli);?></div>
-                    <div class="label">Total users</div>
-                </div>
-            </div>
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-6 col-md-3 mb-3 mb-md-0">
+        <div class="stat-card p-3">
+            <div class="number"><?php echo (get_number_of_songs($mysqli)); ?></div>
+            <div class="label">Total Songs</div>
+        </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3 mb-md-0">
+        <div class="stat-card p-3">
+            <div class="number"><?php echo get_new_songs_this_week($mysqli); ?></div>
+            <div class="label">New This Week</div>
+        </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3 mb-md-0">
+        <div class="stat-card p-3">
+            <div class="number">1</div>
+            <div class="label">Songbooks</div>
+        </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="row">
-            <!-- Left Column -->
-            <div class="col-md-8">
-                <!-- Recent Activity -->
-                <div class="card mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">Recent Activity</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="list-group">
+        <div class="col-6 col-md-3">
+        <div class="stat-card p-3">
+            <div class="number"><?php echo get_total_users($mysqli);?></div>
+            <div class="label">Total users</div>
+        </div>
+        </div>
+    </div>
 
-                            <?php
-                            $activities = get_recent_activity($mysqli, 5);
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-12 col-md-8 mb-4 mb-md-0">
+        <!-- Recent Activity -->
+        <div class="card h-100">
+            <div class="card-header bg-white">
+            <h5 class="mb-0">Recent Activity</h5>
+            </div>
+            <div class="card-body p-3 p-md-4">
+            <div class="list-group">
 
-                            foreach ($activities as $activity) {
-                                $timeAgo = time_elapsed_string($activity['time']);
-                                ?>
-                                <div class="list-group-item border-0">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h6 class="mb-1"><?php echo htmlspecialchars($activity['type']); ?></h6>
-                                        <small><?php echo $timeAgo; ?></small>
-                                    </div>
-                                    <p class="mb-1"><?php echo htmlspecialchars($activity['description']); ?></p>
-                                </div>
-                                <?php
-                            }
-                            ?>
+                <?php
+                $activities = get_recent_activity($mysqli, 5);
 
+                foreach ($activities as $activity) {
+                    $timeAgo = time_elapsed_string($activity['time']);
+                    ?>
+                    <div class="list-group-item border-0 px-0 py-2">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1"><?php echo htmlspecialchars($activity['type']); ?></h6>
+                            <small><?php echo $timeAgo; ?></small>
                         </div>
+                        <p class="mb-1 small"><?php echo htmlspecialchars($activity['description']); ?></p>
                     </div>
-                </div>
+                    <?php
+                }
+                ?>
+
             </div>
-            
-            <!-- Right Column -->
-            <div class="col-md-4">
-                <!-- Quick Actions -->
-                <div class="card mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">Quick Actions</h5>
-                    </div>
-                    <div class="card-body">
-                        <button class="btn btn-outline-primary w-100 mb-3">
-                            <i class="bi bi-music-note-list"></i> Manage Songs
-                        </button>
-                        <button class="btn btn-outline-primary w-100 mb-3">
-                            <i class="bi bi-journal-plus"></i> Create Songbook
-                        </button>
-                        <button class="btn btn-outline-primary w-100 mb-3">
-                            <i class="bi bi-file-earmark-pdf"></i> Export Songbook
-                        </button>
-                        <button class="btn btn-outline-primary w-100">
-                            <i class="bi bi-cloud-arrow-up"></i> Import Songs
-                        </button>
-                    </div>
-                </div>
-                
-                
             </div>
         </div>
-        
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-12 col-md-4">
+        <!-- Quick Actions -->
+        <div class="card h-100">
+            <div class="card-header bg-white">
+            <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body d-grid gap-3 p-3 p-md-4">
+            <button class="btn btn-outline-primary w-100">
+                <i class="bi bi-music-note-list"></i> Manage Songs
+            </button>
+            <button class="btn btn-outline-primary w-100">
+                <i class="bi bi-journal-plus"></i> Create Songbook
+            </button>
+            <button class="btn btn-outline-primary w-100">
+                <i class="bi bi-file-earmark-pdf"></i> Export Songbook
+            </button>
+            <button class="btn btn-outline-primary w-100">
+                <i class="bi bi-cloud-arrow-up"></i> Import Songs
+            </button>
+            </div>
+        </div>
+        </div>
+    </div>
         <!-- Recently Added Songs -->
         <!-- <div class="row mt-4">
             <div class="col-12">

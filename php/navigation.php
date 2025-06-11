@@ -16,9 +16,9 @@
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="songs") echo "active"?>" href="songs.php">Songs</a>
                 </li>
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a class="nav-link  <?php if($website=="songbooks") echo "active"?>" href="#">Songbooks</a>
-                </li>
+                </li> -->
                 <li class="nav-item">
                     <a href="user_settings.php" class="nav-link <?php if($website=="user") echo "active"?>">
                         <?php echo isset($_SESSION["name"]) ? $_SESSION["name"] : "Log in"; ?>

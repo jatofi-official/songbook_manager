@@ -1,11 +1,11 @@
 <?php
 session_start();
-if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
+// if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
     error_reporting(E_ALL);
-}
+// }
 
 include('php/db.php');
 include('php/data.php');
@@ -18,7 +18,7 @@ include('php/navigation.php');
 include("php/categories.php");
 include("php/instruments.php");
 
-$userId = $_SESSION["user"];
+$userId = $_SESSION["user"] ?? null;  // null if not logged in
 $isAdmin = $_SESSION["admin_view"] ?? false;
 
 $errors = [];
@@ -38,14 +38,19 @@ $song = [
 ];
 
 // Determine mode:
-$addingNew = isset($_GET['new']) && $_GET['new'] == 1;
-$id        = isset($_GET['id'])   ? (int)$_GET['id'] : null;
-$editMode  = isset($_GET['edit']) && $_GET['edit'] == 1;
+$addingNew = isset($_GET['new']) && $_GET['new'] == 1 && $userId !== null;
+$id        = isset($_GET['id']) ? (int)$_GET['id'] : null;
+$editMode  = isset($_GET['edit']) && $_GET['edit'] == 1 && $userId !== null;
 $editing   = false;
+
 
 // POST submission handling
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Collect and sanitize input
+    if ($userId === null) {
+        echo '<div class="alert alert-danger">You must be logged in to submit changes.</div>';
+        include("php/footer.php");
+        exit;
+    }    // Collect and sanitize input
     $id        = isset($_POST['id']) ? (int)$_POST['id'] : null;
     $title     = trim($_POST["title"] ?? "");
     $artist    = trim($_POST["artist"] ?? "");
@@ -144,18 +149,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } else {
     // GET: decide if adding or viewing/editing
     if ($addingNew) {
+        // Only allow adding if logged in
+        if ($userId === null) {
+            echo '<div class="alert alert-danger">You must be logged in to add a new song.</div>';
+            include("php/footer.php");
+            exit;
+        }
         $editing = true;
     } elseif ($id) {
         $stmt = $mysqli->prepare(
             "SELECT * FROM songs WHERE id = ? AND (is_public = 1 OR owner = ? OR ? = 1)"
         );
-        $stmt->bind_param("iii", $id, $userId, $isAdmin);
+        $ownerId = $userId ?? 0;
+        $isAdminInt = $isAdmin ? 1 : 0;
+        $stmt->bind_param("iii", $id, $ownerId, $isAdminInt);
         $stmt->execute();
         $res = $stmt->get_result();
         if ($res && $res->num_rows === 1) {
             $song = $res->fetch_assoc();
             $song['instruments'] = explode(',', $song['instruments']);
-            $editing = $editMode;
+            // Only allow editing if logged in AND edit mode requested
+            $editing = ($editMode && $userId !== null);
         } else {
             echo '<div class="alert alert-danger">Song not found or no permission.</div>';
             include("php/footer.php");
@@ -163,10 +177,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $stmt->close();
     } else {
-        echo '<div class="alert alert-danger">No song specified.</div>';
+        if ($userId === null){
+            echo '<div class="alert alert-danger">You must be logged in to submit changes.</div>';
+        }
+        else{
+            echo '<div class="alert alert-danger">No song specified.</div>';
+        
+        }
         include("php/footer.php");
         exit;
     }
+
 }
 
 ?>
@@ -287,10 +308,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </button>
         </form>
 
-    <?php else: ?>
-        <a href="songs.php" class="btn btn-outline-primary mb-3">
-    ← Back to All Songs
-</a>
+<?php else: ?>
+
+    <a href="songs.php" class="btn btn-outline-primary mb-3">
+        ← Back to All Songs
+    </a>
     <div id="song-display">
         <p>Loading song...</p>
     </div>
@@ -310,6 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     });
     </script>
 <?php endif; ?>
+
 
 </div>
 
