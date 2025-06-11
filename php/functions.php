@@ -103,35 +103,41 @@ function get_song($mysqli, $id){
 	}
 }
 
-function add_song($mysqli,$data){
-	if(!$mysqli->connect_errno){
-    	$stmt = $mysqli->prepare("INSERT INTO songs (category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date, tags, instruments, content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?)");
-		if (!$stmt) {
-        	return "Prepare failed: " . $mysqli->error;
-		}
-		
-		$stmt -> bind_param("issiisisss",$data["category"],$data["title"],$data["artist"],$data["capo"],$data["capo_alt"],$data["owner"],$data["is_public"],$data["tags"],$data["instruments"],$data["content"]);
-		
+function add_song($mysqli, $data){
+    if (!$mysqli->connect_errno) {
+        $stmt = $mysqli->prepare("INSERT INTO songs (category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date, tags, instruments, content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?)");
+        if (!$stmt) {
+            return "Prepare failed: " . $mysqli->error;
+        }
 
+        $stmt->bind_param(
+            "issiisisss",
+            $data["category"],
+            $data["title"],
+            $data["artist"],
+            $data["capo"],
+            $data["capo_alt"],
+            $data["owner"],
+            $data["is_public"],
+            $data["tags"],
+            $data["instruments"],
+            $data["content"]
+        );
 
-		// Execute the statement
-		if ($stmt->execute()) {
-			return true;
-		} 
-		else {
-			return  "Error: " . $stmt->error;
-		}
-
-		// Close the statement
-		$stmt->close();
-
-
-	}
-
-	else{
-		return "Error connecting";
-	}
+        if ($stmt->execute()) {
+            $insertedId = $stmt->insert_id;  // get the insert id here
+            $stmt->close();
+            return $insertedId;  // return the inserted ID instead of true
+        } else {
+            $error = "Error: " . $stmt->error;
+            $stmt->close();
+            return $error;
+        }
+    } else {
+        return "Error connecting";
+    }
 }
+
 
 function edit_song($mysqli, $id, $data) {
     if (!$mysqli->connect_errno) {
@@ -244,30 +250,6 @@ function add_activity($mysqli,$username, $type,$description,$public){
 
 	}
 }
-
-// function get_recent_activity($mysqli, $number) {
-// 	if (!$mysqli->connect_errno){
-// 		$sql = "SELECT username, type, time, description 
-// 				FROM activity_log 
-// 				ORDER BY time DESC 
-// 				LIMIT ?";
-
-// 		$stmt = $mysqli->prepare($sql);
-// 		$stmt->bind_param("i", $number);
-// 		$stmt->execute();
-// 		$result = $stmt->get_result();
-
-// 		$activities = [];
-// 		while ($row = $result->fetch_assoc()) {
-// 			$activities[] = $row;
-// 		}
-
-// 		return $activities;
-// 	}
-// 	else{
-// 		return [];
-// 	}
-// }
 
 function get_recent_activity($mysqli, $number) {
 	if (!$mysqli->connect_errno){

@@ -29,7 +29,7 @@ include("php/categories.php");
                             <i class="bi bi-search"></i>
                         </button>
                     </div>
-                    <a class="btn btn-primary" href="add_song.php">
+                    <a class="btn btn-primary" href="song.php?new=1">
                         <i class="bi bi-plus-lg"></i> New Song
                     </a>
 
