@@ -78,8 +78,10 @@ if (isset($_GET['id'])) {
                     <div class="col-md-6">
                         <div class="mb-2"><strong>Category:</strong> <?= htmlspecialchars($categories[$song['category'] ] ?? 'Unknown') ?></div>
                         <div class="mb-2"><strong>Capo:</strong>
-                            <span class="capo-display fw-bold">Original: <?= htmlspecialchars($song['capo']) ?>th fret</span>
-                            <span class="capo-display fw-bold">Alt: <?= htmlspecialchars($song['capo_alt']) ?>th fret</span>
+                            <span class="capo-display fw-bold"><?= htmlspecialchars($song['capo']) ?>th fret</span>
+                            <?php if($song["capo_alt"]!= NULL){?>
+                            <span class="capo-display fw-bold">(alternative): <?= htmlspecialchars($song['capo_alt']) ?>th fret</span>
+                            <?php } ?>
                         </div>
                     </div>
                     <div class="col-md-6">

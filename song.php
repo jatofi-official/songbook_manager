@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title     = trim($_POST["title"] ?? "");
     $artist    = trim($_POST["artist"] ?? "");
     $capo      = (int)($_POST["capo"] ?? 0);
-    $capo_alt  = isset($_POST["capo_alt"]) && $_POST["capo_alt"] !== "" ? (int)$_POST["capo_alt"] : 0;
+    $capo_alt  = isset($_POST["capo_alt"]) && $_POST["capo_alt"] !== "" ? (int)$_POST["capo_alt"] : NULL;
     $category  = $_POST["category"] ?? "";
     $tags      = trim($_POST["tags"] ?? "");
     $instruments = $_POST["instruments"] ?? [];
@@ -68,19 +68,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$content) $errors[] = "Content is required.";
 
     // Prepare $song for redisplay
-    $song = [
-        "id" => null,
-        "title" => "",
-        "artist" => "",
-        "capo" => 0,
-        "capo_alt" => 0,
-        "category" => "",
-        "instruments" => [],
-        "tags" => "",
-        "content" => "",
-        "is_public" => 1,
-        "owner" => null,  // add this line
-    ];
+    // $song = [
+    //     "id" => null,
+    //     "title" => "",
+    //     "artist" => "",
+    //     "capo" => 0,
+    //     "capo_alt" => 0,
+    //     "category" => "",
+    //     "instruments" => [],
+    //     "tags" => "",
+    //     "content" => "",
+    //     "is_public" => 1,
+    //     "owner" => null,  // add this line
+    // ];
 
 
     if (empty($errors)) {
@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mb-3">
                 <label for="capo_alt" class="form-label">Capo alt</label>
                 <select name="capo_alt" id="capo_alt" class="form-select">
-                    <option value="0">No alt</option>
+                    <option value="" <?= is_null($song['capo_alt']) ? "selected" : "" ?>>No alt</option>
                     <?php for ($i = 1; $i <= 7; $i++): ?>
                         <option value="<?= $i ?>" <?= $song['capo_alt'] == $i ? "selected" : "" ?>>
                             <?= $i ?>
@@ -251,6 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php endfor; ?>
                 </select>
             </div>
+
 
             <div class="mb-3">
                 <label for="category" class="form-label">Category</label>
@@ -286,7 +287,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label for="tags" class="form-label">Tags</label>
                 <input type="text" name="tags" id="tags"
                        class="form-control" maxlength="50"
-                       value="<?= htmlspecialchars($song["tags"]) ?>">
+                        value="<?= isset($song["tags"]) ? htmlspecialchars($song["tags"]) : '' ?>">
             </div>
 
             <div class="mb-3 textarea-container">
