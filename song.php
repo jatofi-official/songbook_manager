@@ -268,11 +268,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        value="<?= htmlspecialchars($song["tags"]) ?>">
             </div>
 
-            <div class="mb-3">
-                <label for="content" class="form-label">Song Content *</label>
-                <textarea name="content" id="content" rows="12"
-                          class="form-control" required><?= htmlspecialchars($song["content"]) ?></textarea>
-            </div>
+<div class="mb-3">
+    <label for="content" class="form-label">Song Content *</label>
+    <textarea name="content" id="content" rows="12"
+              class="form-control auto-resize" required 
+              style="min-height: 200px;"><?= htmlspecialchars($song["content"]) ?></textarea>
+</div>
 
             <div class="mb-3 form-check">
                 <input type="checkbox" class="form-check-input" id="is_public" name="is_public" value="1"
@@ -308,6 +309,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 console.error(err);
             });
     });
+    document.addEventListener('DOMContentLoaded', function() {
+    const textareas = document.querySelectorAll('.auto-resize');
+    
+    textareas.forEach(textarea => {
+        // Set initial height
+        adjustHeight(textarea);
+        
+        // Add input event listener
+        textarea.addEventListener('input', function() {
+            adjustHeight(this);
+        });
+    });
+    
+    function adjustHeight(element) {
+        element.style.height = 'auto';
+        // Set height to scrollHeight, but ensure it's at least the min-height
+        element.style.height = Math.max(element.scrollHeight, parseInt(element.style.minHeight || 200)) + 'px';
+    }
+});
     </script>
 <?php endif; ?>
 
