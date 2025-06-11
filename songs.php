@@ -16,33 +16,7 @@ include('php/functions.php');
 
 <script>
 
-// document.addEventListener("DOMContentLoaded", () => {
-//     const songItems = document.querySelectorAll(".song-list-item");
-//     const detailContainer = document.querySelector(".song-detail-container");
 
-//     songItems.forEach(item => {
-//         item.addEventListener("click", () => {
-//             const id = item.getAttribute("data-id");
-
-//             songItems.forEach(el => el.classList.remove("active"));
-//             item.classList.add("active");
-
-//             fetch(`php/subpage/get_song.php?id=${id}&embedded=1`)
-//                 .then(res => res.text())
-//                 .then(html => {
-//                     detailContainer.innerHTML = html;
-//                 })
-//                 .catch(() => {
-//                     detailContainer.innerHTML = "<p>Error loading song details.</p>";
-//                 });
-
-//             const url = new URL(window.location);
-//             url.searchParams.delete('new');
-//             window.history.replaceState(null, '', url.toString());
-//         });
-//     });
-
-// });
 document.addEventListener("DOMContentLoaded", () => {
     const songItems = document.querySelectorAll(".song-list-item");
     const detailContainer = document.querySelector(".song-detail-container");
@@ -229,28 +203,60 @@ if (!empty($songs)) {
 
     // --- Pagination Controls ---
     echo "<div class='pagination mt-4'>";
-    
-    // Previous button (disabled if on page 1)
-    if ($page > 1) {
-        echo "<a href='?page=" . ($page - 1) . "' class='btn btn-sm btn-outline-primary'><</a> ";
-    } else {
-        echo "<span class='btn btn-sm btn-outline-secondary disabled'><</span> ";
-    }
 
-    // Page numbers (e.g., "1 2 3 ... 10")
-    for ($i = 1; $i <= $totalPages; $i++) {
+    // Helper function to generate page link or active span
+    function pagination_button($i, $page) {
         if ($i == $page) {
-            echo "<span class='btn btn-sm btn-primary active'>$i</span> ";
+            return "<span class='btn btn-sm btn-primary active'>$i</span> ";
         } else {
-            echo "<a href='?page=$i' class='btn btn-sm btn-outline-primary'>$i</a> ";
+            return "<a href='?" . http_build_query(array_merge($_GET, ['page' => $i])) . "' class='btn btn-sm btn-outline-primary'>$i</a> ";
         }
     }
 
-    // Next button (disabled if on last page)
-    if ($page < $totalPages) {
-        echo "<a href='?page=" . ($page + 1) . "' class='btn btn-sm btn-outline-primary'>></a>";
+    // Previous button
+    if ($page > 1) {
+        echo "<a href='?" . http_build_query(array_merge($_GET, ['page' => $page - 1])) . "' class='btn btn-sm btn-outline-primary'>&lt;</a> ";
     } else {
-        echo "<span class='btn btn-sm btn-outline-secondary disabled'>></span>";
+        echo "<span class='btn btn-sm btn-outline-secondary disabled'>&lt;</span> ";
+    }
+
+    $displayRange = 2; // how many pages before/after current page to show
+
+    if ($totalPages <= 10) {
+        // show all pages
+        for ($i = 1; $i <= $totalPages; $i++) {
+            echo pagination_button($i, $page);
+        }
+    } else {
+        // Always show first page
+        echo pagination_button(1, $page);
+
+        // Show ellipsis if needed
+        if ($page - $displayRange > 2) {
+            echo "<span class='btn btn-sm disabled'>...</span> ";
+        }
+
+        // Pages around the current page
+        $start = max(2, $page - $displayRange);
+        $end = min($totalPages - 1, $page + $displayRange);
+        for ($i = $start; $i <= $end; $i++) {
+            echo pagination_button($i, $page);
+        }
+
+        // Show ellipsis before last page
+        if ($page + $displayRange < $totalPages - 1) {
+            echo "<span class='btn btn-sm disabled'>...</span> ";
+        }
+
+        // Always show last page
+        echo pagination_button($totalPages, $page);
+    }
+
+    // Next button
+    if ($page < $totalPages) {
+        echo "<a href='?" . http_build_query(array_merge($_GET, ['page' => $page + 1])) . "' class='btn btn-sm btn-outline-primary'>&gt;</a>";
+    } else {
+        echo "<span class='btn btn-sm btn-outline-secondary disabled'>&gt;</span>";
     }
 
     echo "</div>";

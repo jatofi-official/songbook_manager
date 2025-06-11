@@ -344,7 +344,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
     }
 
     // Ordering and pagination
-    $sql .= "ORDER BY create_date DESC LIMIT ?, ?";
+    $sql .= "ORDER BY category ASC, id ASC LIMIT ?, ?";
     $offset = ($page - 1) * $perPage;
     $params[] = $offset;
     $params[] = $perPage;

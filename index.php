@@ -70,62 +70,47 @@ include("php/categories.php");
 
     <!-- Main Content -->
     <div class="row">
+        <!-- Right Column (Shows first on small screens) -->
+        <div class="col-12 col-md-4 order-1 order-md-2 mb-4 mb-md-0">
+            <div class="card h-100">
+                <div class="card-body p-0 h-100">
+                    <a href="songs.php" class="btn w-100 h-100 d-flex justify-content-center align-items-center fs-4 rounded border border-primary text-primary bg-transparent">
+                        All songs
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <!-- Left Column -->
-        <div class="col-12 col-md-8 mb-4 mb-md-0">
-        <!-- Recent Activity -->
-        <div class="card h-100">
-            <div class="card-header bg-white">
-            <h5 class="mb-0">Recent Activity</h5>
-            </div>
-            <div class="card-body p-3 p-md-4">
-            <div class="list-group">
+        <div class="col-12 col-md-8 order-2 order-md-1">
+            <!-- Recent Activity -->
+            <div class="card h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body p-3 p-md-4">
+                    <div class="list-group">
+                        <?php
+                        $activities = get_recent_activity($mysqli, 5);
 
-                <?php
-                $activities = get_recent_activity($mysqli, 5);
-
-                foreach ($activities as $activity) {
-                    $timeAgo = time_elapsed_string($activity['time']);
-                    ?>
-                    <div class="list-group-item border-0 px-0 py-2">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1"><?php echo htmlspecialchars($activity['type']); ?></h6>
-                            <small><?php echo $timeAgo; ?></small>
-                        </div>
-                        <p class="mb-1 small"><?php echo htmlspecialchars($activity['description']); ?></p>
+                        foreach ($activities as $activity) {
+                            $timeAgo = time_elapsed_string($activity['time']);
+                            ?>
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1"><?php echo htmlspecialchars($activity['type']); ?></h6>
+                                    <small><?php echo $timeAgo; ?></small>
+                                </div>
+                                <p class="mb-1 small"><?php echo htmlspecialchars($activity['description']); ?></p>
+                            </div>
+                            <?php
+                        }
+                        ?>
                     </div>
-                    <?php
-                }
-                ?>
-
+                </div>
             </div>
-            </div>
-        </div>
         </div>
 
-        <!-- Right Column -->
-        <div class="col-12 col-md-4">
-        <!-- Quick Actions -->
-        <div class="card h-100">
-            <div class="card-header bg-white">
-            <h5 class="mb-0">Quick Actions</h5>
-            </div>
-            <div class="card-body d-grid gap-3 p-3 p-md-4">
-            <button class="btn btn-outline-primary w-100">
-                <i class="bi bi-music-note-list"></i> Manage Songs
-            </button>
-            <button class="btn btn-outline-primary w-100">
-                <i class="bi bi-journal-plus"></i> Create Songbook
-            </button>
-            <button class="btn btn-outline-primary w-100">
-                <i class="bi bi-file-earmark-pdf"></i> Export Songbook
-            </button>
-            <button class="btn btn-outline-primary w-100">
-                <i class="bi bi-cloud-arrow-up"></i> Import Songs
-            </button>
-            </div>
-        </div>
-        </div>
-    </div>
         <!-- Recently Added Songs -->
         <!-- <div class="row mt-4">
             <div class="col-12">
