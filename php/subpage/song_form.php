@@ -53,7 +53,7 @@ if (isset($_GET['id'])) {
 <div class="container mt-4">
     <h2><?= $editing ? "Edit Song" : "Add New Song" ?></h2>
 
-    <form id="songForm" method="post" action="php/save_song.php">
+    <form id="songForm" method="post" >
         <?php if ($editing): ?>
             <input type="hidden" name="id" value="<?= (int)$id ?>">
         <?php endif; ?>
@@ -130,22 +130,39 @@ if (isset($_GET['id'])) {
 </div>
 
 <script>
-document.getElementById("songForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    const form = e.target;
-    const formData = new FormData(form);
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("songForm");
+    if (form) {
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            const formData = new FormData(form);
 
-    fetch("php/save_song.php", {
-        method: "POST",
-        body: formData,
-    })
-    .then(res => res.text())
-    .then(html => {
-        document.getElementById("formFeedback").innerHTML = html;
-    })
-    .catch(err => {
-        document.getElementById("formFeedback").innerHTML = "<div class='alert alert-danger'>Submission failed.</div>";
-    });
+            fetch("php/save_song.php", {
+                method: "POST",
+                body: formData,
+                credentials: "same-origin", // <-- crucial line!
+            })
+
+
+            .then(res => res.json())
+            .then(data => {
+                const feedback = document.getElementById("formFeedback");
+                if (data.success) {
+                    feedback.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                    if (!document.querySelector('input[name="id"]')) {
+                        form.reset();
+                    }
+                } else if (data.errors) {
+                    feedback.innerHTML = data.errors.map(e => `<div class="alert alert-danger">${e}</div>`).join('');
+                } else {
+                    feedback.innerHTML = `<div class="alert alert-danger">${data.error || "Unknown error occurred."}</div>`;
+                }
+            })
+            .catch(err => {
+                document.getElementById("formFeedback").innerHTML = "<div class='alert alert-danger'>Submission failed.</div>";
+            });
+        });
+    }
 });
 </script>
 

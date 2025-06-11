@@ -1,11 +1,13 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
+
 if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){  
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
     error_reporting(E_ALL);
 }
+
 require_once __DIR__ . '/db.php';
 include_once __DIR__ . '/functions.php';
 include_once __DIR__ . '/data.php';
@@ -56,6 +58,7 @@ $data = [
     "owner" => $userId
 ];
 
+// Editing song
 if (isset($_POST['id']) && $_POST['id'] !== "") {
     $id = (int)$_POST['id'];
 
@@ -79,7 +82,9 @@ if (isset($_POST['id']) && $_POST['id'] !== "") {
     } else {
         echo json_encode(["success" => false, "error" => $ok]);
     }
-} else {
+} 
+// Adding new song
+else {
     $ok = add_song($mysqli, $data);
     if ($ok === true) {
         add_activity($mysqli, $userId, "Added song", "Added '{$title}' by {$artist}", $is_public);

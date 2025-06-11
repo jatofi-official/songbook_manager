@@ -29,7 +29,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function attachFormSubmitHandler() {
         const form = detailContainer.querySelector("form.song-form");
-        if (!form) return;
+
+        if (!form) {
+            console.warn("No form found to attach submit handler.");
+            return;
+        }
 
         form.addEventListener("submit", (e) => {
             e.preventDefault();
@@ -43,16 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    detailContainer.innerHTML = data.html;
-
-                    // Optional: refresh song list
-                    // refreshSongList(); // implement this function later if needed
-
-                    // Update URL
-                    const url = new URL(window.location);
-                    url.searchParams.set("id", data.id);
-                    url.searchParams.delete("new");
-                    window.history.replaceState(null, "", url.toString());
+                    window.location.href = `?id=${data.id}`;
                 } else {
                     alert("Failed to save song.");
                 }
@@ -62,6 +57,9 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
     }
+
+    // Attach immediately if form is already in DOM
+    attachFormSubmitHandler();
 
     songItems.forEach(item => {
         item.addEventListener("click", () => {
@@ -100,13 +98,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 url.searchParams.delete('id');
                 window.history.replaceState(null, '', url.toString());
 
-                attachFormSubmitHandler(); // Attach the submit handler after form loads
+                attachFormSubmitHandler();
             })
             .catch(() => {
+                console.log("error");
                 detailContainer.innerHTML = "<p>Error loading new song form.</p>";
             });
     });
 });
+
 
 
 
