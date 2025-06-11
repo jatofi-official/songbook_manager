@@ -16,88 +16,65 @@ include('php/functions.php');
 
 <script>
 
+// document.addEventListener("DOMContentLoaded", () => {
+//     const songItems = document.querySelectorAll(".song-list-item");
+//     const detailContainer = document.querySelector(".song-detail-container");
+
+//     songItems.forEach(item => {
+//         item.addEventListener("click", () => {
+//             const id = item.getAttribute("data-id");
+
+//             songItems.forEach(el => el.classList.remove("active"));
+//             item.classList.add("active");
+
+//             fetch(`php/subpage/get_song.php?id=${id}&embedded=1`)
+//                 .then(res => res.text())
+//                 .then(html => {
+//                     detailContainer.innerHTML = html;
+//                 })
+//                 .catch(() => {
+//                     detailContainer.innerHTML = "<p>Error loading song details.</p>";
+//                 });
+
+//             const url = new URL(window.location);
+//             url.searchParams.delete('new');
+//             window.history.replaceState(null, '', url.toString());
+//         });
+//     });
+
+// });
 document.addEventListener("DOMContentLoaded", () => {
     const songItems = document.querySelectorAll(".song-list-item");
     const detailContainer = document.querySelector(".song-detail-container");
-    const newSongBtn = document.getElementById("newSongBtn");
-
-    function attachFormSubmitHandler() {
-        const form = detailContainer.querySelector("form.song-form");
-
-        if (!form) {
-            console.warn("No form found to attach submit handler.");
-            return;
-        }
-
-        form.addEventListener("submit", (e) => {
-            e.preventDefault();
-
-            const formData = new FormData(form);
-
-            fetch("php/actions/save_song.php", {
-                method: "POST",
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = `?id=${data.id}`;
-                } else {
-                    alert("Failed to save song.");
-                }
-            })
-            .catch(() => {
-                alert("Error submitting form.");
-            });
-        });
-    }
-
-    // Attach immediately if form is already in DOM
-    attachFormSubmitHandler();
 
     songItems.forEach(item => {
         item.addEventListener("click", () => {
             const id = item.getAttribute("data-id");
+            const isSmallScreen = window.matchMedia("(max-width: 767.98px)").matches;
 
-            songItems.forEach(el => el.classList.remove("active"));
-            item.classList.add("active");
+            if (isSmallScreen) {
+                // Redirect to full song page on small screens
+                window.location.href = `song.php?id=${id}`;
+            } else {
+                // Existing behavior: load via AJAX on bigger screens
+                songItems.forEach(el => el.classList.remove("active"));
+                item.classList.add("active");
 
-            fetch(`php/subpage/get_song.php?id=${id}`)
-                .then(res => res.text())
-                .then(html => {
-                    detailContainer.innerHTML = html;
-                })
-                .catch(() => {
-                    detailContainer.innerHTML = "<p>Error loading song details.</p>";
-                });
+                fetch(`php/subpage/get_song.php?id=${id}&embedded=1`)
+                    .then(res => res.text())
+                    .then(html => {
+                        detailContainer.innerHTML = html;
+                    })
+                    .catch(() => {
+                        detailContainer.innerHTML = "<p>Error loading song details.</p>";
+                    });
 
-            const url = new URL(window.location);
-            url.searchParams.delete('new');
-            window.history.replaceState(null, '', url.toString());
-        });
-    });
-
-    newSongBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-
-        document.querySelectorAll(".song-list-item").forEach(el => el.classList.remove("active"));
-
-        fetch('php/subpage/song_form.php?embedded=1')
-            .then(res => res.text())
-            .then(html => {
-                detailContainer.innerHTML = html;
-
+                // Remove any 'new' param from URL without reloading
                 const url = new URL(window.location);
-                url.searchParams.set('new', '1');
-                url.searchParams.delete('id');
+                url.searchParams.delete('new');
                 window.history.replaceState(null, '', url.toString());
-
-                attachFormSubmitHandler();
-            })
-            .catch(() => {
-                console.log("error");
-                detailContainer.innerHTML = "<p>Error loading new song form.</p>";
-            });
+            }
+        });
     });
 });
 
@@ -120,7 +97,7 @@ include("php/instruments.php");
         
         <div class="search-box p-2">
             <div class="pb-2">
-                <a href="?new=1" class="btn btn-sm btn-success w-100" id="newSongBtn">
+                <a href="song.php?new=1" class="btn btn-sm btn-success w-100 <?= isset($_SESSION["user"]) ? '' : 'disabled style="opacity: 0.2; cursor: not-allowed;"' ?>">
                     <i class="bi bi-plus-circle me-1"></i> New Song
                 </a>
             </div>
@@ -287,7 +264,7 @@ if (!empty($songs)) {
     </div>
     
     <!-- Song Detail Column -->
-    <div class="col-md-7 col-lg-8 p-0 song-detail-container">
+    <div class="col-md-7 col-lg-8 p-0 song-detail-container d-none d-md-block">
         <?php 
         if (isset($_GET['new']) && $_GET['new'] == 1) {
             $_GET['embedded'] = 1;

@@ -11,6 +11,9 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
 include_once('../db.php');
 include_once('../categories.php');
 
+$isEmbedded = isset($_GET['embedded']) && $_GET['embedded'] == 1;
+
+
 if (isset($_GET['id'])) {
     $id = intval($_GET['id']);
     $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
@@ -35,6 +38,12 @@ if (isset($_GET['id'])) {
                     ?>
 
                     <div class="d-flex gap-2">
+                        <?php if ($isEmbedded): ?>
+                            <a href="song.php?id=<?= (int)$id ?>" class="btn btn-primary mb-3">
+                                Full view
+                            </a>
+                        <?php endif; ?>
+
                         <!-- Edit Button -->
                         <form method="GET" action="song.php" class="d-inline">
                             <input type="hidden" name="id" value="<?= (int)$id ?>">
