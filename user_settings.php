@@ -76,12 +76,6 @@ if (isset($_SESSION["user"])): ?>
 		<img src="default_avatar.png" style="max-width: 150px; border-radius: 50%;">
 	<?php endif; ?>
 
-	<!-- Upload form -->
-	<form method="post" enctype="multipart/form-data" class="mt-3">
-		<label for="profile_picture">Update Profile Picture:</label>
-		<input type="file" name="profile_picture" accept="image/*" required>
-		<button type="submit" class="btn btn-primary btn-sm">Upload</button>
-	</form>
 
 	<!-- Admin toggle -->
 	<?php

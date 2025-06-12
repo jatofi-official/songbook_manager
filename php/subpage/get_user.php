@@ -68,8 +68,9 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
     <div class="container">
         <div class="row align-items-center">
             <div class="col-md-2 text-center">
-                <img src="<?= $profilePicUrl ?>" class="profile-pic rounded-circle" alt="Profile Picture">
-                <!-- <img src="/songbook_manager/profile_pics/2.png" class="profile-pic rounded-circle"> -->
+                <!-- <img src="<?= $profilePicUrl ?>" class="profile-pic rounded-circle" alt="Profile Picture"> -->
+
+                <img src="<?= htmlspecialchars($userData["profile_picture"]) ?>"class="profile-pic rounded-circle" alt="Profile Picture">
 
             </div>
             <div class="col-md-7">
