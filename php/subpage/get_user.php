@@ -61,8 +61,6 @@ $lastUpdated = date("M j, Y", strtotime($user['updated_at'] ?? '2023-06-05'));
 // Activity stats example data
 $songsAdded = get_number_of_songs($mysqli, $user["username"]);
 $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
-$songbooksCreated = 0;
-$yearsActive = 0;
 ?>
 
 <!-- Profile Header -->
@@ -110,7 +108,7 @@ $yearsActive = 0;
                         </div>
                     </div>
                     <div class="progress xp-progress mt-3">
-                        <div class="progress-bar bg-white" role="progressbar" style="width: <?= $progress ?>%" aria-valuenow="<?= $progress ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar bg-success" role="progressbar" style="width: <?= $progress ?>%" aria-valuenow="<?= $progress ?>" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                     <div class="mt-2 text-white-50">
                         Next level at <?= number_format($nextLevelAt) ?> XP
@@ -133,18 +131,6 @@ $yearsActive = 0;
                     <div class="stats-card">
                         <div class="stat-number"><?= $songsEdited ?></div>
                         <div class="stat-label">Song Edits</div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="stats-card">
-                        <div class="stat-number"><?= $songbooksCreated ?></div>
-                        <div class="stat-label">Songbooks Created</div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <div class="stats-card">
-                        <div class="stat-number"><?= $yearsActive ?></div>
-                        <div class="stat-label">Years Active</div>
                     </div>
                 </div>
             </div>
