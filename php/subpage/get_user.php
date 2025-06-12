@@ -41,14 +41,18 @@ $xpToNextLevel = $nextLevelAt - $xpTotal; // How much XP left to next level
 $displayName = htmlspecialchars($user['name'] ?? $user['username']);
 $username = htmlspecialchars($user['username']);
 
-if ($id && file_exists(__DIR__ . "/../../profile_pics/{$id}.png")) {
-    // Use local profile pic
-    $profilePicUrl = "/songbook_manager/profile_pics/{$id}.png";
-    // echo $profilePicUrl;
+$profilePicPath = __DIR__ . "/../../profile_pics/{$id}.png";  // filesystem path
+$profilePicUrl = $user["profile_picture"];                  // URL path relative to site root
+
+if ($id && file_exists($profilePicPath)) {
+    // Use URL path here, not the filesystem path
+    // $profilePicUrl = "/profile_pics/{$id}.png";
+    $profilePicUrl = $user["profile_picture"];                  // URL path relative to site root
+
 } else {
-    // Fallback to ui-avatars
     $profilePicUrl = "https://ui-avatars.com/api/?name=" . urlencode($displayName) . "&background=random";
 }
+
 // echo $profilePicUrl;
 
 $zborId = htmlspecialchars($user['zbor_id'] ?? '12345');
@@ -70,7 +74,7 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
             <div class="col-md-2 text-center">
                 <!-- <img src="<?= $profilePicUrl ?>" class="profile-pic rounded-circle" alt="Profile Picture"> -->
 
-                <img src="<?= htmlspecialchars($userData["profile_picture"]) ?>"class="profile-pic rounded-circle" alt="Profile Picture">
+                <img src="<?= htmlspecialchars($profilePicUrl) ?>" class="profile-pic rounded-circle" alt="Profile Picture">
 
             </div>
             <div class="col-md-7">
