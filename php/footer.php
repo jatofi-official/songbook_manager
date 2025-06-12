@@ -1,5 +1,6 @@
 </div>
 <!-- Footer -->
+ <?php include_once("data.php");?>
     <footer class="py-4 mt-5 text-center text-muted">
         <p>Songbook Manager &copy; 2025 | <em><?php echo AUTHOR; ?></em> <em><?php echo VERSION; ?></em></p>
     </footer>

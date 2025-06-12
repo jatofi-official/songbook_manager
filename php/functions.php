@@ -1,6 +1,6 @@
 <?php
 date_default_timezone_set('Europe/Bratislava');
-
+include_once("data.php");
 //NEMAŽ TIETO AJ KEĎ CHCEŠ
 function osetri($co) {
 	return trim(strip_tags($co));
@@ -52,37 +52,40 @@ function zmen_heslo($mysqli, $id, $pass) {
 	}
 }	// koniec funkcie
 
-function add_user($mysqli, $name, $username, $password, $zbor) {
+function add_user($mysqli, $name, $username, $password, $zbor, $profile_picture_path = null) {
     if ($mysqli->connect_errno) {
         echo "Failed to connect to MySQL: " . $mysqli->connect_error;
         return false;
     }
-    // Hash the password before storing it
-    $hashed_password = hash("sha256",$password);
 
-    // Prepare the SQL statement
-    $stmt = $mysqli->prepare("INSERT INTO users (name, username, password, zbor, admin) VALUES (?, ?, ?, ?, 0)");
+    $hashed_password = hash("sha256", $password);
+
+    $stmt = $mysqli->prepare(
+        "INSERT INTO users (name, username, password, zbor, date_created, admin, profile_picture) 
+        VALUES (?, ?, ?, ?, CURDATE(), 0, ?)"
+    );
+
 
     if (!$stmt) {
         echo "Prepare failed: " . $mysqli->error;
         return false;
     }
 
-    // Bind parameters
-    $stmt->bind_param("sssi",$name, $username, $hashed_password, $zbor);
+    $stmt->bind_param("sssis", $name, $username, $hashed_password, $zbor, $profile_picture_path);
 
-    // Execute the statement
     if ($stmt->execute()) {
-        echo "User added successfully.";
-        return true;
+        $user_id = $stmt->insert_id;
+        $mysqli->query("INSERT INTO user_xp (user_id, xp_add_song, xp_edit_song) VALUES ($user_id, 0, 0)");
+        return $user_id; // return ID instead of true
     } else {
         echo "Error: " . $stmt->error;
         return false;
     }
 
-    // Close the statement
     $stmt->close();
 }
+
+
 
 
 
@@ -187,16 +190,40 @@ function edit_song($mysqli, $id, $data) {
     }
 }
 
-function get_number_of_songs($mysqli) {
-    $sql = "SELECT COUNT(*) AS total FROM songs";
-    $result = $mysqli->query($sql);
-    if (!$result) {
-        error_log("MySQL Error: " . $mysqli->error);
-        return 0;
+function get_number_of_songs(mysqli $mysqli, ?string $username = null): int {
+    if ($username === null) {
+        // Count all songs
+        $sql = "SELECT COUNT(*) AS total FROM songs";
+        $result = $mysqli->query($sql);
+        if (!$result) {
+            error_log("MySQL Error: " . $mysqli->error);
+            return 0;
+        }
+        $row = $result->fetch_assoc();
+        return (int)$row['total'];
+    } else {
+        // Count songs for this username in 'owner' column
+        $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM songs WHERE owner = ?");
+        if (!$stmt) {
+            error_log("MySQL prepare error: " . $mysqli->error);
+            return 0;
+        }
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if (!$result) {
+            error_log("MySQL execute error: " . $stmt->error);
+            $stmt->close();
+            return 0;
+        }
+        $row = $result->fetch_assoc();
+        $stmt->close();
+
+        return (int)$row['total'];
     }
-    $row = $result->fetch_assoc();
-    return $row['total'];
 }
+
+
 
 function get_new_songs_this_week($mysqli) {
     $sql = "
@@ -250,6 +277,28 @@ function add_activity($mysqli,$username, $type,$description,$public){
 
 	}
 }
+
+function get_activities_user($mysqli, string $type, string $username): int {
+    $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM activity_log WHERE type = ? AND username = ?");
+    if (!$stmt) {
+        error_log("MySQL Prepare Error: " . $mysqli->error);
+        return 0;
+    }
+
+    $stmt->bind_param("ss", $type, $username);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    $count = 0;
+
+    if ($row = $result->fetch_assoc()) {
+        $count = (int)$row['total'];
+    }
+
+    $stmt->close();
+    return $count;
+}
+
 
 function get_recent_activity($mysqli, $number) {
 	if (!$mysqli->connect_errno){
@@ -414,9 +463,6 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
     ];
 }
 
-
-
-
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;
     $ago = new DateTime($datetime);
@@ -442,6 +488,105 @@ function time_elapsed_string($datetime, $full = false) {
     }
 
     return $string ? implode(', ', $string) . ' ago' : 'just now';
+}
+
+function get_user($mysqli, $id) {
+    // Prepare the statement to prevent SQL injection
+    $stmt = $mysqli->prepare("SELECT * FROM users WHERE id = ?");
+    if (!$stmt) {
+        // Handle prepare error if needed
+        return null;
+    }
+    
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    
+    $result = $stmt->get_result();
+    if ($result && $result->num_rows > 0) {
+        $user = $result->fetch_assoc();
+        $stmt->close();
+        return $user;
+    } else {
+        $stmt->close();
+        return null; // User not found
+    }
+}
+
+function calculate_level(int $xp): array {
+    $level = 1;
+    $required = 150;
+    $increment = 50;
+    $cap = 1000;
+    $current_total = 0;
+
+    while ($xp >= $required) {
+        $xp -= $required;
+        $current_total += $required;
+        $level++;
+        $increment = min($increment + 50, $cap);
+        $required = $increment;
+    }
+
+    $progress = $xp / $required;
+    $next_level_xp = $current_total + $required;
+
+    return [
+        'level' => $level,
+        'progress' => $progress,
+        'next_level_xp' => $next_level_xp
+    ];
+}
+
+function get_xp(mysqli $mysqli, int $id): ?array {
+    // $stmt = $mysqli->prepare("SELECT * FROM user_xp WHERE user_id = ?");
+    // if (!$stmt) return null;
+
+    // $stmt->bind_param("i", $id);
+    // $stmt->execute();
+    // $result = $stmt->get_result();
+
+    // if ($result->num_rows === 0) {
+    //     $stmt->close();
+    //     return null;
+    // }
+
+    // $row = $result->fetch_assoc();
+    // $stmt->close();
+
+    // $xp_add = (int)$row["xp_add_song"];
+    // $xp_edit = (int)$row["xp_edit_song"];
+
+
+    // Instead calculate this manually
+    $stmt = $mysqli->prepare("SELECT username FROM users WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $username = $stmt->get_result()->fetch_assoc()['username'] ?? null;
+    $stmt->close();
+    
+    if($username ===null){
+        return null;
+    }
+
+    $xp_add = get_number_of_songs($mysqli,$username)*ADD_XP_AMOUNT;
+    $xp_edit = get_activities_user($mysqli, "edit",$username)*EDIT_XP_AMOUNT;
+    
+
+
+
+    // continue normally
+    $xp_total = $xp_add + $xp_edit;
+
+    $levelInfo = calculate_level($xp_total);
+
+    return [
+        'total_xp' => $xp_total,
+        'add_xp' => $xp_add,
+        'xp_edit' => $xp_edit,
+        'level' => $levelInfo['level'],
+        'progress' => $levelInfo['progress'],
+        'next_level_xp' => $levelInfo['next_level_xp']
+    ];
 }
 
 

@@ -10,7 +10,7 @@
 
     
     <!-- Custom styles -->
-    <link href="styles.css" rel="stylesheet">	
+    <link href="styles/styles.css" rel="stylesheet">	
     <style>
     /* Remove padding from container-fluid to achieve true full width */
     .container-fluid {
@@ -21,7 +21,10 @@
     <?php 
     
     if($website=="songs"){
-        echo '<link href="songs_styles.css" rel="stylesheet">	';
+        echo '<link href="styles/songs_styles.css" rel="stylesheet">	';
+    }
+    else if($website=="user"){
+        echo '<link href="styles/user_styles.css" rel="stylesheet">	';
     }
 
     ?>

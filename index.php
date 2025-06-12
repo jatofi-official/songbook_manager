@@ -23,7 +23,7 @@ include("php/categories.php");
             <p class="text-muted mb-0">Manage your songs and songbooks</p>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center w-100 w-md-auto">
-            <div class="input-group flex-grow-1 flex-md-grow-0" style="min-width: 250px; max-width: 300px;">
+            <!-- <div class="input-group flex-grow-1 flex-md-grow-0" style="min-width: 250px; max-width: 300px;">
             <input type="text" class="form-control" placeholder="Search songs...">
             <button class="btn btn-primary" type="button">
                 <i class="bi bi-search"></i>
@@ -32,7 +32,7 @@ include("php/categories.php");
             <a class="btn btn-primary flex-shrink-0" href="song.php?new=1">
             <i class="bi bi-plus-lg"></i> New Song
             </a>
-        </div>
+        </div> -->
         </div>
     </div>
     </div>
@@ -98,7 +98,19 @@ include("php/categories.php");
                             ?>
                             <div class="list-group-item border-0 px-0 py-2">
                                 <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1"><?php echo htmlspecialchars($activity['type']); ?></h6>
+                                    <h6 class="mb-1"><?php 
+                                        $typeLabels = [
+                                            'edit' => 'Edited Song',
+                                            'add' => 'Added Song',
+                                            'delete' => 'Deleted Song'
+                                        ];
+
+                                        $type = $activity['type'];
+                                        echo htmlspecialchars($typeLabels[$type] ?? ucfirst($type));
+                                        ?>
+
+                                    
+                                </h6>
                                     <small><?php echo $timeAgo; ?></small>
                                 </div>
                                 <p class="mb-1 small"><?php echo htmlspecialchars($activity['description']); ?></p>
