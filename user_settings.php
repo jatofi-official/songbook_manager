@@ -87,9 +87,9 @@ if (isset($_SESSION["user"])): ?>
 <?php else: ?>
 <section>
 	<div class="row">
-		<div class="col 12 col-md-4 round_container">
+		<div class="col 12 col-md-4 container-wide">
 			<form method="post">
-				<h2 class="text-left">Login</h2>
+				<legend>Login</legend>
 
 				<div class="mb-3">
 					<label for="username" class="form-label">Username:</label>
@@ -110,6 +110,22 @@ if (isset($_SESSION["user"])): ?>
 		</div>
 	</div>
 </section>
+<style>
+    .container-wide {
+        max-width: 900px;
+        margin: 20px auto 60px;
+        background: white;
+        padding: 30px 40px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    legend {
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin-bottom: 25px;
+    }
+</style>
 <?php endif; ?>
 
 <?php include('php/footer.php'); ?>
