@@ -52,7 +52,7 @@ function zmen_heslo($mysqli, $id, $pass) {
 	}
 }	// koniec funkcie
 
-function add_user($mysqli, $name, $username, $password, $zbor, $profile_picture_path = null) {
+function add_user($mysqli, $name, $username, $password, $group_id, $profile_picture_path = null) {
     if ($mysqli->connect_errno) {
         echo "Failed to connect to MySQL: " . $mysqli->connect_error;
         return false;
@@ -76,7 +76,7 @@ function add_user($mysqli, $name, $username, $password, $zbor, $profile_picture_
     // Insert new user
     $hashed_password = hash("sha256", $password);
     $stmt = $mysqli->prepare(
-        "INSERT INTO users (name, username, password, zbor, date_created, admin, profile_picture) 
+        "INSERT INTO users (name, username, password, group_id, date_created, admin, profile_picture) 
          VALUES (?, ?, ?, ?, CURDATE(), 0, ?)"
     );
 
@@ -85,7 +85,7 @@ function add_user($mysqli, $name, $username, $password, $zbor, $profile_picture_
         return false;
     }
 
-    $stmt->bind_param("sssis", $name, $username, $hashed_password, $zbor, $profile_picture_path);
+    $stmt->bind_param("sssis", $name, $username, $hashed_password, $group_id, $profile_picture_path);
 
     if ($stmt->execute()) {
         $user_id = $stmt->insert_id;
@@ -632,6 +632,92 @@ function get_xp(mysqli $mysqli, int $id): ?array {
         'next_level_xp' => $levelInfo['next_level_xp']
     ];
 }
+
+function get_all_groups(mysqli $mysqli) {
+    $sql = "SELECT id, name, password FROM groups ORDER BY name ASC";
+    $result = $mysqli->query($sql);
+
+    $groups = [];
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $groups[] = $row;
+        }
+    }
+
+    return $groups;
+}
+
+function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id): bool {
+    $hashedPassword = hash('sha256', $password);
+    $admin_ids = (string) $user_id;
+
+    $stmt = $mysqli->prepare("INSERT INTO groups (name, password, admin_ids, owner) VALUES (?, ?, ?, ?)");
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param("sssi", $name, $hashedPassword, $admin_ids, $user_id);
+    $success = $stmt->execute();
+    $stmt->close();
+
+    return $success;
+}
+
+function add_group_admin(mysqli $mysqli, int $group_id, array $user_ids): bool {
+    // Fetch current admin_ids
+    $stmt = $mysqli->prepare("SELECT admin_ids FROM groups WHERE id = ?");
+    $stmt->bind_param("i", $group_id);
+    $stmt->execute();
+    $stmt->bind_result($admin_ids_str);
+    if (!$stmt->fetch()) {
+        $stmt->close();
+        return false;
+    }
+    $stmt->close();
+
+    // Convert to array and merge new ids
+    $current_admins = array_filter(explode(',', $admin_ids_str));
+    $current_admins = array_map('intval', $current_admins);
+
+    foreach ($user_ids as $id) {
+        $id = (int)$id;
+        if ($id > 0 && !in_array($id, $current_admins, true)) {
+            $current_admins[] = $id;
+        }
+    }
+
+    // Save updated list
+    $updated_ids = implode(',', $current_admins);
+    $update = $mysqli->prepare("UPDATE groups SET admin_ids = ? WHERE id = ?");
+    $update->bind_param("si", $updated_ids, $group_id);
+    $success = $update->execute();
+    $update->close();
+
+    return $success;
+}
+
+function remove_group_admin(mysqli $mysqli, int $group_id, int $user_id): bool {
+    $stmt = $mysqli->prepare("SELECT admin_ids FROM groups WHERE id = ?");
+    $stmt->bind_param("i", $group_id);
+    $stmt->execute();
+    $stmt->bind_result($admin_ids_str);
+    if (!$stmt->fetch()) {
+        $stmt->close();
+        return false;
+    }
+    $stmt->close();
+
+    $admin_ids = array_filter(explode(',', $admin_ids_str), fn($id) => $id !== '' && (int)$id !== $user_id);
+    $updated_ids = implode(',', $admin_ids);
+
+    $update = $mysqli->prepare("UPDATE groups SET admin_ids = ? WHERE id = ?");
+    $update->bind_param("si", $updated_ids, $group_id);
+    $success = $update->execute();
+    $update->close();
+
+    return $success;
+}
+
 
 
 

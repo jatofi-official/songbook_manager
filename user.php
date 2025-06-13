@@ -40,7 +40,6 @@ if (isset($_GET["id"])) {
 <?php else: ?>
     <p>User not found.</p>
 
-</style>
 
 <?php endif; ?>
 

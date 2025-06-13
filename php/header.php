@@ -26,7 +26,9 @@
     else if($website=="user"){
         echo '<link href="styles/user_styles.css" rel="stylesheet">	';
     }
-
+    else if($website=="users"){
+        echo '<link href="styles/users_view.css" rel="stylesheet">	';
+    }
     ?>
 </head>
 
