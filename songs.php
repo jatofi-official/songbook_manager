@@ -136,7 +136,7 @@ include("php/instruments.php");
 
 <?php
 // Pagination setup
-$perPage = 10; // Songs per page
+$perPage = PER_PAGE; // Songs per page
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1; // Current page (default: 1)
 
 $search      = $_GET['search']      ?? '';
