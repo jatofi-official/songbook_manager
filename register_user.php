@@ -27,57 +27,72 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Create user without picture first
         $user_id = add_user($mysqli, $name, $username, $password, $zbor);
 
-        if ($user_id) {
+        if ($user_id === "duplicate") {
+            $error = "Username already taken. Please choose another.";
+        } 
+        elseif ($user_id) {
             // Handle profile picture
             if (!empty($_FILES["profile_picture"]["tmp_name"])) {
-                $image_data = getimagesize($_FILES["profile_picture"]["tmp_name"]);
-                if ($image_data === false) {
-                    $error = "Invalid image file.";
-                } else {
-                    $src_image = imagecreatefromstring(file_get_contents($_FILES["profile_picture"]["tmp_name"]));
-                    if (!$src_image) {
-                        $error = "Failed to process image.";
+            // Limit to 2MB (2 * 1024 * 1024 bytes)
+                if ($_FILES["profile_picture"]["size"] > 2 * 1024 * 1024) {
+                    $error = "Profile picture must be less than 2MB.";
+                } 
+                else {
+                    $image_data = getimagesize($_FILES["profile_picture"]["tmp_name"]);
+                    if ($image_data === false) {
+                        $error = "Invalid image file.";
                     } else {
-                        $src_width = imagesx($src_image);
-                        $src_height = imagesy($src_image);
-
-                        // Crop to center square
-                        $side = min($src_width, $src_height);
-                        $src_x = ($src_width - $side) / 2;
-                        $src_y = ($src_height - $side) / 2;
-
-                        $cropped = imagecrop($src_image, ['x' => $src_x, 'y' => $src_y, 'width' => $side, 'height' => $side]);
-
-                        if (!$cropped) {
-                            $error = "Failed to crop image.";
+                        $src_image = imagecreatefromstring(file_get_contents($_FILES["profile_picture"]["tmp_name"]));
+                        if (!$src_image) {
+                            $error = "Failed to process image.";
                         } else {
-                            // Resize to 512x512
-                            $resized = imagecreatetruecolor(512, 512);
-                            imagecopyresampled($resized, $cropped, 0, 0, 0, 0, 512, 512, $side, $side);
+                            $src_width = imagesx($src_image);
+                            $src_height = imagesy($src_image);
 
-                            // Save as PNG
-                            if (!file_exists('profile_pics')) {
-                                mkdir('profile_pics', 0755, true);
-                            }
+                            // Crop to center square
+                            $side = min($src_width, $src_height);
+                            $src_x = ($src_width - $side) / 2;
+                            $src_y = ($src_height - $side) / 2;
 
-                            $filename = "profile_pics/" . $user_id . ".png";
-                            if (!imagepng($resized, $filename)) {
-                                $error = "Failed to save profile picture.";
+                            $cropped = imagecrop($src_image, [
+                                'x' => $src_x,
+                                'y' => $src_y,
+                                'width' => $side,
+                                'height' => $side
+                            ]);
+
+                            if (!$cropped) {
+                                $error = "Failed to crop image.";
                             } else {
-                                // Save path in DB
-                                $stmt = $mysqli->prepare("UPDATE users SET profile_picture = ? WHERE id = ?");
-                                $stmt->bind_param("si", $filename, $user_id);
-                                $stmt->execute();
-                                $stmt->close();
+                                $resized = imagecreatetruecolor(512, 512);
+                                imagecopyresampled($resized, $cropped, 0, 0, 0, 0, 512, 512, $side, $side);
+
+                                if (!file_exists('profile_pics')) {
+                                    mkdir('profile_pics', 0755, true);
+                                }
+
+                                $filename = "profile_pics/" . $user_id . ".png";
+                                if (!imagepng($resized, $filename)) {
+                                    $error = "Failed to save profile picture.";
+                                } else {
+                                    // Save path in DB
+                                    $stmt = $mysqli->prepare("UPDATE users SET profile_picture = ? WHERE id = ?");
+                                    $stmt->bind_param("si", $filename, $user_id);
+                                    $stmt->execute();
+                                    $stmt->close();
+                                }
+
+                                imagedestroy($resized);
                             }
 
-                            imagedestroy($resized);
+                            imagedestroy($cropped);
                         }
-                        imagedestroy($cropped);
-                    }
-                    imagedestroy($src_image);
+
+                        imagedestroy($src_image);
                 }
             }
+        }
+
 
             if (!$error) {
                 $_SESSION["id"] = $user_id;

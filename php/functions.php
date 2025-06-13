@@ -58,13 +58,27 @@ function add_user($mysqli, $name, $username, $password, $zbor, $profile_picture_
         return false;
     }
 
-    $hashed_password = hash("sha256", $password);
+    // Check for duplicate username
+    $stmt = $mysqli->prepare("SELECT id FROM users WHERE username = ?");
+    if (!$stmt) {
+        echo "Prepare failed: " . $mysqli->error;
+        return false;
+    }
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $stmt->store_result();
+    if ($stmt->num_rows > 0) {
+        $stmt->close();
+        return "duplicate"; // Return a custom error indicator
+    }
+    $stmt->close();
 
+    // Insert new user
+    $hashed_password = hash("sha256", $password);
     $stmt = $mysqli->prepare(
         "INSERT INTO users (name, username, password, zbor, date_created, admin, profile_picture) 
-        VALUES (?, ?, ?, ?, CURDATE(), 0, ?)"
+         VALUES (?, ?, ?, ?, CURDATE(), 0, ?)"
     );
-
 
     if (!$stmt) {
         echo "Prepare failed: " . $mysqli->error;
@@ -76,14 +90,15 @@ function add_user($mysqli, $name, $username, $password, $zbor, $profile_picture_
     if ($stmt->execute()) {
         $user_id = $stmt->insert_id;
         $mysqli->query("INSERT INTO user_xp (user_id, xp_add_song, xp_edit_song) VALUES ($user_id, 0, 0)");
-        return $user_id; // return ID instead of true
+        $stmt->close();
+        return $user_id;
     } else {
         echo "Error: " . $stmt->error;
+        $stmt->close();
         return false;
     }
-
-    $stmt->close();
 }
+
 
 
 
@@ -252,31 +267,60 @@ function get_total_users($mysqli) {
     return $row['total'];
 }
 
-function add_activity($mysqli,$username, $type,$description,$public){
-	if(!$mysqli->connect_errno){
-    	$stmt = $mysqli->prepare("INSERT INTO activity_log (username, type, time, description, is_public) VALUES (?, ?, NOW(), ?, ?)");
-		if (!$stmt) {
-        	return "Prepare failed: " . $mysqli->error;
-		}
+function add_activity($mysqli, $username, $type, $description, $is_public = 1) {
+    if ($mysqli->connect_errno) {
+        echo "Failed to connect to MySQL: " . $mysqli->connect_error;
+        return false;
+    }
 
-		$stmt -> bind_param("sssi",$username, $type, $description,$public);
-		
+    // Check for duplicate in last 10 minutes
+    $stmt = $mysqli->prepare("
+        SELECT id FROM activity_log 
+        WHERE username = ? 
+        AND type = ? 
+        AND description = ? 
+        AND time >= NOW() - INTERVAL ".ACTIVITY_COOLDOWN_MINUTES." MINUTE
+        LIMIT 1
+    ");
 
+    if (!$stmt) {
+        echo "Prepare failed: " . $mysqli->error;
+        return false;
+    }
 
-		// Execute the statement
-		if ($stmt->execute()) {
-			return true;
-		} 
-		else {
-			return  "Error: " . $stmt->error;
-		}
+    $stmt->bind_param("sss", $username, $type, $description);
+    $stmt->execute();
+    $stmt->store_result();
 
-		// Close the statement
-		$stmt->close();
+    if ($stmt->num_rows > 0) {
+        // Found recent duplicate
+        $stmt->close();
+        return "duplicate";
+    }
+    $stmt->close();
 
+    // Insert new activity
+    $stmt = $mysqli->prepare("
+        INSERT INTO activity_log (username, type, time, description, is_public)
+        VALUES (?, ?, NOW(), ?, ?)
+    ");
+    if (!$stmt) {
+        echo "Prepare failed: " . $mysqli->error;
+        return false;
+    }
 
-	}
+    $stmt->bind_param("sssi", $username, $type, $description, $is_public);
+
+    if ($stmt->execute()) {
+        $stmt->close();
+        return true;
+    } else {
+        echo "Error: " . $stmt->error;
+        $stmt->close();
+        return false;
+    }
 }
+
 
 function get_activities_user($mysqli, string $type, string $username): int {
     $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM activity_log WHERE type = ? AND username = ?");
