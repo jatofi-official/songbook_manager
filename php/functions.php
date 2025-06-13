@@ -634,7 +634,7 @@ function get_xp(mysqli $mysqli, int $id): ?array {
 }
 
 function get_all_groups(mysqli $mysqli) {
-    $sql = "SELECT id, name, password FROM groups ORDER BY name ASC";
+    $sql = "SELECT id, name, password FROM group_list ORDER BY name ASC";
     $result = $mysqli->query($sql);
 
     $groups = [];
@@ -651,7 +651,7 @@ function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id
     $hashedPassword = hash('sha256', $password);
     $admin_ids = (string) $user_id;
 
-    $stmt = $mysqli->prepare("INSERT INTO groups (name, password, admin_ids, owner) VALUES (?, ?, ?, ?)");
+    $stmt = $mysqli->prepare("INSERT INTO group_list (name, password, admin_ids, owner) VALUES (?, ?, ?, ?)");
     if (!$stmt) {
         return false;
     }
@@ -665,7 +665,7 @@ function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id
 
 function add_group_admin(mysqli $mysqli, int $group_id, array $user_ids): bool {
     // Fetch current admin_ids
-    $stmt = $mysqli->prepare("SELECT admin_ids FROM groups WHERE id = ?");
+    $stmt = $mysqli->prepare("SELECT admin_ids FROM group_list WHERE id = ?");
     $stmt->bind_param("i", $group_id);
     $stmt->execute();
     $stmt->bind_result($admin_ids_str);
@@ -688,7 +688,7 @@ function add_group_admin(mysqli $mysqli, int $group_id, array $user_ids): bool {
 
     // Save updated list
     $updated_ids = implode(',', $current_admins);
-    $update = $mysqli->prepare("UPDATE groups SET admin_ids = ? WHERE id = ?");
+    $update = $mysqli->prepare("UPDATE group_list SET admin_ids = ? WHERE id = ?");
     $update->bind_param("si", $updated_ids, $group_id);
     $success = $update->execute();
     $update->close();
@@ -697,7 +697,7 @@ function add_group_admin(mysqli $mysqli, int $group_id, array $user_ids): bool {
 }
 
 function remove_group_admin(mysqli $mysqli, int $group_id, int $user_id): bool {
-    $stmt = $mysqli->prepare("SELECT admin_ids FROM groups WHERE id = ?");
+    $stmt = $mysqli->prepare("SELECT admin_ids FROM group_list WHERE id = ?");
     $stmt->bind_param("i", $group_id);
     $stmt->execute();
     $stmt->bind_result($admin_ids_str);
@@ -710,7 +710,7 @@ function remove_group_admin(mysqli $mysqli, int $group_id, int $user_id): bool {
     $admin_ids = array_filter(explode(',', $admin_ids_str), fn($id) => $id !== '' && (int)$id !== $user_id);
     $updated_ids = implode(',', $admin_ids);
 
-    $update = $mysqli->prepare("UPDATE groups SET admin_ids = ? WHERE id = ?");
+    $update = $mysqli->prepare("UPDATE group_list SET admin_ids = ? WHERE id = ?");
     $update->bind_param("si", $updated_ids, $group_id);
     $success = $update->execute();
     $update->close();
