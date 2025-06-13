@@ -42,12 +42,10 @@ $displayName = htmlspecialchars($user['name'] ?? $user['username']);
 $username = htmlspecialchars($user['username']);
 
 $profilePicPath = __DIR__ . "/../../profile_pics/{$id}.png";  // filesystem path
-$profilePicUrl = $user["profile_picture"];                  // URL path relative to site root
+$profilePicUrl = "";                 // URL path relative to site root
 
 if ($id && file_exists($profilePicPath)) {
-    // Use URL path here, not the filesystem path
-    // $profilePicUrl = "/profile_pics/{$id}.png";
-    $profilePicUrl = $user["profile_picture"];                  // URL path relative to site root
+    $profilePicUrl = "profile_pics/".$id.".png";                  // URL path relative to site root
 
 } else {
     $profilePicUrl = "https://ui-avatars.com/api/?name=" . urlencode($displayName) . "&background=random";

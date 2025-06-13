@@ -16,6 +16,7 @@ if (isset($_POST["submit"]) && isset($_POST["username"]) && isset($_POST["passwo
         $result = login_user($mysqli, $_POST["username"], $_POST["password"]);
         if ($result) {
             $_SESSION["user"] = $result["username"];
+            $_SESSION["name"] = $result["name"];
             $_SESSION["admin"] = $result["admin"];
             $_SESSION["id"] = $result["id"];
             $_SESSION["admin_view"] = false;

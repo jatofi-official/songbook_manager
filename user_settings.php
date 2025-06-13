@@ -15,23 +15,7 @@ if(isset($_POST["logout"])){
 	exit();
 }
 
-// Handle profile picture upload
-if (isset($_FILES['profile_picture']) && isset($_SESSION["id"])) {
-    $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-    $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
 
-    if (in_array($ext, $allowed) && $_FILES['profile_picture']['size'] < 2000000) {
-        $filename = "profile_" . $_SESSION["id"] . "." . $ext;
-        $targetPath = "uploads/" . $filename;
-
-        if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $targetPath)) {
-            // Save to DB
-            $stmt = $mysqli->prepare("UPDATE users SET profile_picture = ? WHERE id = ?");
-            $stmt->bind_param("si", $targetPath, $_SESSION["id"]);
-            $stmt->execute();
-        }
-    }
-}
 
 // Get user info from DB
 $userData = null;
@@ -55,6 +39,7 @@ if(isset($_POST["submit"]) && isset($_POST["username"]) && isset($_POST["passwor
 		if ($result){
 			$_SESSION["user"] = $result["username"];
 			$_SESSION["admin"] = $result["admin"];
+			$_SESSION["name"] = $result["name"];
 			$_SESSION["id"]=$result["id"];
 			$_SESSION["admin_view"] = false;
 			header("Location: " . $_SERVER['PHP_SELF']);
@@ -70,8 +55,8 @@ if (isset($_SESSION["user"])): ?>
 	<p>Welcome, <strong><?= htmlspecialchars($_SESSION["name"]) ?></strong>!</p>
 
 	<!-- Profile picture -->
-	<?php if (!empty($userData["profile_picture"])): ?>
-		<img src="<?= htmlspecialchars($userData["profile_picture"]) ?>" style="max-width: 150px; border-radius: 50%;">
+	<?php if (!empty("profile_pics/".$_SESSION["id"].".png")): ?>
+		<img src="<?= htmlspecialchars("profile_pics/".$_SESSION["id"].".png") ?>" style="max-width: 150px; border-radius: 50%;">
 	<?php else: ?>
 		<img src="default_avatar.png" style="max-width: 150px; border-radius: 50%;">
 	<?php endif; ?>
