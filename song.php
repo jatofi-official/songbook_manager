@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     add_activity(
                         $mysqli,
                         $userId,
-                        "Edited song",
+                        "edit",
                         "Edited '{$title}' by {$artist}",
                         $is_public
                     );
@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 add_activity(
                     $mysqli,
                     $userId,
-                    "Added song",
+                    "add",
                     "Added '{$title}' by {$artist}",
                     $is_public
                 );

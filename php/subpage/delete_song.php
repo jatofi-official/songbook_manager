@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
         add_activity(
             $mysqli,
             $user,
-            "Deleted song",
+            "delete",
             "Deleted '" . $song["title"] . "' by " . $song["artist"],
             $song["is_public"]
         );
