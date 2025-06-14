@@ -85,7 +85,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-                <div class="collapse<?= (isset($_GET['advanced']) && $_GET['advanced'] == '1') ? ' show' : '' ?>" id="advancedFilters">
+                
+                <?php
+                // Decides if advanced menu should stay opened
+
+                // Allowed GET parameters that do NOT trigger advanced open
+                $allowed = ['new', 'page', 'search', 'category'];
+
+                // Check if any GET key exists outside allowed list
+                $advancedOpen = false;
+                foreach ($_GET as $key => $value) {
+                    if (!in_array($key, $allowed)) {
+                        $advancedOpen = true;
+                        break;
+                    }
+                }
+                ?>
+
+                <div class="collapse<?= $advancedOpen ? ' show' : '' ?>" id="advancedFilters">
                     <div class="rounded p-2 mb-2" id="advancedFilterBox">
                         <div class="mb-2">
                             <label class="form-label mb-1">Instrument</label>
@@ -135,45 +152,32 @@ document.addEventListener("DOMContentLoaded", () => {
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("songFilterForm");
-    const advToggle = document.querySelector("[data-bs-target='#advancedFilters']");
-    const advBox = document.getElementById("advancedFilters");
 
-    let openedManually = false;
+    // Autosubmit only when 'category' changes or 'search' input changes (on Enter)
+    const categorySelect = form.querySelector("select[name='category']");
+    const searchInput = form.querySelector("input[name='search']");
 
-    advToggle.addEventListener("click", () => {
-        openedManually = !advBox.classList.contains("show");
-    });
-
-    function ensureAdvancedInput() {
-        if ((advBox.classList.contains("show") || openedManually) && !form.querySelector("input[name='advanced']")) {
-            const hidden = document.createElement("input");
-            hidden.type = "hidden";
-            hidden.name = "advanced";
-            hidden.value = "1";
-            form.appendChild(hidden);
-        }
+    if (categorySelect) {
+        categorySelect.addEventListener("change", () => {
+            form.querySelector("input[name='page']").value = 1; // reset page
+            form.submit();
+        });
     }
 
-    form.addEventListener("submit", () => {
-        ensureAdvancedInput();
-    });
-
-    form.querySelectorAll("select").forEach(select => {
-        select.addEventListener("change", () => {
-            form.querySelector("input[name='page']").value = 1;
-            ensureAdvancedInput();
-            form.submit();
+    if (searchInput) {
+        searchInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                form.querySelector("input[name='page']").value = 1; // reset page
+                form.submit();
+            }
         });
-    });
+    }
 
-    form.querySelectorAll("input[name='tags[]']").forEach(tag => {
-        tag.addEventListener("change", () => {
-            form.querySelector("input[name='page']").value = 1;
-            ensureAdvancedInput();
-            form.submit();
-        });
-    });
+    // For other inputs (tags[], instruments[], owner, etc), no autosubmit:
+    // User has to hit submit button or press Enter inside those fields manually.
 });
+
+
 </script>
 
 
