@@ -44,7 +44,7 @@ if (isset($_GET['id'])) {
                     <div class="d-flex gap-2">
                         <?php if ($isEmbedded): ?>
                             <a href="song.php?id=<?= (int)$id ?>" class="btn btn-primary mb-3">
-                                Full view
+                                View
                             </a>
                         <?php endif; ?>
 
@@ -80,12 +80,6 @@ if (isset($_GET['id'])) {
                 <div class="row">
                     <div class="col-md-6">
                         <div class="mb-2"><strong>Category:</strong> <?= htmlspecialchars($categories[$song['category']] ?? 'Unknown') ?></div>
-                        <div class="mb-2"><strong>Capo:</strong>
-                            <span class="capo-display fw-bold"><?= htmlspecialchars($song['capo']) ?>th fret</span>
-                            <?php if ($song["capo_alt"] != NULL) { ?>
-                                <span class="capo-display fw-bold">(alternative): <?= htmlspecialchars($song['capo_alt']) ?>th fret</span>
-                            <?php } ?>
-                        </div>
 
                         <div class="mb-2"><strong>Created by:</strong>
                             <?php if ($user): ?>
@@ -94,6 +88,15 @@ if (isset($_GET['id'])) {
                                 <?= htmlspecialchars($song['owner']) ?>
                             <?php endif; ?>
                         </div>
+                        <div class="mb-2 d-flex align-items-center">
+                            <strong class="me-2">Capo:</strong>
+                            <div class="capo-circle"><?= htmlspecialchars($song['capo']) ?></div>
+
+                            <?php if ($song["capo_alt"] != NULL) { ?>
+                                <div class="capo-circle-alt"><?= htmlspecialchars($song['capo_alt']) ?></div>
+                            <?php } ?>
+                        </div>
+
 
                     </div>
                     <div class="col-md-6">

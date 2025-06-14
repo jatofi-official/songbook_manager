@@ -89,11 +89,30 @@ body {
     margin-bottom: 0.5em;
 }
 
-.capo-display {
+.capo-circle,
+.capo-circle-alt {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center; /* <-- this guarantees vertical centering */
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     font-weight: bold;
-    color: var(--primary);
-    margin-right: 10px;
+    font-size: 0.9rem;
+    margin-right: 6px;
+    background-color: var(--primary);
+    color: white;
+    vertical-align: middle;
+    font-family: system-ui, sans-serif; 
+    line-height: 1;
 }
+
+.capo-circle-alt {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+
 
 .search-box {
     position: sticky;
