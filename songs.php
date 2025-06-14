@@ -1,11 +1,11 @@
 <?php
 session_start();
-if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){  
+// if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){  
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
     error_reporting(E_ALL);
-}
+// }
 include('php/db.php');          
 include('php/data.php');    
 
@@ -43,15 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         detailContainer.innerHTML = "<p>Error loading song details.</p>";
                     });
 
-                // Remove any 'new' param from URL without reloading
-                const url = new URL(window.location);
-                // url.searchParams.delete('new');
-                window.history.replaceState(null, '', url.toString());
             }
         });
     });
 });
-
 
 
 
@@ -62,7 +57,9 @@ document.addEventListener("DOMContentLoaded", () => {
 include("php/header.php");
 include('php/navigation.php');
 include("php/categories.php");
-include("php/instruments.php");
+
+
+$allTags = get_all_tags($mysqli);
 
 ?>
 <div class="row g-0">
@@ -76,7 +73,7 @@ include("php/instruments.php");
                 </a>
             </div>
 
-
+            <!-- Song filter part -->
             <form id="songFilterForm" method="get">
                 <div class="input-group mb-3">
                         <input type="text" name="search" class="form-control"
@@ -105,7 +102,7 @@ include("php/instruments.php");
                     <option value="">All Instruments</option>
                     <?php 
                         $selectedInstrument = $_GET['instruments'] ?? '';
-                        foreach($instruments as $instrument){
+                        foreach(get_all_instruments($mysqli) as $instrument){
                             $name = $instrument["name"];
                             $selected = ($selectedInstrument === $name) ? 'selected' : '';
                             echo "<option value='$name' $selected>$name</option>";
@@ -114,11 +111,36 @@ include("php/instruments.php");
                 </select>
             </div>
 
+            <!-- Tags filter -->
+            <div class="row mb-3">
+                <label class="form-label d-block">Tags</label>
+                <div class="d-flex flex-wrap gap-1">
+                    <?php 
+                        $selectedTags = $_GET['tags'] ?? [];
+                        if (!is_array($selectedTags)) {
+                            $selectedTags = [];
+                        }
+
+                        foreach ($allTags as $tag) {
+                            $isSelected = in_array($tag, $selectedTags);
+                            $checked = $isSelected ? 'checked' : '';
+                            echo "<div class='form-check form-check-inline'>";
+                            echo "<input class='form-check-input' type='checkbox' name='tags[]' value='".htmlspecialchars($tag)."' id='tag_$tag' $checked>";
+                            echo "<label class='form-check-label' for='tag_$tag'>$tag</label>";
+                            echo "</div>";
+                        }
+                    ?>
+                </div>
+            </div>
+
+
             <input type="hidden" name="page" value="1">
             </form>
+
         </div>
 
         <script>
+        // Auto submit form on 
         document.addEventListener("DOMContentLoaded", () => {
             const form = document.getElementById("songFilterForm");
 
@@ -129,6 +151,22 @@ include("php/instruments.php");
                 });
             });
         });
+        // Auto search on clicked tags.
+        document.addEventListener("DOMContentLoaded", () => {
+            const filterForm = document.getElementById("songFilterForm");
+
+            filterForm.querySelectorAll("input[name='tags[]']").forEach(checkbox => {
+                checkbox.addEventListener("change", () => {
+                    // Reset page to 1 when filtering
+                    const pageInput = filterForm.querySelector("input[name='page']");
+                    if (pageInput) pageInput.value = 1;
+
+                    filterForm.submit();
+                });
+            });
+        });
+
+
         </script>
 
 
@@ -158,7 +196,7 @@ if (is_array($instrumentsRaw)) {
 
 
 
-$songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments);
+$songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags);
 
 $songs = $songData['songs'];
 $totalPages = $songData["totalPages"];
@@ -267,16 +305,12 @@ if (!empty($songs)) {
 ?>
 </div>
 
-    </div>
+</div>
     
     <!-- Song Detail Column -->
     <div class="col-md-7 col-lg-8 p-0 song-detail-container d-none d-md-block">
         <?php 
-        if (isset($_GET['new']) && $_GET['new'] == 1) {
-            $_GET['embedded'] = 1;
-            include('php/subpage/song_form.php');
-
-        } elseif (isset($_GET['id'])) {
+        if (isset($_GET['id'])) {
             // Load song details for the given id
             $songId = (int)$_GET['id'];
             $_GET['embedded'] = 1;

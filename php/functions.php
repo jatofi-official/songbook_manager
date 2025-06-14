@@ -385,7 +385,7 @@ function get_recent_activity($mysqli, $number) {
 	}
 }
 
-function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments) {
+function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = []) {
     if ($mysqli->connect_errno) {
         return [
             'songs' => [],
@@ -402,7 +402,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
     // Visibility rules
     if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
         $conditions[] = "(is_public = 1 OR owner = ?)";
-        $params[] = $_SESSION["user"] ?? ''; // fallback empty string if user not set
+        $params[] = $_SESSION["user"] ?? '';
         $types .= "s";
     }
 
@@ -413,31 +413,43 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         $params[] = "%" . $searchQuery . "%";
         $types .= "ss";
     }
-    // Category filter (category is int, so use 'i')
+
+    // Category filter
     if (!empty($category) && $category !== 'all') {
         $conditions[] = "category = ?";
         $params[] = (int)$category;
         $types .= "i";
     }
 
-    // Instruments filter: array of strings
+    // Instruments filter
     if (!empty($instruments) && is_array($instruments)) {
         foreach ($instruments as $instrument) {
             if (strlen(trim($instrument)) > 0) {
-                $conditions[] = "instruments LIKE ?";
-                $params[] = "%" . trim($instrument) . "%";
+                $conditions[] = "FIND_IN_SET(?, instruments) > 0";
+                $params[] = trim($instrument);
                 $types .= "s";
             }
         }
     }
 
-    // Combine WHERE clause
+    // Tags filter
+    if (!empty($tags) && is_array($tags)) {
+        foreach ($tags as $tag) {
+            if (strlen(trim($tag)) > 0) {
+                $conditions[] = "FIND_IN_SET(?, tags) > 0";
+                $params[] = trim($tag);
+                $types .= "s";
+            }
+        }
+    }
+
+    // WHERE clause
     if (!empty($conditions)) {
         $sql .= "WHERE " . implode(" AND ", $conditions) . " ";
     }
 
     // Ordering and pagination
-    $sql .= "ORDER BY category ASC, id ASC LIMIT ?, ?";
+    $sql .= "ORDER BY modified_date DESC, id ASC LIMIT ?, ?";
     $offset = ($page - 1) * $perPage;
     $params[] = $offset;
     $params[] = $perPage;
@@ -445,7 +457,6 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
 
     $stmt = $mysqli->prepare($sql);
     if ($stmt === false) {
-        // Prepare failed
         return [
             'songs' => [],
             'total' => 0,
@@ -453,7 +464,6 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         ];
     }
 
-    // Bind params only if $types is non-empty
     if ($types !== '') {
         $stmt->bind_param($types, ...$params);
     }
@@ -467,7 +477,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
     }
     $stmt->close();
 
-    // Count total for pagination - reuse conditions and params except LIMIT
+    // Count total
     $countSql = "SELECT COUNT(*) AS total FROM songs ";
     if (!empty($conditions)) {
         $countSql .= "WHERE " . implode(" AND ", $conditions);
@@ -482,11 +492,9 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         ];
     }
 
-    // Remove last two params (LIMIT offset and limit) for count query
+    // Remove pagination params for count
     $countParams = $params;
     $countTypes = $types;
-
-    // Remove last two 'i's for limit
     $countTypes = substr($countTypes, 0, -2);
     array_splice($countParams, -2);
 
@@ -718,6 +726,48 @@ function remove_group_admin(mysqli $mysqli, int $group_id, int $user_id): bool {
     return $success;
 }
 
+function add_tag($mysqli, $tag) {
+    $stmt = $mysqli->prepare("INSERT INTO song_tags (name) VALUES (?)");
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param("s", $tag);
+    $success = $stmt->execute();
+    $stmt->close();
+    return $success;
+}
+
+function remove_tag($mysqli, $tag) {
+    $stmt = $mysqli->prepare("DELETE FROM song_tags WHERE name = ?");
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param("s", $tag);
+    $success = $stmt->execute();
+    $stmt->close();
+    return $success;
+}
+
+function get_all_tags($mysqli) {
+    $result = $mysqli->query("SELECT name FROM song_tags");
+    if (!$result) {
+        return [];
+    }
+    $tags = [];
+    while ($row = $result->fetch_assoc()) {
+        $tags[] = $row['name'];
+    }
+    return $tags;
+}
+
+function get_all_instruments($mysqli) {
+    $res = $mysqli->query("SELECT id, name FROM instruments");
+    if (!$res) {
+        return [];
+    }
+
+    return $res->fetch_all(MYSQLI_ASSOC);
+}
 
 
 

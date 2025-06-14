@@ -15,7 +15,6 @@ include('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 include("php/categories.php");
-include("php/instruments.php");
 
 $userId = $_SESSION["user"] ?? null;  // null if not logged in
 $isAdmin = $_SESSION["admin_view"] ?? false;
@@ -267,7 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mb-3">
                 <label class="form-label">Instruments</label>
                 <div>
-                    <?php foreach ($instruments as $inst): ?>
+                    <?php foreach (get_all_instruments($mysqli) as $inst): ?>
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="checkbox"
                                    id="inst_<?= $inst['id'] ?>"
