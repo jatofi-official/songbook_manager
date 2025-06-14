@@ -78,33 +78,31 @@ document.addEventListener("DOMContentLoaded", () => {
                     </a>
 
                     <!-- Advanced toggle -->
-                    <button class="btn btn-outline-secondary btn-sm d-flex align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-expanded="false" aria-controls="advancedFilters">
+                    <button id="toggleAdvanced" class="btn btn-outline-secondary btn-sm d-flex align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-expanded="false" aria-controls="advancedFilters">
                         <i class="bi bi-sliders me-1"></i> Advanced
                     </button>
+                    <script>
+                    document.getElementById("toggleAdvanced").addEventListener("click", function () {
+                        fetch("php/toggle_advanced.php")
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log("Advanced search is now " + (data.advanced_search ? "ON" : "OFF"));
+                            })
+                            .catch(error => {
+                                console.error("Error toggling dark mode:", error);
+                            });
+                    });
+                    </script>
+
                 </div>
 
 
                 <?php
-                // Decides if advanced menu should stay opened
-                $allowedBasic = ['new', 'page', 'search', 'category']; // Basic filters
-                $advancedFilters = ['tags', 'instruments', 'owner'];    // Advanced filters
-
-                $advancedOpen = false;
-
-                // Check advanced filters
-                foreach ($advancedFilters as $filter) {
-                    // Special handling for tags array
-                    if ($filter === 'tags') {
-                        if (isset($_GET['tags']) && is_array($_GET['tags']) && !empty($_GET['tags'])) {
-                            $advancedOpen = true;
-                            break;
-                        }
-                    }
-                    // Regular advanced filters
-                    elseif (!empty($_GET[$filter])) {
-                        $advancedOpen = true;
-                        break;
-                    }
+                if(isset($_SESSION["advanced_search"])&&$_SESSION["advanced_search"]==true){
+                    $advancedOpen = true;
+                }
+                else{
+                    $advancedOpen=false;
                 }
                 ?>
 
