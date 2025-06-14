@@ -74,7 +74,7 @@ include("php/categories.php");
     <div class="row">
         <!-- Right Column (Shows first on small screens) -->
         <div class="col-12 col-md-4 order-1 order-md-2 mb-4 mb-md-0">
-            <div class="card h-100">
+            <div class="all_songs_card h-100">
                 <div class="card-body p-0 h-100">
                     <a href="songs.php" class="btn w-100 h-100 d-flex justify-content-center align-items-center fs-4 rounded border border-primary text-primary bg-transparent">
                         All songs

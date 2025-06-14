@@ -58,6 +58,7 @@ font-size: 0.9rem;
     display: block;
 }
 
+.all_songs_card
 .card {
 border-radius: 10px;
 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
@@ -66,9 +67,14 @@ transition: transform 0.2s;
 margin-bottom: 20px;
 }
 
-/* .card:hover {
-transform: translateY(-3px);
-} */
+.all_songs_card:hover {
+    transition: transform 0.3s;
+}
+
+
+.all_songs_card:hover {
+    transform: scale(1.03);
+}
 
 .song-card {
 height: 100%;

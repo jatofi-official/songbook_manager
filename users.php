@@ -7,7 +7,9 @@ include('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 
+if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
 ?>
+
 <!-- Page Header -->
 <div class="user-management-header">
     <div class="container">
@@ -134,4 +136,9 @@ include('php/navigation.php');
 </div>
 
 
-<?php include("php/footer.php"); ?>
+<?php 
+}
+else{
+    echo "<p>Oops... Nothing to see here</p>";
+}
+include("php/footer.php"); ?>
