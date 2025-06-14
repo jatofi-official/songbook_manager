@@ -23,17 +23,22 @@ background: linear-gradient(90deg, var(--primary), var(--secondary));
 }
 
 .stat-card {
-text-align: center;
-padding: 20px;
-border-radius: 10px;
-background: white;
-box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-margin-bottom: 20px;
-transition: transform 0.2s;
+    text-align: center;
+    padding: 20px;
+    border-radius: 10px;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    margin-top: 20px;
+    transition: transform 0.3s;
+    transition: box-shadow 0.3s ease;
+    cursor: pointer;
 }
 
 .stat-card:hover {
-transform: translateY(-5px);
+    transform: scale(1.03);
+    box-shadow: 0 0 0 2px var(--primary);
+
 }
 
 .stat-card .number {
@@ -45,6 +50,12 @@ color: var(--primary);
 .stat-card .label {
 color: #6c757d;
 font-size: 0.9rem;
+}
+
+.stat-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
 }
 
 .card {
