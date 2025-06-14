@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Remove any 'new' param from URL without reloading
                 const url = new URL(window.location);
-                url.searchParams.delete('new');
+                // url.searchParams.delete('new');
                 window.history.replaceState(null, '', url.toString());
             }
         });

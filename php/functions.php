@@ -406,13 +406,13 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         $types .= "s";
     }
 
-    // Search query - not case sensitive
+    // Search query - not case sensitive, match title OR artist
     if (!empty($searchQuery)) {
-        $conditions[] = "title LIKE ? ";
+        $conditions[] = "(title LIKE ? OR artist LIKE ?)";
         $params[] = "%" . $searchQuery . "%";
-        $types .= "s";
+        $params[] = "%" . $searchQuery . "%";
+        $types .= "ss";
     }
-
     // Category filter (category is int, so use 'i')
     if (!empty($category) && $category !== 'all') {
         $conditions[] = "category = ?";
