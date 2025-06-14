@@ -17,8 +17,8 @@ body {
 } */
 
 .song-list-container {
-    height: 100vh;
-    overflow-y: auto;
+    /* height: 100vh; */
+    /* overflow-y: auto; */
     background-color: white;
     border-right: 1px solid #dee2e6;
     /* padding: .5rem;  */

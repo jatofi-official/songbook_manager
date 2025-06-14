@@ -1,5 +1,10 @@
 <?php
 session_start();
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
 $website = "user";
 include('php/db.php');      // Your existing DB connection
 include('php/functions.php');

@@ -69,7 +69,7 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
 <div class="profile-header">
     <div class="container">
         <div class="row align-items-center">
-            <div class="col-md-2 text-center">
+            <div class="col-md-3 text-center">
                 <!-- <img src="<?= $profilePicUrl ?>" class="profile-pic rounded-circle" alt="Profile Picture"> -->
 
                 <img src="<?= htmlspecialchars($profilePicUrl) ?>" class="profile-pic rounded-circle" alt="Profile Picture">
@@ -127,13 +127,13 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
                 <div class="col-md-6 mb-3">
                     <div class="stats-card">
                         <div class="stat-number"><?= $songsAdded ?></div>
-                        <div class="stat-label">Songs Added</div>
+                        <div class="stat-label">Songs</div>
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
                     <div class="stats-card">
                         <div class="stat-number"><?= $songsEdited ?></div>
-                        <div class="stat-label">Song Edits</div>
+                        <div class="stat-label">Edits</div>
                     </div>
                 </div>
             </div>
