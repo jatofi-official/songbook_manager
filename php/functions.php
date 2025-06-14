@@ -769,6 +769,28 @@ function get_all_instruments($mysqli) {
     return $res->fetch_all(MYSQLI_ASSOC);
 }
 
+function get_all_categories($mysqli) {
+    $categories = [];
+
+    $sql = "SELECT id, name FROM categories";
+    $result = $mysqli->query($sql);
+
+    if (!$result) {
+        return []; 
+    }
+
+    while ($row = $result->fetch_assoc()) {
+        $id = (int)$row['id'];
+        // Option 1: Just the name
+        $categories[$id] = $row['name'];
+
+        // Option 2: Include index if you want (uncomment this line instead)
+        // $categories[$id] = $row['category_index'] . ' ' . $row['name'];
+    }
+
+    $result->free();
+    return $categories;
+}
 
 
 

@@ -6,7 +6,6 @@ $website = "index";
 include('php/functions.php'); 
 include("php/header.php");
 include('php/navigation.php');
-include("php/categories.php");
 
 
 // ini_set('display_errors', 1);
