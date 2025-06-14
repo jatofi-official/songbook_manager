@@ -331,7 +331,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         ];
     }
 
-    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date FROM songs ";
+    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date FROM songs";
     $conditions = [];
     $params = [];
     $types = "";
@@ -389,11 +389,13 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
 
     // WHERE clause
     if (!empty($conditions)) {
-        $sql .= "WHERE " . implode(" AND ", $conditions) . " ";
+        $sql .= " WHERE " . implode(" AND ", $conditions) . " ";
     }
 
-    // Ordering and pagination
-    $sql .= "ORDER BY modified_date DESC, id ASC LIMIT ?, ?";
+
+    // Ordering and pagination - order by category, then id
+    $sql .= " ORDER BY category ASC, id ASC LIMIT ?, ?";
+
     $offset = ($page - 1) * $perPage;
     $params[] = $offset;
     $params[] = $perPage;
