@@ -84,23 +84,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
 
 
-
-                
                 <?php
                 // Decides if advanced menu should stay opened
+                $allowedBasic = ['new', 'page', 'search', 'category']; // Basic filters
+                $advancedFilters = ['tags', 'instruments', 'owner'];    // Advanced filters
 
-                // Allowed GET parameters that do NOT trigger advanced open
-                $allowed = ['new', 'page', 'search', 'category'];
-
-                // Check if any GET key exists outside allowed list
                 $advancedOpen = false;
-                foreach ($_GET as $key => $value) {
-                    if (!in_array($key, $allowed)) {
+
+                // Check advanced filters
+                foreach ($advancedFilters as $filter) {
+                    // Special handling for tags array
+                    if ($filter === 'tags') {
+                        if (isset($_GET['tags']) && is_array($_GET['tags']) && !empty($_GET['tags'])) {
+                            $advancedOpen = true;
+                            break;
+                        }
+                    }
+                    // Regular advanced filters
+                    elseif (!empty($_GET[$filter])) {
                         $advancedOpen = true;
                         break;
                     }
                 }
                 ?>
+
 
                 <div class="collapse<?= $advancedOpen ? ' show' : '' ?>" id="advancedFilters">
                     <div class="rounded p-2 mb-2" id="advancedFilterBox">
@@ -149,33 +156,68 @@ document.addEventListener("DOMContentLoaded", () => {
             </form>
         </div>
 
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("songFilterForm");
 
-    // Autosubmit only when 'category' changes or 'search' input changes (on Enter)
-    const categorySelect = form.querySelector("select[name='category']");
-    const searchInput = form.querySelector("input[name='search']");
+    // Get ALL filter inputs (including tags, instruments, owner)
+    const allFilterInputs = form.querySelectorAll(
+        "select[name='category'], " +
+        "select[name='instruments'], " +
+        "input[name='owner'], " +
+        "input[name='tags[]'], " +
+        "input[name='search']"
+    );
 
-    if (categorySelect) {
-        categorySelect.addEventListener("change", () => {
-            form.querySelector("input[name='page']").value = 1; // reset page
-            form.submit();
-        });
-    }
-
-    if (searchInput) {
-        searchInput.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-                form.querySelector("input[name='page']").value = 1; // reset page
-                form.submit();
-            }
-        });
-    }
-
-    // For other inputs (tags[], instruments[], owner, etc), no autosubmit:
-    // User has to hit submit button or press Enter inside those fields manually.
+    // Auto-submit on change for ALL fields except search
+    allFilterInputs.forEach(input => {
+        if (input.name === 'search') {
+            // Search only submits on Enter (keep original behavior)
+            input.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    form.querySelector("input[name='page']").value = 1;
+                    form.submit();
+                }
+            });
+        } else {
+            // All other fields auto-submit on change (including tags)
+            input.addEventListener("change", () => {
+                form.querySelector("input[name='page']").value = 1;
+                form.submit(); // Tags will submit automatically via normal form behavior
+            });
+        }
+    });
 });
+</script>
+
+<script>
+// document.addEventListener("DOMContentLoaded", () => {
+//     const form = document.getElementById("songFilterForm");
+
+//     // Autosubmit only when 'category' changes or 'search' input changes (on Enter)
+//     const categorySelect = form.querySelector("select[name='category']");
+//     const searchInput = form.querySelector("input[name='search']");
+
+//     if (categorySelect) {
+//         categorySelect.addEventListener("change", () => {
+//             form.querySelector("input[name='page']").value = 1; // reset page
+//             form.submit();
+//         });
+//     }
+
+//     if (searchInput) {
+//         searchInput.addEventListener("keydown", (event) => {
+//             if (event.key === "Enter") {
+//                 form.querySelector("input[name='page']").value = 1; // reset page
+//                 form.submit();
+//             }
+//         });
+//     }
+
+//     // For other inputs (tags[], instruments[], owner, etc), no autosubmit:
+//     // User has to hit submit button or press Enter inside those fields manually.
+// });
 
 
 </script>
