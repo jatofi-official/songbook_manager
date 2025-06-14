@@ -1,7 +1,7 @@
 
 <?php
 define("AUTHOR", "Jakub Hlavatý");
-define("VERSION", "Alpha 1");
+define("VERSION", "Alpha 1.1");
 $website = "";
 define("ADD_XP_AMOUNT",50);
 define("EDIT_XP_AMOUNT",15);
