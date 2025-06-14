@@ -256,6 +256,7 @@ function get_new_songs_this_week($mysqli) {
         return 0;
     }
 }
+
 function get_total_users($mysqli) {
     $sql = "SELECT COUNT(*) AS total FROM users";
     $result = $mysqli->query($sql);
@@ -460,6 +461,102 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         'totalPages' => $perPage > 0 ? (int)ceil($totalSongs / $perPage) : 1
     ];
 }
+
+function get_new_songs($mysqli, $perPage, $page) {
+    if ($mysqli->connect_errno) {
+        return [
+            'songs' => [],
+            'total' => 0,
+            'totalPages' => 0
+        ];
+    }
+
+    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date FROM songs ";
+    $conditions = [];
+    $params = [];
+    $types = "";
+
+    // Visibility rules
+    if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
+        $conditions[] = "(is_public = 1 OR owner = ?)";
+        $params[] = $_SESSION["user"] ?? '';
+        $types .= "s";
+    }
+
+    // Only new songs created this week
+    $conditions[] = "YEARWEEK(create_date, 1) = YEARWEEK(CURDATE(), 1)";
+
+    if (!empty($conditions)) {
+        $sql .= "WHERE " . implode(" AND ", $conditions) . " ";
+    }
+
+    // Order and pagination
+    $sql .= " ORDER BY create_date DESC LIMIT ?, ?";
+    $offset = ($page - 1) * $perPage;
+    $params[] = $offset;
+    $params[] = $perPage;
+    $types .= "ii";
+
+    $stmt = $mysqli->prepare($sql);
+    if ($stmt === false) {
+        return [
+            'songs' => [],
+            'total' => 0,
+            'totalPages' => 0
+        ];
+    }
+
+    if ($types !== '') {
+        $stmt->bind_param($types, ...$params);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $songs = [];
+    while ($row = $result->fetch_assoc()) {
+        $songs[] = $row;
+    }
+    $stmt->close();
+
+    // Count total
+    $countSql = "SELECT COUNT(*) AS total FROM songs ";
+    if (!empty($conditions)) {
+        $countSql .= "WHERE " . implode(" AND ", $conditions);
+    }
+
+    $countStmt = $mysqli->prepare($countSql);
+    if ($countStmt === false) {
+        return [
+            'songs' => $songs,
+            'total' => 0,
+            'totalPages' => 0
+        ];
+    }
+
+    // Remove pagination params for count
+    $countParams = $params;
+    $countTypes = $types;
+    $countTypes = substr($countTypes, 0, -2); // remove 'ii' for limit params
+    array_splice($countParams, -2);
+
+    if ($countTypes !== '') {
+        $countStmt->bind_param($countTypes, ...$countParams);
+    }
+
+    $countStmt->execute();
+    $countResult = $countStmt->get_result();
+    $totalSongs = $countResult->fetch_assoc()['total'] ?? 0;
+
+    $countStmt->close();
+
+    return [
+        'songs' => $songs,
+        'total' => (int)$totalSongs,
+        'totalPages' => $perPage > 0 ? (int)ceil($totalSongs / $perPage) : 1
+    ];
+}
+
 
 
 function time_elapsed_string($datetime, $full = false) {

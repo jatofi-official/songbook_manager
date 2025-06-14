@@ -181,18 +181,24 @@ document.addEventListener("DOMContentLoaded", () => {
             <?php
             $perPage = PER_PAGE;
             $page = (int)($_GET['page'] ?? 1);
-            $search = $_GET['search'] ?? '';
-            $category = $_GET['category'] ?? '';
-            $instrumentsRaw = $_GET['instruments'] ?? '';
-            $selectedTags = $_GET['tags'] ?? [];
-            $owner = isset($_GET['owner']) ? trim($_GET['owner']) : '';
 
-            $selectedInstruments = [];
-            if (!empty($instrumentsRaw)) {
-                $selectedInstruments = is_array($instrumentsRaw) ? $instrumentsRaw : [$instrumentsRaw];
+            if (isset($_GET['new']) && $_GET['new'] == '1') {
+                $songData = get_new_songs($mysqli, $perPage, $page);
+            } 
+            else{
+                $search = $_GET['search'] ?? '';
+                $category = $_GET['category'] ?? '';
+                $instrumentsRaw = $_GET['instruments'] ?? '';
+                $selectedTags = $_GET['tags'] ?? [];
+                $owner = isset($_GET['owner']) ? trim($_GET['owner']) : '';
+
+                $selectedInstruments = [];
+                if (!empty($instrumentsRaw)) {
+                    $selectedInstruments = is_array($instrumentsRaw) ? $instrumentsRaw : [$instrumentsRaw];
+                }
+
+                $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags, $owner);
             }
-
-            $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags, $owner);
             $songs = $songData['songs'];
             $totalPages = $songData['totalPages'];
 
