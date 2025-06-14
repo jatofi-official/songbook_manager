@@ -322,70 +322,7 @@ function add_activity($mysqli, $username, $type, $description, $is_public = 1) {
 }
 
 
-function get_activities_user($mysqli, string $type, string $username): int {
-    $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM activity_log WHERE type = ? AND username = ?");
-    if (!$stmt) {
-        error_log("MySQL Prepare Error: " . $mysqli->error);
-        return 0;
-    }
-
-    $stmt->bind_param("ss", $type, $username);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-    $count = 0;
-
-    if ($row = $result->fetch_assoc()) {
-        $count = (int)$row['total'];
-    }
-
-    $stmt->close();
-    return $count;
-}
-
-
-function get_recent_activity($mysqli, $number) {
-	if (!$mysqli->connect_errno){
-		// Base query
-		$sql = "SELECT username, type, time, description 
-				FROM activity_log ";
-
-		$params = [];
-		$types = "";
-
-		// Apply visibility rules
-		if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
-			// Not an admin: show public or own private entries
-			$sql .= "WHERE is_public = 1 OR username = ? ";
-			$params[] = $_SESSION["user"];
-			$types .= "s";
-		}
-		// Append ordering and limit
-		$sql .= "ORDER BY time DESC LIMIT ?";
-		$params[] = $number;
-		$types .= "i";
-
-		$stmt = $mysqli->prepare($sql);
-		if ($stmt === false) return [];
-
-		// Bind parameters dynamically
-		$stmt->bind_param($types, ...$params);
-		$stmt->execute();
-		$result = $stmt->get_result();
-
-		$activities = [];
-		while ($row = $result->fetch_assoc()) {
-			$activities[] = $row;
-		}
-
-		return $activities;
-	}
-	else{
-		return [];
-	}
-}
-
-function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = []) {
+function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = [], $owner = null) {
     if ($mysqli->connect_errno) {
         return [
             'songs' => [],
@@ -403,6 +340,13 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
     if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
         $conditions[] = "(is_public = 1 OR owner = ?)";
         $params[] = $_SESSION["user"] ?? '';
+        $types .= "s";
+    }
+
+    // User filter (partial match on owner)
+    if (!empty($owner)) {
+        $conditions[] = "owner LIKE ?";
+        $params[] = "%" . $owner . "%";
         $types .= "s";
     }
 
@@ -495,7 +439,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
     // Remove pagination params for count
     $countParams = $params;
     $countTypes = $types;
-    $countTypes = substr($countTypes, 0, -2);
+    $countTypes = substr($countTypes, 0, -2); // remove 'ii' for limit params
     array_splice($countParams, -2);
 
     if ($countTypes !== '') {
@@ -514,6 +458,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         'totalPages' => $perPage > 0 ? (int)ceil($totalSongs / $perPage) : 1
     ];
 }
+
 
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;

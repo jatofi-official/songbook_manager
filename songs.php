@@ -122,8 +122,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
 
                         <div class="mb-2">
-                            <label for="user" class="form-label mb-1">User</label>
-                            <input type="text" name="user" class="form-control form-control-sm" value="<?= htmlspecialchars($_GET['user'] ?? '') ?>">
+                            <label for="owner" class="form-label mb-1">User</label>
+                            <input type="text" name="owner" class="form-control form-control-sm" value="<?= htmlspecialchars($_GET['owner'] ?? '') ?>">
                         </div>
                     </div>
                 </div>
@@ -185,13 +185,14 @@ document.addEventListener("DOMContentLoaded", () => {
             $category = $_GET['category'] ?? '';
             $instrumentsRaw = $_GET['instruments'] ?? '';
             $selectedTags = $_GET['tags'] ?? [];
+            $owner = isset($_GET['owner']) ? trim($_GET['owner']) : '';
 
             $selectedInstruments = [];
             if (!empty($instrumentsRaw)) {
                 $selectedInstruments = is_array($instrumentsRaw) ? $instrumentsRaw : [$instrumentsRaw];
             }
 
-            $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags);
+            $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags, $owner);
             $songs = $songData['songs'];
             $totalPages = $songData['totalPages'];
 
