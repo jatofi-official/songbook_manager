@@ -1,22 +1,21 @@
 <?php
 session_start();
-// if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){  
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-    ini_set('display_startup_errors', 1);
-    error_reporting(E_ALL);
-// }
-include('php/db.php');          
-include('php/data.php');    
-
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+include('php/db.php');
+include('php/data.php');
+include('php/functions.php');
 $website = "songs";
 
-include('php/functions.php'); 
+$allTags = get_all_tags($mysqli);
+$categories = $categories ?? [];
+
 ?>
+<?php include("php/header.php"); ?>
+<?php include('php/navigation.php'); ?>
+<?php include("php/categories.php"); ?>
 
 <script>
-
-
 document.addEventListener("DOMContentLoaded", () => {
     const songItems = document.querySelectorAll(".song-list-item");
     const detailContainer = document.querySelector(".song-detail-container");
@@ -27,45 +26,24 @@ document.addEventListener("DOMContentLoaded", () => {
             const isSmallScreen = window.matchMedia("(max-width: 767.98px)").matches;
 
             if (isSmallScreen) {
-                // Redirect to full song page on small screens
                 window.location.href = `song.php?id=${id}`;
             } else {
-                // Existing behavior: load via AJAX on bigger screens
                 songItems.forEach(el => el.classList.remove("active"));
                 item.classList.add("active");
 
                 fetch(`php/subpage/get_song.php?id=${id}&embedded=1`)
                     .then(res => res.text())
-                    .then(html => {
-                        detailContainer.innerHTML = html;
-                    })
-                    .catch(() => {
-                        detailContainer.innerHTML = "<p>Error loading song details.</p>";
-                    });
-
+                    .then(html => detailContainer.innerHTML = html)
+                    .catch(() => detailContainer.innerHTML = "<p>Error loading song details.</p>");
             }
         });
     });
 });
-
-
-
 </script>
 
-<?php
-
-include("php/header.php");
-include('php/navigation.php');
-include("php/categories.php");
-
-
-$allTags = get_all_tags($mysqli);
-
-?>
 <div class="row g-0">
-    <!-- Song List Column -->
+    <!-- Song List -->
     <div class="col-md-5 col-lg-4 song-list-container">
-        
         <div class="search-box p-2">
             <div class="pb-2">
                 <a href="song.php?new=1" class="btn btn-sm btn-success w-100 <?= isset($_SESSION["user"]) ? '' : 'disabled style="opacity: 0.2; cursor: not-allowed;"' ?>">
@@ -73,264 +51,225 @@ $allTags = get_all_tags($mysqli);
                 </a>
             </div>
 
-            <!-- Song filter part -->
             <form id="songFilterForm" method="get">
                 <div class="input-group mb-3">
-                        <input type="text" name="search" class="form-control"
-                            placeholder="Search songs..."
-                            value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">                    
-                        <button class="btn btn-outline-secondary" type="submit">
-                        <i class="bi bi-search"></i>
+                    <input type="text" name="search" class="form-control" placeholder="Search songs..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                </div>
+
+                <!-- Filters row: Category - Reset - Advanced -->
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <!-- Category filter -->
+                    <select name="category" class="form-select form-select-sm">
+                        <option value="">All Categories</option>
+                        <?php 
+                            $index = 1;
+                            foreach($categories as $category){
+                                $selected = (isset($_GET['category']) && $_GET['category'] == $index) ? 'selected' : '';
+                                echo "<option value='$index' $selected>$category</option>";
+                                $index++;
+                            }
+                        ?>
+                    </select>
+
+                    <!-- Reset button -->
+                    <a href="songs.php" class="btn btn-outline-secondary btn-sm d-flex align-items-center">
+                        <i class="bi bi-x-circle me-1"></i> Reset
+                    </a>
+
+                    <!-- Advanced toggle -->
+                    <button class="btn btn-outline-secondary btn-sm d-flex align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-expanded="false" aria-controls="advancedFilters">
+                        <i class="bi bi-sliders me-1"></i> Advanced
                     </button>
                 </div>
-                <div class="d-flex mb-2">
-                <!-- Category filter -->
-                <select name="category" class="form-select form-select-sm me-2">
-                    <option value="">All Categories</option>
-                    <?php 
-                        $index = 1;
-                        foreach($categories as $category){
-                            $selected = (isset($_GET['category']) && $_GET['category'] == $index) ? 'selected' : '';
-                            echo "<option value='$index' $selected>$category</option>";
-                            $index++;
-                        }
-                    ?>
-                </select>
 
-                <!-- Instruments filter (single select) -->
-                <select name="instruments" class="form-select form-select-sm">
-                    <option value="">All Instruments</option>
-                    <?php 
-                        $selectedInstrument = $_GET['instruments'] ?? '';
-                        foreach(get_all_instruments($mysqli) as $instrument){
-                            $name = $instrument["name"];
-                            $selected = ($selectedInstrument === $name) ? 'selected' : '';
-                            echo "<option value='$name' $selected>$name</option>";
-                        }
-                    ?>
-                </select>
-            </div>
 
-            <!-- Tags filter -->
-            <div class="row mb-3">
-                <label class="form-label d-block">Tags</label>
-                <div class="d-flex flex-wrap gap-1">
-                    <?php 
-                        $selectedTags = $_GET['tags'] ?? [];
-                        if (!is_array($selectedTags)) {
-                            $selectedTags = [];
-                        }
 
-                        foreach ($allTags as $tag) {
-                            $isSelected = in_array($tag, $selectedTags);
-                            $checked = $isSelected ? 'checked' : '';
-                            echo "<div class='form-check form-check-inline'>";
-                            echo "<input class='form-check-input' type='checkbox' name='tags[]' value='".htmlspecialchars($tag)."' id='tag_$tag' $checked>";
-                            echo "<label class='form-check-label' for='tag_$tag'>$tag</label>";
-                            echo "</div>";
-                        }
-                    ?>
+                <div class="collapse<?= (isset($_GET['advanced']) && $_GET['advanced'] == '1') ? ' show' : '' ?>" id="advancedFilters">
+                    <div class="rounded p-2 mb-2" id="advancedFilterBox">
+                        <div class="mb-2">
+                            <label class="form-label mb-1">Instrument</label>
+                            <select name="instruments" class="form-select form-select-sm">
+                                <option value="">All Instruments</option>
+                                <?php
+                                $selectedInstrument = $_GET['instruments'] ?? '';
+                                foreach (get_all_instruments($mysqli) as $instrument) {
+                                    $name = $instrument["name"];
+                                    $selected = ($selectedInstrument === $name) ? 'selected' : '';
+                                    echo "<option value='$name' $selected>$name</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label d-block">Tags</label>
+                            <div class="d-flex flex-wrap gap-1">
+                                <?php
+                                $selectedTags = $_GET['tags'] ?? [];
+                                if (!is_array($selectedTags)) $selectedTags = [];
+
+                                foreach ($allTags as $tag) {
+                                    $isSelected = in_array($tag, $selectedTags);
+                                    $checked = $isSelected ? 'checked' : '';
+                                    echo "<div class='form-check form-check-inline'>";
+                                    echo "<input class='form-check-input' type='checkbox' name='tags[]' value='" . htmlspecialchars($tag) . "' id='tag_$tag' $checked>";
+                                    echo "<label class='form-check-label' for='tag_$tag'>$tag</label>";
+                                    echo "</div>";
+                                }
+                                ?>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="user" class="form-label mb-1">User</label>
+                            <input type="text" name="user" class="form-control form-control-sm" value="<?= htmlspecialchars($_GET['user'] ?? '') ?>">
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-
-            <input type="hidden" name="page" value="1">
+                <input type="hidden" name="page" value="1">
             </form>
-
         </div>
 
-        <script>
-        // Auto submit form on 
-        document.addEventListener("DOMContentLoaded", () => {
-            const form = document.getElementById("songFilterForm");
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("songFilterForm");
+    const advToggle = document.querySelector("[data-bs-target='#advancedFilters']");
+    const advBox = document.getElementById("advancedFilters");
 
-            form.querySelectorAll("select").forEach(sel => {
-                sel.addEventListener("change", () => {
-                    form.querySelector("input[name='page']").value = 1;
-                    form.submit();
-                });
-            });
+    let openedManually = false;
+
+    advToggle.addEventListener("click", () => {
+        openedManually = !advBox.classList.contains("show");
+    });
+
+    function ensureAdvancedInput() {
+        if ((advBox.classList.contains("show") || openedManually) && !form.querySelector("input[name='advanced']")) {
+            const hidden = document.createElement("input");
+            hidden.type = "hidden";
+            hidden.name = "advanced";
+            hidden.value = "1";
+            form.appendChild(hidden);
+        }
+    }
+
+    form.addEventListener("submit", () => {
+        ensureAdvancedInput();
+    });
+
+    form.querySelectorAll("select").forEach(select => {
+        select.addEventListener("change", () => {
+            form.querySelector("input[name='page']").value = 1;
+            ensureAdvancedInput();
+            form.submit();
         });
-        // Auto search on clicked tags.
-        document.addEventListener("DOMContentLoaded", () => {
-            const filterForm = document.getElementById("songFilterForm");
+    });
 
-            filterForm.querySelectorAll("input[name='tags[]']").forEach(checkbox => {
-                checkbox.addEventListener("change", () => {
-                    // Reset page to 1 when filtering
-                    const pageInput = filterForm.querySelector("input[name='page']");
-                    if (pageInput) pageInput.value = 1;
-
-                    filterForm.submit();
-                });
-            });
+    form.querySelectorAll("input[name='tags[]']").forEach(tag => {
+        tag.addEventListener("change", () => {
+            form.querySelector("input[name='page']").value = 1;
+            ensureAdvancedInput();
+            form.submit();
         });
-
-
-        </script>
+    });
+});
+</script>
 
 
         <div class="song-list">
+            <?php
+            $perPage = PER_PAGE;
+            $page = (int)($_GET['page'] ?? 1);
+            $search = $_GET['search'] ?? '';
+            $category = $_GET['category'] ?? '';
+            $instrumentsRaw = $_GET['instruments'] ?? '';
+            $selectedTags = $_GET['tags'] ?? [];
 
-<?php
-// Pagination setup
-$perPage = PER_PAGE; // Songs per page
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1; // Current page (default: 1)
-
-$search      = $_GET['search']      ?? '';
-$category    = $_GET['category']    ?? '';
-
-$instrumentsRaw = $_GET['instruments'] ?? '0';
-
-// Convert to array for compatibility with function
-if (is_array($instrumentsRaw)) {
-    $selectedInstruments = $instrumentsRaw;
-} else {
-    // if "0" or empty => no filter
-    if ($instrumentsRaw === '0' || $instrumentsRaw === '') {
-        $selectedInstruments = [];
-    } else {
-        $selectedInstruments = [$instrumentsRaw];
-    }
-}
-
-
-
-$songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags);
-
-$songs = $songData['songs'];
-$totalPages = $songData["totalPages"];
-
-
-// Display songs
-if (!empty($songs)) {
-    foreach ($songs as $song) {
-        echo "<div class='song-list-item' data-id='{$song['id']}'>";
-        echo "<div class='song-title'>" . htmlspecialchars($song['title']) . "</div>";
-        echo "<div class='song-artist'>" . htmlspecialchars($song['artist']) . "</div>";
-        echo "<div class='mt-2'>";
-
-        // Admin-only: Visibility badge
-        if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
-            echo "<span class='badge " . ($song['is_public'] ? 'bg-success' : 'bg-secondary') . " visibility-badge'>" 
-                . ($song['is_public'] ? "Public" : "Private") . "</span>";    
-        }
-
-        // Tags (if any)
-        if (!empty($song['tags']) && trim($song['tags']) !== '') {
-            foreach (explode(',', $song['tags']) as $tag) {
-                $trimmedTag = trim($tag);
-                if (!empty($trimmedTag)) {
-                    echo "<span class='tag'>" . htmlspecialchars($trimmedTag) . "</span> ";
-                }
+            $selectedInstruments = [];
+            if (!empty($instrumentsRaw)) {
+                $selectedInstruments = is_array($instrumentsRaw) ? $instrumentsRaw : [$instrumentsRaw];
             }
-        }
 
-        // Instruments (if any)
-        if (!empty($song['instruments']) && trim($song['instruments']) !== '') {
-            foreach (explode(',', $song['instruments']) as $inst) {
-                $trimmedInst = trim($inst);
-                if (!empty($trimmedInst)) {
-                    echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
+            $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags);
+            $songs = $songData['songs'];
+            $totalPages = $songData['totalPages'];
+
+            if (!empty($songs)) {
+                foreach ($songs as $song) {
+                    echo "<div class='song-list-item' data-id='{$song['id']}'>";
+                    echo "<div class='song-title'>" . htmlspecialchars($song['title']) . "</div>";
+                    echo "<div class='song-artist'>" . htmlspecialchars($song['artist']) . "</div><div class='mt-2'>";
+
+                    if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
+                        echo "<span class='badge " . ($song['is_public'] ? 'bg-success' : 'bg-secondary') . "'>" . ($song['is_public'] ? "Public" : "Private") . "</span> ";
+                    }
+
+                    $tags = $song['tags'] ?? '';
+                    foreach (explode(',', $tags) as $tag) {
+                        $trimmedTag = trim($tag);
+                        if (!empty($trimmedTag)) {
+                            echo "<span class='tag'>" . htmlspecialchars($trimmedTag) . "</span> ";
+                        }
+                    }
+
+                    $instruments = $song['instruments'] ?? '';
+                    foreach (explode(',', $instruments) as $inst) {
+                        $trimmedInst = trim($inst);
+                        if (!empty($trimmedInst)) {
+                            echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
+                        }
+                    }
+
+
+                    echo "</div></div>";
                 }
+
+                echo "<div class='pagination mt-4'>";
+                function page_button($i, $page) {
+                    return $i == $page
+                        ? "<span class='btn btn-sm btn-primary active'>$i</span> "
+                        : "<a href='?" . http_build_query(array_merge($_GET, ['page' => $i])) . "' class='btn btn-sm btn-outline-primary'>$i</a> ";
+                }
+
+                if ($page > 1) {
+                    echo "<a href='?" . http_build_query(array_merge($_GET, ['page' => $page - 1])) . "' class='btn btn-sm btn-outline-primary'>&lt;</a> ";
+                } else {
+                    echo "<span class='btn btn-sm btn-outline-secondary disabled'>&lt;</span> ";
+                }
+
+                $range = 2;
+                $start = max(1, $page - $range);
+                $end = min($totalPages, $page + $range);
+
+                if ($start > 1) echo page_button(1, $page) . "<span class='btn btn-sm disabled'>...</span> ";
+                for ($i = $start; $i <= $end; $i++) echo page_button($i, $page);
+                if ($end < $totalPages) echo "<span class='btn btn-sm disabled'>...</span> " . page_button($totalPages, $page);
+
+                if ($page < $totalPages) {
+                    echo "<a href='?" . http_build_query(array_merge($_GET, ['page' => $page + 1])) . "' class='btn btn-sm btn-outline-primary'>&gt;</a>";
+                } else {
+                    echo "<span class='btn btn-sm btn-outline-secondary disabled'>&gt;</span>";
+                }
+
+                echo "</div>";
+            } else {
+                echo "<p>No songs found.</p>";
             }
-        }
-
-        echo "</div></div>";
-    }
-
-    // --- Pagination Controls ---
-    echo "<div class='pagination mt-4'>";
-
-    // Helper function to generate page link or active span
-    function pagination_button($i, $page) {
-        if ($i == $page) {
-            return "<span class='btn btn-sm btn-primary active'>$i</span> ";
-        } else {
-            return "<a href='?" . http_build_query(array_merge($_GET, ['page' => $i])) . "' class='btn btn-sm btn-outline-primary'>$i</a> ";
-        }
-    }
-
-    // Previous button
-    if ($page > 1) {
-        echo "<a href='?" . http_build_query(array_merge($_GET, ['page' => $page - 1])) . "' class='btn btn-sm btn-outline-primary'>&lt;</a> ";
-    } else {
-        echo "<span class='btn btn-sm btn-outline-secondary disabled'>&lt;</span> ";
-    }
-
-    $displayRange = 2; // how many pages before/after current page to show
-
-    if ($totalPages <= 10) {
-        // show all pages
-        for ($i = 1; $i <= $totalPages; $i++) {
-            echo pagination_button($i, $page);
-        }
-    } else {
-        // Always show first page
-        echo pagination_button(1, $page);
-
-        // Show ellipsis if needed
-        if ($page - $displayRange > 2) {
-            echo "<span class='btn btn-sm disabled'>...</span> ";
-        }
-
-        // Pages around the current page
-        $start = max(2, $page - $displayRange);
-        $end = min($totalPages - 1, $page + $displayRange);
-        for ($i = $start; $i <= $end; $i++) {
-            echo pagination_button($i, $page);
-        }
-
-        // Show ellipsis before last page
-        if ($page + $displayRange < $totalPages - 1) {
-            echo "<span class='btn btn-sm disabled'>...</span> ";
-        }
-
-        // Always show last page
-        echo pagination_button($totalPages, $page);
-    }
-
-    // Next button
-    if ($page < $totalPages) {
-        echo "<a href='?" . http_build_query(array_merge($_GET, ['page' => $page + 1])) . "' class='btn btn-sm btn-outline-primary'>&gt;</a>";
-    } else {
-        echo "<span class='btn btn-sm btn-outline-secondary disabled'>&gt;</span>";
-    }
-
-    echo "</div>";
-
-} else {
-    echo "<p>No songs found.</p>";
-}
-?>
-</div>
-
-</div>
-    
-    <!-- Song Detail Column -->
-    <div class="col-md-7 col-lg-8 p-0 song-detail-container d-none d-md-block">
-        <?php 
-        if (isset($_GET['id'])) {
-            // Load song details for the given id
-            $songId = (int)$_GET['id'];
-            $_GET['embedded'] = 1;
-
-            include("php/subpage/get_song.php");
-            
-
-        }
-        else{
-
-        
-
-        
-        
-        ?>
-        <div class="p-4 text-muted">Select a song from the list to view details.</div>
-
-        <?php } ?>
+            ?>
+        </div>
     </div>
 
-<?php
-include("php/footer.php");
-?>
+    <!-- Song Detail -->
+    <div class="col-md-7 col-lg-8 p-0 song-detail-container d-none d-md-block">
+        <?php
+        if (isset($_GET['id'])) {
+            echo file_get_contents("php/subpage/get_song.php?id=" . (int)$_GET['id'] . "&embedded=1");
+        } else {
+            echo "<div class='p-4 text-muted'>Select a song from the list to view details.</div>";
+        }
+        ?>
+    </div>
+</div>
+
+<?php include("php/footer.php"); ?>
