@@ -103,7 +103,8 @@ include('php/navigation.php');
                                         $typeLabels = [
                                             'edit' => 'Edited Song',
                                             'add' => 'Added Song',
-                                            'delete' => 'Deleted Song'
+                                            'delete' => 'Deleted Song',
+                                            "new_user" => "New user"
                                         ];
 
                                         $type = $activity['type'];

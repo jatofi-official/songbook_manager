@@ -54,6 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (!$error) {
             // Create user without picture first
             $user_id = add_user($mysqli, $name, $username, $password, $group_id);
+            add_activity($mysqli,$username,"new_user","User ".$name." joined");
 
             if ($user_id === "duplicate") {
                 $error = "Username already taken. Please choose another.";
@@ -119,6 +120,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
 
                 if (!$error) {
+                    // Log in user
+
                     $_SESSION["id"] = $user_id;
                     $_SESSION["user"] = $username;
                     $_SESSION["admin"] = false;
