@@ -101,10 +101,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         $error = "Failed to save profile picture.";
                                     } else {
                                         // Save path in DB
-                                        $stmt = $mysqli->prepare("UPDATE users SET profile_picture = ? WHERE id = ?");
-                                        $stmt->bind_param("si", $filename, $user_id);
-                                        $stmt->execute();
-                                        $stmt->close();
+                                        // $stmt = $mysqli->prepare("UPDATE users SET profile_picture = ? WHERE id = ?");
+                                        // $stmt->bind_param("si", $filename, $user_id);
+                                        // $stmt->execute();
+                                        // $stmt->close();
                                     }
 
                                     imagedestroy($resized);
