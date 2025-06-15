@@ -52,7 +52,7 @@ function zmen_heslo($mysqli, $id, $pass) {
 	}
 }	// koniec funkcie
 
-function add_user($mysqli, $name, $username, $password, $group_id, $profile_picture_path = null) {
+function add_user($mysqli, $name, $username, $password, $group_id) {
     if ($mysqli->connect_errno) {
         echo "Failed to connect to MySQL: " . $mysqli->connect_error;
         return false;
@@ -69,15 +69,15 @@ function add_user($mysqli, $name, $username, $password, $group_id, $profile_pict
     $stmt->store_result();
     if ($stmt->num_rows > 0) {
         $stmt->close();
-        return "duplicate"; // Return a custom error indicator
+        return "duplicate";
     }
     $stmt->close();
 
     // Insert new user
     $hashed_password = hash("sha256", $password);
     $stmt = $mysqli->prepare(
-        "INSERT INTO users (name, username, password, group_id, date_created, admin, profile_picture) 
-         VALUES (?, ?, ?, ?, CURDATE(), 0, ?)"
+        "INSERT INTO users (name, username, password, group_id, date_created, admin) 
+         VALUES (?, ?, ?, ?, CURDATE(), 0)"
     );
 
     if (!$stmt) {
@@ -85,7 +85,7 @@ function add_user($mysqli, $name, $username, $password, $group_id, $profile_pict
         return false;
     }
 
-    $stmt->bind_param("sssis", $name, $username, $hashed_password, $group_id, $profile_picture_path);
+    $stmt->bind_param("sssi", $name, $username, $hashed_password, $group_id);
 
     if ($stmt->execute()) {
         $user_id = $stmt->insert_id;
@@ -98,6 +98,7 @@ function add_user($mysqli, $name, $username, $password, $group_id, $profile_pict
         return false;
     }
 }
+
 
 
 
