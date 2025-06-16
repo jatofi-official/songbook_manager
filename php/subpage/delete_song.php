@@ -14,13 +14,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
     $isAdmin = $_SESSION["admin"] ?? false;
 
     // Check if the song exists and is owned by user or user is admin
-    $stmt = $mysqli->prepare("SELECT owner, title, artist, is_public FROM songs WHERE id = ?");
+    $stmt = $mysqli->prepare("SELECT owner, title, artist, is_public, tags FROM songs WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $song = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
     if ($song && ($isAdmin || $song['owner'] === $user)) {
+        // Remove tags usage counts
+        $tagsArray = array_filter(array_map('trim', explode(',', $song['tags'])));
+        foreach ($tagsArray as $tag) {
+            remove_tag($mysqli, $tag);
+        }
+
+        // Delete the song
         $deleteStmt = $mysqli->prepare("DELETE FROM songs WHERE id = ?");
         $deleteStmt->bind_param("i", $id);
         $deleteStmt->execute();

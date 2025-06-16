@@ -124,13 +124,17 @@ function get_song($mysqli, $id){
 
 function add_song($mysqli, $data){
     if (!$mysqli->connect_errno) {
-        $stmt = $mysqli->prepare("INSERT INTO songs (category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date, tags, instruments, content) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?)");
+        // Count tags and decide is_fixed
+        $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"])));
+        $is_fixed = (count($tagsArray) >= 3) ? 1 : 0;
+
+        $stmt = $mysqli->prepare("INSERT INTO songs (category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date, tags, instruments, content, is_fixed) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?)");
         if (!$stmt) {
             return "Prepare failed: " . $mysqli->error;
         }
 
         $stmt->bind_param(
-            "issiisisss",
+            "issiisisssi",
             $data["category"],
             $data["title"],
             $data["artist"],
@@ -140,13 +144,20 @@ function add_song($mysqli, $data){
             $data["is_public"],
             $data["tags"],
             $data["instruments"],
-            $data["content"]
+            $data["content"],
+            $is_fixed
         );
 
         if ($stmt->execute()) {
             $insertedId = $stmt->insert_id;  // get the insert id here
             $stmt->close();
-            return $insertedId;  // return the inserted ID instead of true
+
+            // Add each tag with add_tag helper (updates usage_count etc.)
+            foreach ($tagsArray as $tag) {
+                add_tag($mysqli, $tag);
+            }
+
+            return $insertedId;
         } else {
             $error = "Error: " . $stmt->error;
             $stmt->close();
@@ -159,52 +170,93 @@ function add_song($mysqli, $data){
 
 
 function edit_song($mysqli, $id, $data) {
-    if (!$mysqli->connect_errno) {
-        $stmt = $mysqli->prepare("
-            UPDATE songs 
-            SET 
-                category = ?, 
-                title = ?, 
-                artist = ?, 
-                capo = ?,
-				capo_alt = ?, 
-                is_public = ?, 
-                modified_date = NOW(), 
-                tags = ?, 
-                instruments = ?, 
-                content = ?
-            WHERE id = ?
-        ");
-
-        if (!$stmt) {
-            return "Prepare failed: " . $mysqli->error;
-        }
-
-        $stmt->bind_param(
-            "issiiisssi", 
-            $data["category"],     // int
-            $data["title"],        // string (varchar 30)
-            $data["artist"],       // string (varchar 30)
-            $data["capo"],         // int (4)
-			$data["capo_alt"],
-            $data["is_public"],    // int (tinyint 1)
-            $data["tags"],         // string (varchar 50)
-            $data["instruments"],  // string (varchar 50)
-            $data["content"],      // string (text)
-            $id                    // int (primary key)
-        );
-
-        if ($stmt->execute()) {
-            return true;
-        } else {
-            return "Error: " . $stmt->error;
-        }
-
-        $stmt->close();
-    } else {
+    if ($mysqli->connect_errno) {
         return "Error connecting";
     }
+
+    // Step 1: Get original tags for this song
+    $stmt = $mysqli->prepare("SELECT tags FROM songs WHERE id = ?");
+    if (!$stmt) {
+        return "Prepare failed: " . $mysqli->error;
+    }
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $originalTagsStr = '';
+    if ($row = $result->fetch_assoc()) {
+        $originalTagsStr = $row['tags'];
+    }
+    $stmt->close();
+
+    // Step 2: Prepare tag arrays
+    $originalTags = array_filter(array_map('trim', explode(',', $originalTagsStr)));
+    $newTags = array_filter(array_map('trim', explode(',', $data["tags"])));
+
+    // Step 3: Calculate tags to add and remove
+    $tagsToAdd = array_diff($newTags, $originalTags);
+    $tagsToRemove = array_diff($originalTags, $newTags);
+
+    // Step 4: Update is_fixed based on new tags count
+    $is_fixed = (count($newTags) >= 3) ? 1 : 0;
+
+    // Step 5: Update the song row (including new tags and is_fixed)
+    $stmt = $mysqli->prepare("
+        UPDATE songs 
+        SET 
+            category = ?, 
+            title = ?, 
+            artist = ?, 
+            capo = ?,
+            capo_alt = ?, 
+            is_public = ?, 
+            modified_date = NOW(), 
+            tags = ?, 
+            instruments = ?, 
+            content = ?,
+            is_fixed = ?
+        WHERE id = ?
+    ");
+
+    if (!$stmt) {
+        return "Prepare failed: " . $mysqli->error;
+    }
+
+    $stmt->bind_param(
+        "issiiisssii",
+        $data["category"],     // int
+        $data["title"],        // string (varchar 30)
+        $data["artist"],       // string (varchar 30)
+        $data["capo"],         // int
+        $data["capo_alt"],     // int
+        $data["is_public"],    // int (tinyint 1)
+        $data["tags"],         // string (varchar 50)
+        $data["instruments"],  // string (varchar 50)
+        $data["content"],      // string (text)
+        $is_fixed,             // int
+        $id                    // int (primary key)
+    );
+
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return "Error: " . $stmt->error;
+    }
+    $stmt->close();
+
+    // Step 6: Remove old tags
+    foreach ($tagsToRemove as $tag) {
+        remove_tag($mysqli, $tag);
+    }
+
+    // Step 7: Add new tags
+    foreach ($tagsToAdd as $tag) {
+        add_tag($mysqli, $tag);
+    }
+
+    return true;
 }
+
+
+
 
 function get_number_of_songs(mysqli $mysqli, ?string $username = null): int {
     if ($username === null) {
@@ -833,29 +885,71 @@ function remove_group_admin(mysqli $mysqli, int $group_id, int $user_id): bool {
 }
 
 function add_tag($mysqli, $tag) {
-    $stmt = $mysqli->prepare("INSERT INTO song_tags (name) VALUES (?)");
+    // Check if tag exists
+    $stmt = $mysqli->prepare("SELECT id, usage_count FROM song_tags WHERE name = ?");
     if (!$stmt) {
         return false;
     }
     $stmt->bind_param("s", $tag);
-    $success = $stmt->execute();
-    $stmt->close();
-    return $success;
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($row = $result->fetch_assoc()) {
+        // Tag exists, increment usage_count
+        $stmt->close();
+        $stmt = $mysqli->prepare("UPDATE song_tags SET usage_count = usage_count + 1 WHERE name = ?");
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param("s", $tag);
+        $success = $stmt->execute();
+        $stmt->close();
+        return $success;
+    } else {
+        // Tag doesn't exist, insert with usage_count = 1
+        $stmt->close();
+        $stmt = $mysqli->prepare("INSERT INTO song_tags (name, usage_count) VALUES (?, 1)");
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param("s", $tag);
+        $success = $stmt->execute();
+        $stmt->close();
+        return $success;
+    }
 }
 
 function remove_tag($mysqli, $tag) {
-    $stmt = $mysqli->prepare("DELETE FROM song_tags WHERE name = ?");
+    // Decrement usage_count by 1
+    $stmt = $mysqli->prepare("UPDATE song_tags SET usage_count = usage_count - 1 WHERE name = ?");
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param("s", $tag);
+    $stmt->execute();
+    $affectedRows = $stmt->affected_rows;
+    $stmt->close();
+
+    if ($affectedRows === 0) {
+        // Tag not found or no update, return false
+        return false;
+    }
+
+    // Delete tag if usage_count is now 0 or less
+    $stmt = $mysqli->prepare("DELETE FROM song_tags WHERE name = ? AND usage_count <= 0");
     if (!$stmt) {
         return false;
     }
     $stmt->bind_param("s", $tag);
     $success = $stmt->execute();
     $stmt->close();
+
     return $success;
 }
 
+
 function get_all_tags($mysqli) {
-    $result = $mysqli->query("SELECT name FROM song_tags");
+    $result = $mysqli->query("SELECT name FROM song_tags ORDER BY usage_count DESC");
     if (!$result) {
         return [];
     }
