@@ -88,21 +88,29 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
 
     if (!empty($users)) {
         foreach ($users as $user) {
-            $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($user['name']) . "&background=random";
-            $groupName = htmlspecialchars($user['group_name'] ?? '—');
             $userId = (int)$user['id'];
             $name = htmlspecialchars($user['name']);
             $username = htmlspecialchars($user['username']);
+            $groupName = htmlspecialchars($user['group_name'] ?? '—');
             $admin = $user['admin'] ? "<span class='badge bg-warning text-dark'>Admin</span>" : "";
+
+            // Profile picture logic
+            $profilePicPath = __DIR__ . "/profile_pics/{$userId}.png";
+            if ($userId && file_exists($profilePicPath)) {
+                $avatarUrl = "profile_pics/{$userId}.png";
+            } else {
+                $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($name) . "&background=random";
+            }
 
             // XP info
             $xpInfo = get_xp($mysqli, $userId);
             $totalXP = $xpInfo['total_xp'] ?? '—';
             $level = $xpInfo['level'] ?? '—';
 
-            // Determine if this user card is "selected"
             $selectedUserId = $_GET['selectedUser'] ?? null;
             $selectedClass = ($selectedUserId && $selectedUserId == $userId) ? "user-card--selected" : "";
+
+            $groupId = $user['group_id'] ?? null; // get group id from user data
 
             echo <<<HTML
             <a href="user.php?id=$userId" class="user-card $selectedClass text-decoration-none text-reset d-block">
@@ -133,6 +141,7 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
             </a>
             HTML;
         }
+
 
 
 
