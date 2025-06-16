@@ -991,6 +991,79 @@ function get_all_categories($mysqli) {
     $result->free();
     return $categories;
 }
+function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
+    $where = [];
+    $params = [];
+    $types = '';
+
+    // Search by name or username
+    if (!empty($search)) {
+        $where[] = "(u.name LIKE ? OR u.username LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+        $types .= 'ss';
+    }
+
+    // Filter by group name
+    if (!empty($group)) {
+        $where[] = "g.name = ?";
+        $params[] = $group;
+        $types .= 's';
+    }
+
+    // Combine conditions
+    $whereSQL = '';
+    if (!empty($where)) {
+        $whereSQL = 'WHERE ' . implode(' AND ', $where);
+    }
+
+    $offset = ($page - 1) * $limit;
+    $params[] = $limit;
+    $params[] = $offset;
+    $types .= 'ii';
+
+    $sql = "
+        SELECT SQL_CALC_FOUND_ROWS u.*, g.name AS group_name
+        FROM users u
+        LEFT JOIN group_list g ON u.group_id = g.id
+        $whereSQL
+        ORDER BY u.name
+        LIMIT ? OFFSET ?
+    ";
+
+    // Prepare and bind
+    $stmt = $mysqli->prepare($sql);
+    if ($stmt === false) {
+        die("MySQL prepare failed: " . $mysqli->error);
+    }
+
+    if ($types !== '') {
+        $stmt->bind_param($types, ...$params);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $users = [];
+    while ($row = $result->fetch_assoc()) {
+        $users[] = $row;
+    }
+
+    // Get total count
+    $result = $mysqli->query("SELECT FOUND_ROWS() as total");
+    $totalRows = $result->fetch_assoc()['total'];
+    $totalPages = ceil($totalRows / $limit);
+
+    return [
+        'users' => $users,
+        'totalPages' => $totalPages
+    ];
+}
+
+
+
+
+
 
 
 

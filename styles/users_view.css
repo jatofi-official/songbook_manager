@@ -12,13 +12,24 @@
     margin-bottom: 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     transition: all 0.3s ease;
-    border-left: 4px solid var(--primary);
+    border-left: 4px solid transparent; /* no border by default */
+    cursor: pointer; /* indicates clickable */
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.user-card--selected {
+    border-left-color: var(--primary);
 }
 
 .user-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
+    text-decoration: none;
+    color: inherit;
 }
+
 
 .user-avatar {
     width: 60px;

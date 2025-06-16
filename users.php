@@ -7,6 +7,11 @@ include('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+
 if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
 ?>
 
@@ -15,8 +20,7 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
     <div class="container">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <h1 class="display-5 mb-3">User Management</h1>
-                <p class="lead mb-0">View and manage all users in the system</p>
+                <h1 class="display-7 mb-3">Users</h1>
             </div>
             <!-- <div class="col-md-4 text-end">
                 <button class="btn btn-light me-2">
@@ -32,105 +36,142 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
 
 <div class="container">
     <!-- Search and Filter -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="input-group">
-                        <input type="text" class="form-control" placeholder="Search users by name, username or organization...">
-                        <button class="btn btn-primary" type="button">
-                            <i class="bi bi-search"></i> Search
-                        </button>
-                    </div>
-                </div>
-            <div class="col-md-4">
-                <div class="d-flex">
-                    <select class="form-select me-2">
-                        <option>All Organizations</option>
-                        <option>Melody Makers</option>
-                        <option>Harmony Hub</option>
-                        <option>Rhythm Collective</option>
-                        <option>Sound Innovators</option>
-                    </select>
-                </div>
+    <?php
+    $selectedGroup = $_GET['group'] ?? '';
+    $groupList = get_all_groups($mysqli);
+    ?>
+
+    <form method="GET" class="row">
+        <div class="col-md-8">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control"
+                    value="<?= htmlspecialchars($_GET['search'] ?? '') ?>"
+                    placeholder="Search users by name, username or organization...">
+                <button class="btn btn-primary" type="submit">
+                    <i class="bi bi-search"></i> Search
+                </button>
             </div>
         </div>
-    </div>
+
+        <div class="col-md-4 mt-3 mt-md-0">
+            <select class="form-select" name="group">
+                <option value="">All Organizations</option>
+                <?php foreach ($groupList as $group): 
+                    $gName = htmlspecialchars($group['name']);
+                    $selected = ($gName === $selectedGroup) ? 'selected' : '';
+                ?>
+                    <option value="<?= $gName ?>" <?= $selected ?>><?= $gName ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </form>
+
+
 </div>
     <!-- Users List -->
-    <div class="mb-4">
-        <h5 class="section-title">All Users</h5>
-        
-        <!-- User 1 -->
-        <div class="user-card">
-            <div class="row align-items-center">
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <div class="d-flex align-items-center">
-                        <img src="https://ui-avatars.com/api/?name=Emma+Rodriguez&background=random" class="user-avatar me-3">
-                        <div>
-                            <div class="user-name">Emma Rodriguez</div>
-                            <div class="username">@emmar</div>
+    <!-- Users List -->
+<div class="users-list mb-4 container pt-4">
+    <h5 class="section-title">All Users</h5>
+
+    <?php
+    $perPage = PER_PAGE;
+    $page = (int)($_GET['page'] ?? 1);
+
+    // Get filters from query params
+    $searchQuery = $_GET['search'] ?? '';
+    $group = $_GET['group'] ?? '';
+
+    // Fetch user data
+    $userData = get_all_users($mysqli, $perPage, $page, $searchQuery, $group);
+    $users = $userData['users'];
+    $totalPages = $userData['totalPages'];
+
+    if (!empty($users)) {
+        foreach ($users as $user) {
+            $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($user['name']) . "&background=random";
+            $groupName = htmlspecialchars($user['group_name'] ?? '—');
+            $userId = (int)$user['id'];
+            $name = htmlspecialchars($user['name']);
+            $username = htmlspecialchars($user['username']);
+            $admin = $user['admin'] ? "<span class='badge bg-warning text-dark'>Admin</span>" : "";
+
+            // XP info
+            $xpInfo = get_xp($mysqli, $userId);
+            $totalXP = $xpInfo['total_xp'] ?? '—';
+            $level = $xpInfo['level'] ?? '—';
+
+            // Determine if this user card is "selected"
+            $selectedUserId = $_GET['selectedUser'] ?? null;
+            $selectedClass = ($selectedUserId && $selectedUserId == $userId) ? "user-card--selected" : "";
+
+            echo <<<HTML
+            <a href="user.php?id=$userId" class="user-card $selectedClass text-decoration-none text-reset d-block">
+                <div class="row align-items-center">
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <div class="d-flex align-items-center">
+                            <img src="$avatarUrl" class="user-avatar me-3" alt="$name">
+                            <div>
+                                <div class="user-name">$name</div>
+                                <div class="username">@$username</div>
+                                $admin
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <div>
-                        <div class="xp-value">5,570</div>
-                        <div class="xp-label">Total XP</div>
-                    </div>
-                </div>
-                <div class="col-md-2 mb-3 mb-md-0">
-                    <div class="level-badge">14</div>
-                </div>
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <span class="org-badge">Sound Innovators</span>
-                </div>
-                <div class="col-md-1 text-md-end">
-                    <button class="btn btn-sm btn-outline-primary action-btn">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary action-btn">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- User 2 -->
-        <div class="user-card">
-            <div class="row align-items-center">
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <div class="d-flex align-items-center">
-                        <img src="https://ui-avatars.com/api/?name=Olivia+Smith&background=random" class="user-avatar me-3">
+                    <div class="col-md-3 mb-3 mb-md-0">
                         <div>
-                            <div class="user-name">Olivia Smith</div>
-                            <div class="username">@olivias</div>
+                            <div class="xp-value">$totalXP</div>
+                            <div class="xp-label">Total XP</div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <div>
-                        <div class="xp-value">5,120</div>
-                        <div class="xp-label">Total XP</div>
+                    <div class="col-md-2 mb-3 mb-md-0">
+                        <div class="level-badge">$level</div>
+                    </div>
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <span class="org-badge">$groupName</span>
                     </div>
                 </div>
-                <div class="col-md-2 mb-3 mb-md-0">
-                    <div class="level-badge">13</div>
-                </div>
-                <div class="col-md-3 mb-3 mb-md-0">
-                    <span class="org-badge">Melody Makers</span>
-                </div>
-                <div class="col-md-1 text-md-end">
-                    <button class="btn btn-sm btn-outline-primary action-btn">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary action-btn">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+            </a>
+            HTML;
+        }
+
+
+
+        // Pagination
+        echo "<div class='pagination mt-4'>";
+
+        function page_button($i, $page) {
+            return $i == $page
+                ? "<span class='btn btn-sm btn-primary active'>$i</span> "
+                : "<a href='?" . http_build_query(array_merge($_GET, ['page' => $i])) . "' class='btn btn-sm btn-outline-primary'>$i</a> ";
+        }
+
+        if ($page > 1) {
+            echo "<a href='?" . http_build_query(array_merge($_GET, ['page' => $page - 1])) . "' class='btn btn-sm btn-outline-primary'>&lt;</a> ";
+        } else {
+            echo "<span class='btn btn-sm btn-outline-secondary disabled'>&lt;</span> ";
+        }
+
+        $range = 2;
+        $start = max(1, $page - $range);
+        $end = min($totalPages, $page + $range);
+
+        if ($start > 1) echo page_button(1, $page) . "<span class='btn btn-sm disabled'>...</span> ";
+        for ($i = $start; $i <= $end; $i++) echo page_button($i, $page);
+        if ($end < $totalPages) echo "<span class='btn btn-sm disabled'>...</span> " . page_button($totalPages, $page);
+
+        if ($page < $totalPages) {
+            echo "<a href='?" . http_build_query(array_merge($_GET, ['page' => $page + 1])) . "' class='btn btn-sm btn-outline-primary'>&gt;</a>";
+        } else {
+            echo "<span class='btn btn-sm btn-outline-secondary disabled'>&gt;</span>";
+        }
+
+        echo "</div>";
+    } else {
+        echo "<p>No users found.</p>";
+    }
+    ?>
+</div>
+
 
 
 </div>
