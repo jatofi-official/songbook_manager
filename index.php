@@ -44,7 +44,7 @@ include('php/navigation.php');
         <div class="col-6 col-md-3 mb-3 mb-md-0">
             <a href="songs.php?new=1" class="stat-card-link">
                 <div class="stat-card p-3">
-                    <div class="number"><?php echo get_new_songs_this_week($mysqli); ?></div>
+                    <div class="number"><?php echo get_new_songs_count($mysqli); ?></div>
                     <div class="label">New Songs</div>
                 </div>
             </a>

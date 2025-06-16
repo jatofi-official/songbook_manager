@@ -241,11 +241,11 @@ function get_number_of_songs(mysqli $mysqli, ?string $username = null): int {
 
 
 
-function get_new_songs_this_week($mysqli) {
+function get_new_songs_count($mysqli) {
     $sql = "
         SELECT COUNT(*) AS total 
         FROM songs 
-        WHERE YEARWEEK(create_date, 1) = YEARWEEK(CURDATE(), 1)
+        WHERE create_date >= DATE_SUB(NOW(), INTERVAL ".INTERVAL." DAY)
     ";
 
     $result = $mysqli->query($sql);
@@ -257,6 +257,7 @@ function get_new_songs_this_week($mysqli) {
         return 0;
     }
 }
+
 
 function get_total_users($mysqli) {
     $sql = "SELECT COUNT(*) AS total FROM users";
@@ -545,8 +546,8 @@ function get_new_songs($mysqli, $perPage, $page) {
         $types .= "s";
     }
 
-    // Only new songs created this week
-    $conditions[] = "YEARWEEK(create_date, 1) = YEARWEEK(CURDATE(), 1)";
+    // Only songs from the past 7 days
+    $conditions[] = "create_date >= DATE_SUB(NOW(), INTERVAL ".INTERVAL." DAY)";
 
     if (!empty($conditions)) {
         $sql .= "WHERE " . implode(" AND ", $conditions) . " ";
@@ -598,8 +599,7 @@ function get_new_songs($mysqli, $perPage, $page) {
 
     // Remove pagination params for count
     $countParams = $params;
-    $countTypes = $types;
-    $countTypes = substr($countTypes, 0, -2); // remove 'ii' for limit params
+    $countTypes = substr($types, 0, -2); // remove 'ii' for LIMIT
     array_splice($countParams, -2);
 
     if ($countTypes !== '') {
