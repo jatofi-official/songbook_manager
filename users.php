@@ -11,10 +11,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-
-if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
 ?>
-
 <!-- Page Header -->
 <div class="user-management-header">
     <div class="container">
@@ -229,9 +226,6 @@ HTML;
         }
 
         echo "</div>";
-    } else {
-        echo "<p>No users found.</p>";
-    }
     ?>
 </div>
 
