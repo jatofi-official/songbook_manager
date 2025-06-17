@@ -22,14 +22,6 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
             <div class="col-md-8">
                 <h1 class="display-7 mb-3">Users</h1>
             </div>
-            <!-- <div class="col-md-4 text-end">
-                <button class="btn btn-light me-2">
-                    <i class="bi bi-download me-1"></i> Export
-                </button>
-                <button class="btn btn-outline-light">
-                    <i class="bi bi-plus-lg me-1"></i> Add User
-                </button>
-            </div> -->
         </div>
     </div>
 </div>
@@ -55,7 +47,7 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
 
         <div class="col-md-4 mt-3 mt-md-0">
             <select class="form-select" name="group">
-                <option value="">All Organizations</option>
+                <option value="">All Groups</option>
                 <?php foreach ($groupList as $group): 
                     $gName = htmlspecialchars($group['name']);
                     $selected = ($gName === $selectedGroup) ? 'selected' : '';
@@ -65,6 +57,29 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
             </select>
         </div>
     </form>
+
+    <script>
+    // Add this right after your form closing tag
+    document.querySelector('select[name="group"]').addEventListener('change', function() {
+        // Create hidden inputs for all current GET parameters except 'group'
+        const form = this.form;
+        const params = new URLSearchParams(window.location.search);
+        
+        params.forEach((value, key) => {
+            if (key !== 'group' && !form.elements[key]) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value;
+                form.appendChild(input);
+            }
+        });
+        
+        form.submit();
+    });
+    </script>
+
+    <div class="users-list mb-4 container pt-4">
 
 
 </div>
@@ -86,61 +101,100 @@ if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
     $users = $userData['users'];
     $totalPages = $userData['totalPages'];
 
+echo <<<HTML
+<!-- Header Row -->
+<div class="user-list-header mb-2 d-none d-md-block">
+    <div class="row gx-0 mx-0" style="padding: 12px 20px;">
+        <!-- User Column -->
+        <div class="col-md-4 d-flex align-items-center ps-3">
+            <div style="width: 60px;"></div> <!-- Matches avatar width -->
+            <span class="text-muted fw-bold ms-3 text-start">User</span> <!-- ms-3 matches avatar's me-3 -->
+        </div>
+        
+        <!-- XP Column -->
+        <div class="col-md-2 text-start ps-3">
+            <span class="text-muted fw-bold">XP</span>
+        </div>
+        
+        <!-- Level Column -->
+        <div class="col-md-2 text-start ps-3">
+            <span class="text-muted fw-bold">Level</span>
+        </div>
+        
+        <!-- Group Column -->
+        <div class="col-md-4 text-start ps-4">
+            <span class="text-muted fw-bold">Group</span>
+        </div>
+    </div>
+</div>
+HTML;
+
+
     if (!empty($users)) {
-        foreach ($users as $user) {
-            $userId = (int)$user['id'];
-            $name = htmlspecialchars($user['name']);
-            $username = htmlspecialchars($user['username']);
-            $groupName = htmlspecialchars($user['group_name'] ?? '—');
-            $admin = $user['admin'] ? "<span class='badge bg-warning text-dark'>Admin</span>" : "";
 
-            // Profile picture logic
-            $profilePicPath = __DIR__ . "/profile_pics/{$userId}.png";
-            if ($userId && file_exists($profilePicPath)) {
-                $avatarUrl = "profile_pics/{$userId}.png";
-            } else {
-                $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($name) . "&background=random";
-            }
+        
+    foreach ($users as $user) {
+        $userId = (int)$user['id'];
+        $name = htmlspecialchars($user['name']);
+        $username = htmlspecialchars($user['username']);
+        $groupName = htmlspecialchars($user['group_name'] ?? '');
+        $adminFlag = $user['admin'] ?? false;
 
-            // XP info
-            $xpInfo = get_xp($mysqli, $userId);
-            $totalXP = $xpInfo['total_xp'] ?? '—';
-            $level = $xpInfo['level'] ?? '—';
+        // Profile picture logic
+        $profilePicPath = __DIR__ . "/profile_pics/{$userId}.png";
+        if ($userId && file_exists($profilePicPath)) {
+            $avatarUrl = "profile_pics/{$userId}.png";
+        } else {
+            $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($name) . "&background=random";
+        }
 
-            $selectedUserId = $_GET['selectedUser'] ?? null;
-            $selectedClass = ($selectedUserId && $selectedUserId == $userId) ? "user-card--selected" : "";
+        // XP info
+        $xpInfo = get_xp($mysqli, $userId);
+        $totalXP = $xpInfo['total_xp'] ?? '—';
+        $level = $xpInfo['level'] ?? '—';
 
-            $groupId = $user['group_id'] ?? null; // get group id from user data
+        $selectedUserId = $_GET['selectedUser'] ?? null;
+        $selectedClass = ($selectedUserId && $selectedUserId == $userId) ? "user-card--selected" : "";
 
-            echo <<<HTML
-            <a href="user.php?id=$userId" class="user-card $selectedClass text-decoration-none text-reset d-block">
-                <div class="row align-items-center">
-                    <div class="col-md-3 mb-3 mb-md-0">
-                        <div class="d-flex align-items-center">
-                            <img src="$avatarUrl" class="user-avatar me-3" alt="$name">
-                            <div>
-                                <div class="user-name">$name</div>
-                                <div class="username">@$username</div>
-                                $admin
-                            </div>
+        // Admin badge HTML (only if admin)
+        $adminHtml = $adminFlag ? '<div class="admin-badge"><i class="bi bi-patch-check-fill me-1"></i>Admin</div>' : '';
+
+        // Group badge (only show if groupName is not empty)
+        $groupHtml = $groupName !== '' ? "<span class=\"org-badge\">$groupName</span>" : '';
+
+        echo <<<HTML
+        <a href="user.php?id=$userId" class="user-card $selectedClass text-decoration-none text-reset d-block">
+        <div class="row align-items-center">
+            <div class="col-md-4 mb-3 mb-md-0"> <!-- Changed from 3 to 4 -->
+                <div class="d-flex align-items-center">
+                    <img src="$avatarUrl" class="user-avatar me-3" alt="$name">
+                    <div class="d-flex flex-column">
+                        <div class="d-flex align-items-center gap-2"> <!-- Added flex container for name + badge -->
+                            <div class="user-name">$name</div>
+                            $adminHtml
                         </div>
-                    </div>
-                    <div class="col-md-3 mb-3 mb-md-0">
-                        <div>
-                            <div class="xp-value">$totalXP</div>
-                            <div class="xp-label">Total XP</div>
-                        </div>
-                    </div>
-                    <div class="col-md-2 mb-3 mb-md-0">
-                        <div class="level-badge">$level</div>
-                    </div>
-                    <div class="col-md-3 mb-3 mb-md-0">
-                        <span class="org-badge">$groupName</span>
+                        <div class="username">@$username</div>
                     </div>
                 </div>
-            </a>
-            HTML;
-        }
+            </div>
+            <div class="col-md-2 mb-3 mb-md-0"> <!-- Reduced from 3 to 2 to compensate -->
+                <div>
+                    <div class="xp-value">$totalXP</div>
+                    <div class="xp-label">Total XP</div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3 mb-md-0">
+                <div class="level-badge">$level</div>
+            </div>
+            <div class="col-md-4 mb-3 mb-md-0"> <!-- Increased from 3 to 4 -->
+            $groupHtml
+            </div>
+        </div>
+        </a>
+        HTML;
+    }
+
+
 
 
 

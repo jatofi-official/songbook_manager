@@ -17,6 +17,10 @@
     * Song page
         + tags in categories 
         	+ speed (slow, normal, fast)
+        + updated chords
+            - transpose
+            - bold
+            - 
   	- search list items
     	+ show category in search results
    		+ only show first 3 tags

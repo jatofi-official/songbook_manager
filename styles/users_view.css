@@ -29,9 +29,7 @@
     text-decoration: none;
     color: inherit;
     border-left-color: var(--primary); /* your highlight color */
-
 }
-
 
 .user-avatar {
     width: 60px;
@@ -55,6 +53,15 @@
     font-size: 1.2rem;
 }
 
+
+
+
+@keyframes shine {
+    0% { transform: translateX(-100%) rotate(30deg); }
+    100% { transform: translateX(100%) rotate(30deg); }
+}
+
+
 .xp-value {
     font-weight: 700;
     color: var(--primary);
@@ -73,6 +80,45 @@
     padding: 5px 15px;
     font-size: 0.9rem;
     display: inline-block;
+}
+
+/* New wrapper for username + admin */
+.user-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    /* Adjust user name style inside the new wrapper */
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0; /* remove margin for vertical alignment */
+
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 3px;
+
+}
+
+
+
+.xp-badge {
+    background-color: #f0f5ff;
+    color: var(--primary);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-weight: 600;
+    font-size: 0.9rem; /* same as username */
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+.xp-badge i {
+    font-size: 0.9rem; /* smaller icon */
+    margin-right: 3px;
+}
+
+.xp-badge i.bi {
+    vertical-align: middle;
 }
 
 .action-btn {
@@ -98,11 +144,6 @@
     margin-bottom: 25px;
 }
 
-.user-name {
-    font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 3px;
-}
 
 .username {
     color: #64748b;
@@ -122,10 +163,41 @@
         width: 50px;
         height: 50px;
     }
-    
+
     .level-badge {
         width: 40px;
         height: 40px;
         font-size: 1.1rem;
     }
 }
+
+.admin-badge {
+    background-color: #f0f5ff;
+    color: var(--primary);
+    border-radius: 12px;
+    padding: 4px 8px 2px; /* Adjusted top/bottom padding */
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: baseline; /* Changed from center to baseline */
+    justify-content: center;
+    line-height: 1.2; /* Slightly increased line height */
+}
+
+.admin-badge i {
+    font-size: 0.85rem; /* Slightly smaller icon */
+    margin-right: 4px;
+    position: relative;
+    top: 0.1em; /* Fine-tune icon position */
+}
+
+
+
+.user-list-header {
+    background-color: #f8fafc;
+    border-radius: 12px 12px 12px 12px;
+    margin-top: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+
