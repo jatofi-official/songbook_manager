@@ -66,29 +66,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Validate
     if (!$title)   $errors[] = "Title is required.";
-    if (!$artist)  $errors[] = "Artist is required.";
     if (!$content) $errors[] = "Content is required.";
-
-    // Prepare $song for redisplay
-    // $song = [
-    //     "id" => null,
-    //     "title" => "",
-    //     "artist" => "",
-    //     "capo" => 0,
-    //     "capo_alt" => 0,
-    //     "category" => "",
-    //     "instruments" => [],
-    //     "tags" => "",
-    //     "content" => "",
-    //     "is_public" => 1,
-    //     "owner" => null,  // add this line
-    // ];
-
 
     if (empty($errors)) {
         $data = [
             "title"       => $title,
-            "artist"      => $artist,
+            "artist"      => $artist, 
             "capo"        => $capo,
             "capo_alt"    => $capo_alt,
             "category"    => $category,
@@ -230,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mb-3">
                 <label for="artist" class="form-label">Artist</label>
                 <input type="text" name="artist" id="artist"
-                       class="form-control" maxlength="60" required
+                       class="form-control" maxlength="60"
                        value="<?= htmlspecialchars($song["artist"]) ?>">
             </div>
 

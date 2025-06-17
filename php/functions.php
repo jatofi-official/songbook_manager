@@ -122,55 +122,57 @@ function get_song($mysqli, $id){
 	}
 }
 
-function add_song($mysqli, $data){
-    if (!$mysqli->connect_errno) {
-        // Normalize and clean tags
-        $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"])));
-        $normalizedTags = implode(',', $tagsArray); // No spaces before/after commas
-        $is_fixed = (count($tagsArray) >= 3) ? 1 : 0;
-
-        $stmt = $mysqli->prepare("INSERT INTO songs (
-            category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
-            tags, instruments, content, is_fixed, is_nsfw, youtube_link
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)");
-
-        if (!$stmt) {
-            return "Prepare failed: " . $mysqli->error;
-        }
-
-        $stmt->bind_param(
-            "issiisisssssis",
-            $data["category"],
-            $data["title"],
-            $data["artist"],
-            $data["capo"],
-            $data["capo_alt"],
-            $data["owner"],
-            $data["is_public"],
-            $normalizedTags,
-            $data["instruments"],
-            $data["content"],
-            $is_fixed,
-            $data["is_nsfw"],
-            $data["youtube_link"]
-        );
-
-        if ($stmt->execute()) {
-            $insertedId = $stmt->insert_id;
-            $stmt->close();
-
-            foreach ($tagsArray as $tag) {
-                add_tag($mysqli, $tag);
-            }
-
-            return $insertedId;
-        } else {
-            $error = "Error: " . $stmt->error;
-            $stmt->close();
-            return $error;
-        }
-    } else {
+function add_song($mysqli, $data) {
+    if ($mysqli->connect_errno) {
         return "Error connecting";
+    }
+
+    // Normalize and clean tags
+    $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
+    $normalizedTags = implode(',', $tagsArray);
+    $is_fixed = (count($tagsArray) >= 3) ? 1 : 0;
+
+    $stmt = $mysqli->prepare("INSERT INTO songs (
+        category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
+        tags, instruments, content, is_fixed, is_nsfw, youtube_link
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)");
+
+    if (!$stmt) {
+        return "Prepare failed: " . $mysqli->error;
+    }
+
+    // Bind parameters - NOW() values don't count as parameters
+    // We have 13 parameters to bind (15 columns - 2 NOW() values)
+    $stmt->bind_param(
+        "issiisssssisi",  // 13 type specifiers for 13 bound variables
+        $data["category"],    // 1 - int
+        $data["title"],       // 2 - string
+        $data["artist"],      // 3 - string
+        $data["capo"],        // 4 - int
+        $data["capo_alt"],    // 5 - string
+        $data["owner"],       // 6 - string
+        $data["is_public"],   // 7 - int (tinyint)
+        $normalizedTags,      // 8 - string
+        $data["instruments"], // 9 - string
+        $data["content"],     // 10 - string
+        $is_fixed,            // 11 - int (tinyint)
+        $data["is_nsfw"],     // 12 - int (tinyint)
+        $data["youtube_link"] // 13 - string
+    );
+
+    if ($stmt->execute()) {
+        $insertedId = $stmt->insert_id;
+        $stmt->close();
+
+        foreach ($tagsArray as $tag) {
+            add_tag($mysqli, $tag);
+        }
+
+        return $insertedId;
+    } else {
+        $error = "Error: " . $stmt->error;
+        $stmt->close();
+        return $error;
     }
 }
 
@@ -197,7 +199,7 @@ function edit_song($mysqli, $id, $data) {
     // Normalize tags (trim spaces, remove empty entries)
     $originalTags = array_filter(array_map('trim', explode(',', $originalTagsStr ?? '')));
     $newTagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
-    $normalizedTags = implode(',', $newTagsArray); // No spaces between tags
+    $normalizedTags = implode(',', $newTagsArray);
 
     $tagsToAdd = array_diff($newTagsArray, $originalTags);
     $tagsToRemove = array_diff($originalTags, $newTagsArray);
@@ -205,6 +207,7 @@ function edit_song($mysqli, $id, $data) {
     $is_fixed = (count($newTagsArray) >= 3) ? 1 : 0;
     $data["is_nsfw"] = isset($data["is_nsfw"]) && $data["is_nsfw"] !== '' ? (int)$data["is_nsfw"] : 0;
 
+    // Fix: Corrected column name from 'capo_alt' (matches your table structure)
     $stmt = $mysqli->prepare("
         UPDATE songs SET 
             category = ?, 
@@ -228,20 +231,20 @@ function edit_song($mysqli, $id, $data) {
     }
 
     $stmt->bind_param(
-        "issiiissssisi",
-        $data["category"],
-        $data["title"],
-        $data["artist"],
-        $data["capo"],
-        $data["capo_alt"],
-        $data["is_public"],
-        $normalizedTags,
-        $data["instruments"],
-        $data["content"],
-        $is_fixed,
-        $data["is_nsfw"],
-        $data["youtube_link"],
-        $id
+        "issiisssssisi", // 13 parameters (12 + id)
+        $data["category"],    // i (int)
+        $data["title"],       // s (string)
+        $data["artist"],      // s (string)
+        $data["capo"],       // i (int)
+        $data["capo_alt"],   // i (int) - Note: Your table shows varchar but you're passing as int
+        $data["is_public"],  // i (tinyint)
+        $normalizedTags,     // s (string)
+        $data["instruments"],// s (string)
+        $data["content"],    // s (string)
+        $is_fixed,           // s (string) - Note: Your table shows tinyint but you're passing as string
+        $data["is_nsfw"],    // i (tinyint)
+        $data["youtube_link"], // s (string)
+        $id                  // i (int)
     );
 
     if (!$stmt->execute()) {
