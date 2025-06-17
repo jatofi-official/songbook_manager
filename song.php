@@ -234,29 +234,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        value="<?= htmlspecialchars($song["artist"]) ?>">
             </div>
 
-            <div class="mb-3">
-                <label for="capo" class="form-label">Capo</label>
-                <select name="capo" id="capo" class="form-select">
-                    <?php for ($i = 0; $i <= 7; $i++): ?>
-                        <option value="<?= $i ?>" <?= $song['capo'] == $i ? "selected" : "" ?>>
-                            <?= $i === 0 ? "No capo" : $i ?>
-                        </option>
-                    <?php endfor; ?>
-                </select>
-            </div>
+            <style>
+            .capo-control {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .capo-input-group {
+                display: flex;
+            }
+            .capo-input-group .btn {
+                width: 40px;
+                padding: 0;
+            }
+            .capo-input-group .form-control {
+                flex-grow: 0;
+                width: 60px;
+                text-align: center;
+            }
+            .capo-reset {
+                margin-left: 10px;
+                white-space: nowrap;
+            }
+            </style>
 
             <div class="mb-3">
-                <label for="capo_alt" class="form-label">Capo alt</label>
-                <select name="capo_alt" id="capo_alt" class="form-select">
-                    <option value="" <?= is_null($song['capo_alt']) ? "selected" : "" ?>>No alt</option>
-                    <?php for ($i = 1; $i <= 7; $i++): ?>
-                        <option value="<?= $i ?>" <?= $song['capo_alt'] == $i ? "selected" : "" ?>>
-                            <?= $i ?>
-                        </option>
-                    <?php endfor; ?>
-                </select>
+                <!-- <label class="form-label">Capo Settings</label> -->
+                <div class="capo-control">
+                    <!-- Main Capo -->
+                    <span> Capo:</span>
+                    <div class="capo-input-group">
+                        <button type="button" class="btn btn-outline-secondary capo-decrement" data-target="capo">-</button>
+                        <input type="number" name="capo" id="capo" class="form-control" 
+                            min="0" max="7" value="<?= $song['capo'] ?? 0 ?>" readonly>
+                        <button type="button" class="btn btn-outline-secondary capo-increment" data-target="capo">+</button>
+                    </div>
+                    
+                    <span> Alternative:</span>
+                    
+                    <!-- Alternative Capo -->
+                    <div class="capo-input-group">
+                        <button type="button" class="btn btn-outline-secondary capo-decrement" data-target="capo_alt">-</button>
+                        <input type="number" name="capo_alt" id="capo_alt" class="form-control" 
+                            min="0" max="7" value="<?= $song['capo_alt'] ?? '' ?>" readonly>
+                        <button type="button" class="btn btn-outline-secondary capo-increment" data-target="capo_alt">+</button>
+                    </div>
+                    
+                    <!-- Reset Button -->
+                    <button type="button" class="btn btn-outline-danger capo-reset">No Alt</button>
+                </div>
             </div>
 
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Handle increment buttons
+                document.querySelectorAll('.capo-increment').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const targetId = this.getAttribute('data-target');
+                        const input = document.getElementById(targetId);
+                        let value = parseInt(input.value) || 0;
+                        if (value < 7) {
+                            input.value = value + 1;
+                        }
+                    });
+                });
+
+                // Handle decrement buttons
+                document.querySelectorAll('.capo-decrement').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const targetId = this.getAttribute('data-target');
+                        const input = document.getElementById(targetId);
+                        let value = parseInt(input.value) || 0;
+                        if (value > (targetId === 'capo' ? 0 : 1)) {
+                            input.value = value - 1;
+                        }
+                    });
+                });
+
+                // Handle reset button
+                document.querySelector('.capo-reset').addEventListener('click', function() {
+                    document.getElementById('capo_alt').value = '';
+                });
+            });
+            </script>
 
             <div class="mb-3">
                 <label for="category" class="form-label">Category</label>
@@ -307,10 +367,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?= !empty($song["is_nsfw"]) ? "checked" : "" ?>>
                 <label class="form-check-label" for="nsfw">NSFW (explicit content)</label>
             </div>
-
+            
+            <br>
 
             <div class="mb-3 textarea-container">
-                <label for="content" class="form-label">Song Content *</label>
+                <h2 class="h5 mb-2"> <!-- Uses h2 semantic but h5 size -->
+                    <label for="content" class="form-label">Song Content *</label>
+                </h2>
                 <textarea name="content" id="content" rows="12"
                         class="form-control" required><?= htmlspecialchars($song["content"]) ?></textarea>
             </div>
