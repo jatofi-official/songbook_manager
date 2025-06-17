@@ -124,8 +124,9 @@ function get_song($mysqli, $id){
 
 function add_song($mysqli, $data){
     if (!$mysqli->connect_errno) {
-        // Count tags and decide is_fixed
+        // Normalize and clean tags
         $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"])));
+        $normalizedTags = implode(',', $tagsArray); // No spaces before/after commas
         $is_fixed = (count($tagsArray) >= 3) ? 1 : 0;
 
         $stmt = $mysqli->prepare("INSERT INTO songs (
@@ -146,7 +147,7 @@ function add_song($mysqli, $data){
             $data["capo_alt"],
             $data["owner"],
             $data["is_public"],
-            $data["tags"],
+            $normalizedTags,
             $data["instruments"],
             $data["content"],
             $is_fixed,
@@ -179,6 +180,7 @@ function edit_song($mysqli, $id, $data) {
         return "Error connecting";
     }
 
+    // Fetch original tags
     $stmt = $mysqli->prepare("SELECT tags FROM songs WHERE id = ?");
     if (!$stmt) {
         return "Prepare failed: " . $mysqli->error;
@@ -192,16 +194,16 @@ function edit_song($mysqli, $id, $data) {
     }
     $stmt->close();
 
+    // Normalize tags (trim spaces, remove empty entries)
     $originalTags = array_filter(array_map('trim', explode(',', $originalTagsStr ?? '')));
-    $newTags = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
+    $newTagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
+    $normalizedTags = implode(',', $newTagsArray); // No spaces between tags
 
+    $tagsToAdd = array_diff($newTagsArray, $originalTags);
+    $tagsToRemove = array_diff($originalTags, $newTagsArray);
 
-    $tagsToAdd = array_diff($newTags, $originalTags);
-    $tagsToRemove = array_diff($originalTags, $newTags);
-
-    $is_fixed = (count($newTags) >= 3) ? 1 : 0;
+    $is_fixed = (count($newTagsArray) >= 3) ? 1 : 0;
     $data["is_nsfw"] = isset($data["is_nsfw"]) && $data["is_nsfw"] !== '' ? (int)$data["is_nsfw"] : 0;
-
 
     $stmt = $mysqli->prepare("
         UPDATE songs SET 
@@ -233,7 +235,7 @@ function edit_song($mysqli, $id, $data) {
         $data["capo"],
         $data["capo_alt"],
         $data["is_public"],
-        $data["tags"],
+        $normalizedTags,
         $data["instruments"],
         $data["content"],
         $is_fixed,
@@ -258,6 +260,7 @@ function edit_song($mysqli, $id, $data) {
 
     return true;
 }
+
 
 
 
