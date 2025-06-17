@@ -1,10 +1,10 @@
 <?php
 session_start();
-// if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
-    // error_reporting(E_ALL);
-    // ini_set('display_errors', 1);
-    // ini_set('display_startup_errors', 1);
-// }
+if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+}
 
 include('php/db.php');
 include('php/data.php');
@@ -33,6 +33,8 @@ $song = [
     "tags" => "",
     "content" => "",
     "is_public" => 1,
+    "youtube_link" => "",
+    "nsfw" => 0,
 ];
 
 // Determine mode:
@@ -59,6 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $instruments = $_POST["instruments"] ?? [];
     $content   = trim($_POST["content"] ?? "");
     $is_public = isset($_POST['is_public']) ? 1 : 0;
+    $youtube_link = trim($_POST["youtube_link"] ?? "");
+    $nsfw = isset($_POST["nsfw"]) ? 1 : 0;
 
     // Validate
     if (!$title)   $errors[] = "Title is required.";
@@ -93,6 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "content"     => $content,
             "is_public"   => $is_public,
             "owner"       => $userId,
+            "youtube_link" => $youtube_link,
+            "is_nsfw"         => $nsfw,
+
         ];
 
         if ($id) {
@@ -287,6 +294,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        class="form-control" maxlength="50"
                         value="<?= isset($song["tags"]) ? htmlspecialchars($song["tags"]) : '' ?>">
             </div>
+
+            <div class="mb-3">
+                <label for="youtube_link" class="form-label">YouTube Link</label>
+                <input type="url" name="youtube_link" id="youtube_link"
+                    class="form-control"
+                    value="<?= isset($song["youtube_link"]) ? htmlspecialchars($song["youtube_link"]) : '' ?>">
+            </div>
+
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="nsfw" name="nsfw" value="1"
+                    <?= !empty($song["is_nsfw"]) ? "checked" : "" ?>>
+                <label class="form-check-label" for="nsfw">NSFW (explicit content)</label>
+            </div>
+
 
             <div class="mb-3 textarea-container">
                 <label for="content" class="form-label">Song Content *</label>

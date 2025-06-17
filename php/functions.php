@@ -128,13 +128,17 @@ function add_song($mysqli, $data){
         $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"])));
         $is_fixed = (count($tagsArray) >= 3) ? 1 : 0;
 
-        $stmt = $mysqli->prepare("INSERT INTO songs (category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date, tags, instruments, content, is_fixed) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?)");
+        $stmt = $mysqli->prepare("INSERT INTO songs (
+            category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
+            tags, instruments, content, is_fixed, is_nsfw, youtube_link
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)");
+
         if (!$stmt) {
             return "Prepare failed: " . $mysqli->error;
         }
 
         $stmt->bind_param(
-            "issiisisssi",
+            "issiisisssssis",
             $data["category"],
             $data["title"],
             $data["artist"],
@@ -145,14 +149,15 @@ function add_song($mysqli, $data){
             $data["tags"],
             $data["instruments"],
             $data["content"],
-            $is_fixed
+            $is_fixed,
+            $data["is_nsfw"],
+            $data["youtube_link"]
         );
 
         if ($stmt->execute()) {
-            $insertedId = $stmt->insert_id;  // get the insert id here
+            $insertedId = $stmt->insert_id;
             $stmt->close();
 
-            // Add each tag with add_tag helper (updates usage_count etc.)
             foreach ($tagsArray as $tag) {
                 add_tag($mysqli, $tag);
             }
@@ -174,7 +179,6 @@ function edit_song($mysqli, $id, $data) {
         return "Error connecting";
     }
 
-    // Step 1: Get original tags for this song
     $stmt = $mysqli->prepare("SELECT tags FROM songs WHERE id = ?");
     if (!$stmt) {
         return "Prepare failed: " . $mysqli->error;
@@ -188,21 +192,19 @@ function edit_song($mysqli, $id, $data) {
     }
     $stmt->close();
 
-    // Step 2: Prepare tag arrays
-    $originalTags = array_filter(array_map('trim', explode(',', $originalTagsStr)));
-    $newTags = array_filter(array_map('trim', explode(',', $data["tags"])));
+    $originalTags = array_filter(array_map('trim', explode(',', $originalTagsStr ?? '')));
+    $newTags = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
 
-    // Step 3: Calculate tags to add and remove
+
     $tagsToAdd = array_diff($newTags, $originalTags);
     $tagsToRemove = array_diff($originalTags, $newTags);
 
-    // Step 4: Update is_fixed based on new tags count
     $is_fixed = (count($newTags) >= 3) ? 1 : 0;
+    $data["is_nsfw"] = isset($data["is_nsfw"]) && $data["is_nsfw"] !== '' ? (int)$data["is_nsfw"] : 0;
 
-    // Step 5: Update the song row (including new tags and is_fixed)
+
     $stmt = $mysqli->prepare("
-        UPDATE songs 
-        SET 
+        UPDATE songs SET 
             category = ?, 
             title = ?, 
             artist = ?, 
@@ -213,7 +215,9 @@ function edit_song($mysqli, $id, $data) {
             tags = ?, 
             instruments = ?, 
             content = ?,
-            is_fixed = ?
+            is_fixed = ?,
+            is_nsfw = ?,
+            youtube_link = ?
         WHERE id = ?
     ");
 
@@ -222,18 +226,20 @@ function edit_song($mysqli, $id, $data) {
     }
 
     $stmt->bind_param(
-        "issiiisssii",
-        $data["category"],     // int
-        $data["title"],        // string (varchar 30)
-        $data["artist"],       // string (varchar 30)
-        $data["capo"],         // int
-        $data["capo_alt"],     // int
-        $data["is_public"],    // int (tinyint 1)
-        $data["tags"],         // string (varchar 50)
-        $data["instruments"],  // string (varchar 50)
-        $data["content"],      // string (text)
-        $is_fixed,             // int
-        $id                    // int (primary key)
+        "issiiissssisi",
+        $data["category"],
+        $data["title"],
+        $data["artist"],
+        $data["capo"],
+        $data["capo_alt"],
+        $data["is_public"],
+        $data["tags"],
+        $data["instruments"],
+        $data["content"],
+        $is_fixed,
+        $data["is_nsfw"],
+        $data["youtube_link"],
+        $id
     );
 
     if (!$stmt->execute()) {
@@ -242,12 +248,10 @@ function edit_song($mysqli, $id, $data) {
     }
     $stmt->close();
 
-    // Step 6: Remove old tags
     foreach ($tagsToRemove as $tag) {
         remove_tag($mysqli, $tag);
     }
 
-    // Step 7: Add new tags
     foreach ($tagsToAdd as $tag) {
         add_tag($mysqli, $tag);
     }

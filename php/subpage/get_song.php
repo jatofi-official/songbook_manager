@@ -42,6 +42,17 @@ if (isset($_GET['id'])) {
                     ?>
 
                     <div class="d-flex gap-2">
+                        <?php if (!empty($song['youtube_link'])): ?>
+                            <a href="<?= htmlspecialchars(
+                                preg_match('/^(http|https):\/\//', $song['youtube_link']) 
+                                    ? $song['youtube_link'] 
+                                    : 'https://www.youtube.com/watch?v=' . $song['youtube_link']
+                            ) ?>" 
+                            target="_blank" class="btn btn-danger mb-3">
+                                Watch
+                            </a>
+                        <?php endif; ?>
+
                         <?php if ($isEmbedded): ?>
                             <a href="song.php?id=<?= (int)$id ?>" class="btn btn-primary mb-3">
                                 View
