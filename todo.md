@@ -27,7 +27,9 @@
     * display users
     * user profile
         + show user's songs
-        + 
+        + show recent activity
 - ## Songbook
     * cele todo
-    * 
+
+
+- dark mode?
