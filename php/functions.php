@@ -101,9 +101,22 @@ function add_user($mysqli, $name, $username, $password, $group_id) {
 
 
 
+function get_song($mysqli, $id){
+	if(!$mysqli->connect_errno){
+		$stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
+		$stmt->bind_param("i", $id);
+		$stmt->execute();
+		$result = $stmt->get_result();
 
+		if ($result->num_rows === 0) {
+			echo "<p>Song not found.</p>";
+			echo "<p><a href='?'>Back to list</a></p>";
+			exit;
+		}
 
-
+		return $result->fetch_assoc();
+	}
+}
 
 function add_song($mysqli, $data) {
     if ($mysqli->connect_errno) {
@@ -115,6 +128,7 @@ function add_song($mysqli, $data) {
     $normalizedTags = implode(',', $tagsArray);
     $is_fixed = (count($tagsArray) >= 3) ? 1 : 0;
 
+    // Prepare statement without NULLIF(), we'll handle nulls in PHP
     $stmt = $mysqli->prepare("INSERT INTO songs (
         category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
         tags, instruments, content, is_fixed, is_nsfw, youtube_link
@@ -124,9 +138,10 @@ function add_song($mysqli, $data) {
         return "Prepare failed: " . $mysqli->error;
     }
 
+    // Sanitize numeric fields and convert empty strings to null
     $category = isset($data["category"]) ? (int)$data["category"] : null;
     $title = $data["title"] ?? '';
-    $artist = $data["artist"] ?? null;
+    $artist = $data["artist"] ?? null;   // string or null
     $capo = isset($data["capo"]) && $data["capo"] !== '' ? (int)$data["capo"] : null;
     $capo_alt = isset($data["capo_alt"]) && $data["capo_alt"] !== '' ? (int)$data["capo_alt"] : null;
     $owner = isset($data["owner"]) ? (int)$data["owner"] : null;
@@ -136,8 +151,9 @@ function add_song($mysqli, $data) {
     $is_nsfw = isset($data["is_nsfw"]) ? (int)$data["is_nsfw"] : 0;
     $youtube_link = $data["youtube_link"] ?? null;
 
+    // Bind parameters, treat nulls as nulls
     $stmt->bind_param(
-        "issiiissssiis",
+        "issiiisssiiiss",
         $category,
         $title,
         $artist,
@@ -168,7 +184,6 @@ function add_song($mysqli, $data) {
         return $error;
     }
 }
-
 
 function edit_song($mysqli, $id, $data) {
     if ($mysqli->connect_errno) {
