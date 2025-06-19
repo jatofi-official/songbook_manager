@@ -59,7 +59,7 @@ if (isset($_GET['id'])) {
 
                         <?php if ($isEmbedded): ?>
                             <a href="song.php?id=<?= (int)$id ?>" class="btn btn-primary mb-3">
-                                View
+                                Fullscreen
                             </a>
                         <?php endif; ?>
                         
