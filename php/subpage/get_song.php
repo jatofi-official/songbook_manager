@@ -62,30 +62,32 @@ if (isset($_GET['id'])) {
                                 View
                             </a>
                         <?php endif; ?>
+                        
+                        <?php if(isset($_SESSION["user"])){ ?>
+                            <!-- Edit Button -->
+                            <form method="GET" action="song.php" class="d-inline">
+                                <input type="hidden" name="id" value="<?= (int)$id ?>">
+                                <input type="hidden" name="edit" value="1">
+                                <button type="submit"
+                                        class="btn btn-secondary"
+                                        <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
+                                    Edit
+                                </button>
+                            </form>
 
-                        <!-- Edit Button -->
-                        <form method="GET" action="song.php" class="d-inline">
-                            <input type="hidden" name="id" value="<?= (int)$id ?>">
-                            <input type="hidden" name="edit" value="1">
-                            <button type="submit"
-                                    class="btn btn-secondary"
-                                    <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
-                                Edit
-                            </button>
-                        </form>
+                            <!-- Delete Button -->
+                            <form method="POST" action="php/subpage/delete_song.php"
+                                onsubmit="return confirm('Are you sure you want to delete this song?');"
+                                class="d-inline">
+                                <input type="hidden" name="id" value="<?= $id ?>">
 
-                        <!-- Delete Button -->
-                        <form method="POST" action="php/subpage/delete_song.php"
-                              onsubmit="return confirm('Are you sure you want to delete this song?');"
-                              class="d-inline">
-                            <input type="hidden" name="id" value="<?= $id ?>">
+                                <input type="hidden" name="redirect_params" value="<?= htmlspecialchars(http_build_query(array_diff_key($_GET, ['id' => '']))) ?>">
 
-                            <input type="hidden" name="redirect_params" value="<?= htmlspecialchars(http_build_query(array_diff_key($_GET, ['id' => '']))) ?>">
-
-                            <button type="submit" class="btn btn-danger" <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
-                                Delete
-                            </button>
-                        </form>
+                                <button type="submit" class="btn btn-danger" <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
+                                    Delete
+                                </button>
+                            </form>
+                        <?php } ?>
 
                     </div>
 
