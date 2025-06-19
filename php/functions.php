@@ -334,6 +334,7 @@ function get_new_songs_count($mysqli) {
         SELECT COUNT(*) AS total 
         FROM songs 
         WHERE create_date >= DATE_SUB(NOW(), INTERVAL ".INTERVAL." DAY)
+        AND is_public = 1
     ";
 
     $result = $mysqli->query($sql);
