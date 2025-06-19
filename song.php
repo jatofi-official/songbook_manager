@@ -213,8 +213,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mb-3">
                 <label for="artist" class="form-label">Artist</label>
                 <input type="text" name="artist" id="artist"
-                       class="form-control" maxlength="60"
-                       value="<?= htmlspecialchars($song["artist"]) ?>">
+                    class="form-control" maxlength="60"
+                    value="<?= htmlspecialchars($song["artist"] ?? '') ?>">
             </div>
 
             <style>
@@ -322,7 +322,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    id="inst_<?= $inst['id'] ?>"
                                    name="instruments[]"
                                    value="<?= htmlspecialchars($inst['name']) ?>"
-                                   <?= in_array($inst['name'], $song['instruments']) ? "checked" : "" ?> <?= (strcasecmp($inst['name'], 'guitar') === 0) ? 'checked' : '' ?>>
+                                   <?= in_array($inst['name'], $song['instruments']) ? "checked" : "" ?>
+                                    <?= ($addingNew && empty($song['instruments']) && strcasecmp($inst['name'], 'guitar') === 0) ? 'checked' : '' ?>
+
+                                   >
                             <label class="form-check-label" for="inst_<?= $inst['id'] ?>">
                                 <?= htmlspecialchars($inst['name']) ?>
                             </label>
@@ -342,7 +345,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label for="youtube_link" class="form-label">YouTube Link</label>
                 <input type="url" name="youtube_link" id="youtube_link"
                     class="form-control"
-                    value="<?= isset($song["youtube_link"]) ? htmlspecialchars($song["youtube_link"]) : '' ?>">
+                    value="<?= !empty($song["youtube_link"]) ? htmlspecialchars($song["youtube_link"]) : '' ?>"
+>
             </div>
 
             <div class="mb-3 form-check">

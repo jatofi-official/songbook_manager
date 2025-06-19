@@ -250,7 +250,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 foreach ($songs as $song) {
                     echo "<div class='song-list-item' data-id='{$song['id']}'>";
                     echo "<div class='song-title'>" . htmlspecialchars($song['title']) . "</div>";
-                    echo "<div class='song-artist'>" . htmlspecialchars($song['artist']) . "</div><div class='mt-2'>";
+                    echo "<div class='song-artist'>" . 
+                        (isset($song['artist']) && trim($song['artist']) !== '' 
+                            ? htmlspecialchars($song['artist']) 
+                            : '&nbsp;') . 
+                        "</div><div class='mt-2'>";
 
                     if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
                         echo "<span class='badge " . ($song['is_public'] ? 'bg-success' : 'bg-secondary') . "'>" . ($song['is_public'] ? "Public" : "Private") . "</span> ";

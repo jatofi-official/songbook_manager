@@ -33,7 +33,7 @@ if (isset($_GET['id'])) {
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <h2><?= htmlspecialchars($song['title']) ?></h2>
-                    <h4 class="text-muted"><?= htmlspecialchars($song['artist']) ?></h4>
+                    <h4 class="text-muted"><?= htmlspecialchars($song['artist'] ?? '') ?></h4>
                 </div>
                 <div>
 

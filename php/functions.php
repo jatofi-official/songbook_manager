@@ -105,23 +105,6 @@ function add_user($mysqli, $name, $username, $password, $group_id) {
 
 
 
-function get_song($mysqli, $id){
-	if(!$mysqli->connect_errno){
-		$stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
-		$stmt->bind_param("i", $id);
-		$stmt->execute();
-		$result = $stmt->get_result();
-
-		if ($result->num_rows === 0) {
-			echo "<p>Song not found.</p>";
-			echo "<p><a href='?'>Back to list</a></p>";
-			exit;
-		}
-
-		return $result->fetch_assoc();
-	}
-}
-
 function add_song($mysqli, $data) {
     if ($mysqli->connect_errno) {
         return "Error connecting";
@@ -141,27 +124,37 @@ function add_song($mysqli, $data) {
         return "Prepare failed: " . $mysqli->error;
     }
 
-    // Bind parameters - NOW() values don't count as parameters
-    // We have 13 parameters to bind (15 columns - 2 NOW() values)
+    $category = isset($data["category"]) ? (int)$data["category"] : null;
+    $title = $data["title"] ?? '';
+    $artist = $data["artist"] ?? null;
+    $capo = isset($data["capo"]) && $data["capo"] !== '' ? (int)$data["capo"] : null;
+    $capo_alt = isset($data["capo_alt"]) && $data["capo_alt"] !== '' ? (int)$data["capo_alt"] : null;
+    $owner = isset($data["owner"]) ? (int)$data["owner"] : null;
+    $is_public = isset($data["is_public"]) ? (int)$data["is_public"] : 0;
+    $instruments = $data["instruments"] ?? '';
+    $content = $data["content"] ?? null;
+    $is_nsfw = isset($data["is_nsfw"]) ? (int)$data["is_nsfw"] : 0;
+    $youtube_link = $data["youtube_link"] ?? null;
+
     $stmt->bind_param(
-        "issiisssssisi",  // 13 type specifiers for 13 bound variables
-        $data["category"],    // 1 - int
-        $data["title"],       // 2 - string
-        $data["artist"],      // 3 - string
-        $data["capo"],        // 4 - int
-        $data["capo_alt"],    // 5 - string
-        $data["owner"],       // 6 - string
-        $data["is_public"],   // 7 - int (tinyint)
-        $normalizedTags,      // 8 - string
-        $data["instruments"], // 9 - string
-        $data["content"],     // 10 - string
-        $is_fixed,            // 11 - int (tinyint)
-        $data["is_nsfw"],     // 12 - int (tinyint)
-        $data["youtube_link"] // 13 - string
+        "issiiissssiis",
+        $category,
+        $title,
+        $artist,
+        $capo,
+        $capo_alt,
+        $owner,
+        $is_public,
+        $normalizedTags,
+        $instruments,
+        $content,
+        $is_fixed,
+        $is_nsfw,
+        $youtube_link
     );
 
     if ($stmt->execute()) {
-        $insertedId = $stmt->insert_id;
+        $insertedId = $mysqli->insert_id;
         $stmt->close();
 
         foreach ($tagsArray as $tag) {
@@ -182,21 +175,19 @@ function edit_song($mysqli, $id, $data) {
         return "Error connecting";
     }
 
-    // Fetch original tags
+    // Fetch original tags, etc. (keep your existing code for that)...
+
+    $originalTagsStr = '';
     $stmt = $mysqli->prepare("SELECT tags FROM songs WHERE id = ?");
-    if (!$stmt) {
-        return "Prepare failed: " . $mysqli->error;
-    }
+    if (!$stmt) return "Prepare failed: " . $mysqli->error;
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
-    $originalTagsStr = '';
     if ($row = $result->fetch_assoc()) {
         $originalTagsStr = $row['tags'];
     }
     $stmt->close();
 
-    // Normalize tags (trim spaces, remove empty entries)
     $originalTags = array_filter(array_map('trim', explode(',', $originalTagsStr ?? '')));
     $newTagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
     $normalizedTags = implode(',', $newTagsArray);
@@ -207,45 +198,56 @@ function edit_song($mysqli, $id, $data) {
     $is_fixed = (count($newTagsArray) >= 3) ? 1 : 0;
     $data["is_nsfw"] = isset($data["is_nsfw"]) && $data["is_nsfw"] !== '' ? (int)$data["is_nsfw"] : 0;
 
-    // Fix: Corrected column name from 'capo_alt' (matches your table structure)
-    $stmt = $mysqli->prepare("
-        UPDATE songs SET 
-            category = ?, 
-            title = ?, 
-            artist = ?, 
-            capo = ?,
-            capo_alt = ?, 
-            is_public = ?, 
-            modified_date = NOW(), 
-            tags = ?, 
-            instruments = ?, 
-            content = ?,
-            is_fixed = ?,
-            is_nsfw = ?,
-            youtube_link = ?
-        WHERE id = ?
-    ");
+    // Base fields always updated:
+    $fields = [
+        "category" => $data["category"],
+        "title" => $data["title"],
+        "capo" => $data["capo"],
+        "is_public" => $data["is_public"],
+        "tags" => $normalizedTags,
+        "instruments" => $data["instruments"],
+        "content" => $data["content"],
+        "is_fixed" => $is_fixed,
+        "is_nsfw" => $data["is_nsfw"]
+    ];
 
-    if (!$stmt) {
-        return "Prepare failed: " . $mysqli->error;
+    // Nullable optional fields — only add if non-empty:
+    if (isset($data["artist"]) && trim($data["artist"]) !== '') {
+        $fields["artist"] = $data["artist"];
+    }
+    if (isset($data["capo_alt"]) && trim($data["capo_alt"]) !== '') {
+        $fields["capo_alt"] = $data["capo_alt"];
+    }
+    if (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') {
+        $fields["youtube_link"] = $data["youtube_link"];
     }
 
-    $stmt->bind_param(
-        "issiisssssisi", // 13 parameters (12 + id)
-        $data["category"],    // i (int)
-        $data["title"],       // s (string)
-        $data["artist"],      // s (string)
-        $data["capo"],       // i (int)
-        $data["capo_alt"],   // i (int) - Note: Your table shows varchar but you're passing as int
-        $data["is_public"],  // i (tinyint)
-        $normalizedTags,     // s (string)
-        $data["instruments"],// s (string)
-        $data["content"],    // s (string)
-        $is_fixed,           // s (string) - Note: Your table shows tinyint but you're passing as string
-        $data["is_nsfw"],    // i (tinyint)
-        $data["youtube_link"], // s (string)
-        $id                  // i (int)
-    );
+    // Build the SQL dynamically:
+    $setParts = [];
+    $types = '';
+    $params = [];
+    foreach ($fields as $field => $value) {
+        $setParts[] = "$field = ?";
+        // Determine type for bind_param
+        if (is_int($value)) {
+            $types .= 'i';
+        } else {
+            $types .= 's';
+        }
+        $params[] = $value;
+    }
+    $setParts[] = "modified_date = NOW()"; // no bind param for NOW()
+    $setClause = implode(", ", $setParts);
+
+    $sql = "UPDATE songs SET $setClause WHERE id = ?";
+    $types .= 'i'; // for id
+    $params[] = $id;
+
+    $stmt = $mysqli->prepare($sql);
+    if (!$stmt) return "Prepare failed: " . $mysqli->error;
+
+    // Bind params dynamically:
+    $stmt->bind_param($types, ...$params);
 
     if (!$stmt->execute()) {
         $stmt->close();
@@ -253,10 +255,10 @@ function edit_song($mysqli, $id, $data) {
     }
     $stmt->close();
 
+    // Handle tags add/remove as before:
     foreach ($tagsToRemove as $tag) {
         remove_tag($mysqli, $tag);
     }
-
     foreach ($tagsToAdd as $tag) {
         add_tag($mysqli, $tag);
     }
