@@ -189,37 +189,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
-<script>
-// document.addEventListener("DOMContentLoaded", () => {
-//     const form = document.getElementById("songFilterForm");
-
-//     // Autosubmit only when 'category' changes or 'search' input changes (on Enter)
-//     const categorySelect = form.querySelector("select[name='category']");
-//     const searchInput = form.querySelector("input[name='search']");
-
-//     if (categorySelect) {
-//         categorySelect.addEventListener("change", () => {
-//             form.querySelector("input[name='page']").value = 1; // reset page
-//             form.submit();
-//         });
-//     }
-
-//     if (searchInput) {
-//         searchInput.addEventListener("keydown", (event) => {
-//             if (event.key === "Enter") {
-//                 form.querySelector("input[name='page']").value = 1; // reset page
-//                 form.submit();
-//             }
-//         });
-//     }
-
-//     // For other inputs (tags[], instruments[], owner, etc), no autosubmit:
-//     // User has to hit submit button or press Enter inside those fields manually.
-// });
-
-
-</script>
-
 
         <div class="song-list">
             <?php
@@ -262,6 +231,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     } else if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
                         // Show public badge only if admin_view
                         echo "<span class='badge bg-success'>Public</span> ";
+                    }
+                    if ($song['is_nsfw']==true) {
+                        // Show NSFW badge if set
+                        echo "<span class='badge bg-danger'>NSFW</span> ";
                     }
 
 

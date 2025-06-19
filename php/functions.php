@@ -483,7 +483,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         ];
     }
 
-    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date FROM songs";
+    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date, is_nsfw FROM songs";
     $conditions = [];
     $params = [];
     $types = "";
@@ -622,7 +622,7 @@ function get_new_songs($mysqli, $perPage, $page) {
         ];
     }
 
-    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date FROM songs ";
+    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date, is_nsfw FROM songs ";
     $conditions = [];
     $params = [];
     $types = "";
