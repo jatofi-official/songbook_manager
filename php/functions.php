@@ -125,10 +125,25 @@ function add_song($mysqli, $data) {
 
     // Normalize and clean tags
     $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
-    $normalizedTags = implode(',', $tagsArray);
+    $normalizedTags = (implode(",",$tagsArray)!="") ? implode(',', $tagsArray) : null;
     $is_fixed = (count($tagsArray) >= 3) ? 1 : 0;
 
-    // Prepare statement without NULLIF(), we'll handle nulls in PHP
+    // Sanitize and normalize fields
+    $category = (int)$data["category"];
+    $title = $data["title"] ?? '';
+    $artist = (isset($data["artist"]) && trim($data["artist"]) !== '') ? $data["artist"] : null;
+
+    $capo = (isset($data["capo"]) && $data["capo"] !== '') ? (int)$data["capo"] : null;
+    $capo_alt = (isset($data["capo_alt"]) && trim($data["capo_alt"]) !== '') ? (int)$data["capo_alt"] : null;
+
+    $owner = $_SESSION["user"];
+    $is_public = isset($data["is_public"]) ? (int)$data["is_public"] : 0;
+    $instruments = $data["instruments"] ?? '';
+    $content = $data["content"] ?? null;
+    $is_nsfw = isset($data["is_nsfw"]) ? (int)$data["is_nsfw"] : 0;
+    $youtube_link = (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') ? $data["youtube_link"] : null;
+
+
     $stmt = $mysqli->prepare("INSERT INTO songs (
         category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
         tags, instruments, content, is_fixed, is_nsfw, youtube_link
@@ -138,39 +153,28 @@ function add_song($mysqli, $data) {
         return "Prepare failed: " . $mysqli->error;
     }
 
-    // Sanitize numeric fields and convert empty strings to null
-    $category = isset($data["category"]) ? (int)$data["category"] : null;
-    $title = $data["title"] ?? '';
-    $artist = $data["artist"] ?? null;   // string or null
-    $capo = isset($data["capo"]) && $data["capo"] !== '' ? (int)$data["capo"] : null;
-    $capo_alt = isset($data["capo_alt"]) && $data["capo_alt"] !== '' ? (int)$data["capo_alt"] : null;
-    $owner = isset($data["owner"]) ? (int)$data["owner"] : null;
-    $is_public = isset($data["is_public"]) ? (int)$data["is_public"] : 0;
-    $instruments = $data["instruments"] ?? '';
-    $content = $data["content"] ?? null;
-    $is_nsfw = isset($data["is_nsfw"]) ? (int)$data["is_nsfw"] : 0;
-    $youtube_link = $data["youtube_link"] ?? null;
+    // Dynamic bind_param workaround for NULL support
+    $types = 'issiisssssiis';
+    $params = [
+        &$category,
+        &$title,
+        &$artist,
+        &$capo,
+        &$capo_alt,
+        &$owner,
+        &$is_public,
+        &$normalizedTags,
+        &$instruments,
+        &$content,
+        &$is_fixed,
+        &$is_nsfw,
+        &$youtube_link
+    ];
 
-    // Bind parameters, treat nulls as nulls
-    $stmt->bind_param(
-        "issiiisssiiiss",
-        $category,
-        $title,
-        $artist,
-        $capo,
-        $capo_alt,
-        $owner,
-        $is_public,
-        $normalizedTags,
-        $instruments,
-        $content,
-        $is_fixed,
-        $is_nsfw,
-        $youtube_link
-    );
+    $stmt->bind_param($types, ...$params);
 
     if ($stmt->execute()) {
-        $insertedId = $mysqli->insert_id;
+        $insertedId = $stmt->insert_id ?: $mysqli->insert_id;
         $stmt->close();
 
         foreach ($tagsArray as $tag) {
@@ -185,13 +189,17 @@ function add_song($mysqli, $data) {
     }
 }
 
+
+
+
+
+
 function edit_song($mysqli, $id, $data) {
     if ($mysqli->connect_errno) {
         return "Error connecting";
     }
 
-    // Fetch original tags, etc. (keep your existing code for that)...
-
+    // Fetch original tags
     $originalTagsStr = '';
     $stmt = $mysqli->prepare("SELECT tags FROM songs WHERE id = ?");
     if (!$stmt) return "Prepare failed: " . $mysqli->error;
@@ -226,16 +234,10 @@ function edit_song($mysqli, $id, $data) {
         "is_nsfw" => $data["is_nsfw"]
     ];
 
-    // Nullable optional fields — only add if non-empty:
-    if (isset($data["artist"]) && trim($data["artist"]) !== '') {
-        $fields["artist"] = $data["artist"];
-    }
-    if (isset($data["capo_alt"]) && trim($data["capo_alt"]) !== '') {
-        $fields["capo_alt"] = $data["capo_alt"];
-    }
-    if (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') {
-        $fields["youtube_link"] = $data["youtube_link"];
-    }
+    // Nullable optional fields — always included, set to NULL if empty
+    $fields["artist"] = (isset($data["artist"]) && trim($data["artist"]) !== '') ? $data["artist"] : null;
+    $fields["capo_alt"] = (isset($data["capo_alt"]) && trim($data["capo_alt"]) !== '') ? $data["capo_alt"] : null;
+    $fields["youtube_link"] = (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') ? $data["youtube_link"] : null;
 
     // Build the SQL dynamically:
     $setParts = [];
@@ -243,10 +245,10 @@ function edit_song($mysqli, $id, $data) {
     $params = [];
     foreach ($fields as $field => $value) {
         $setParts[] = "$field = ?";
-        // Determine type for bind_param
         if (is_int($value)) {
             $types .= 'i';
         } else {
+            // Use 's' for string or null (null is accepted and becomes SQL NULL)
             $types .= 's';
         }
         $params[] = $value;
@@ -261,8 +263,14 @@ function edit_song($mysqli, $id, $data) {
     $stmt = $mysqli->prepare($sql);
     if (!$stmt) return "Prepare failed: " . $mysqli->error;
 
-    // Bind params dynamically:
-    $stmt->bind_param($types, ...$params);
+    // Bind params dynamically, need references for call_user_func_array
+    $bind_params = [];
+    $bind_params[] = &$types;
+    for ($i = 0; $i < count($params); $i++) {
+        $bind_params[] = &$params[$i];
+    }
+
+    call_user_func_array([$stmt, 'bind_param'], $bind_params);
 
     if (!$stmt->execute()) {
         $stmt->close();
@@ -270,7 +278,7 @@ function edit_song($mysqli, $id, $data) {
     }
     $stmt->close();
 
-    // Handle tags add/remove as before:
+    // Handle tags add/remove:
     foreach ($tagsToRemove as $tag) {
         remove_tag($mysqli, $tag);
     }
@@ -280,6 +288,7 @@ function edit_song($mysqli, $id, $data) {
 
     return true;
 }
+
 
 
 

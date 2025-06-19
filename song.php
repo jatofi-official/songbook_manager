@@ -27,7 +27,7 @@ $song = [
     "title" => "",
     "artist" => "",
     "capo" => 0,
-    "capo_alt" => 0,
+    "capo_alt" => "",
     "category" => "",
     "instruments" => [],
     "tags" => "",
@@ -232,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             .capo-input-group .form-control {
                 flex-grow: 0;
-                width: 60px;
+                width: 70px;
                 text-align: center;
             }
             .capo-reset {
@@ -249,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="capo-input-group">
                         <button type="button" class="btn btn-outline-secondary capo-decrement" data-target="capo">-</button>
                         <input type="number" name="capo" id="capo" class="form-control" 
-                            min="0" max="7" value="<?= $song['capo'] ?? 0 ?>" readonly>
+                            min="-12" max="12" value="<?= $song['capo'] ?? 0 ?>" readonly>
                         <button type="button" class="btn btn-outline-secondary capo-increment" data-target="capo">+</button>
                     </div>
                     
@@ -259,7 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="capo-input-group">
                         <button type="button" class="btn btn-outline-secondary capo-decrement" data-target="capo_alt">-</button>
                         <input type="number" name="capo_alt" id="capo_alt" class="form-control" 
-                            min="0" max="7" value="<?= $song['capo_alt'] ?? '' ?>" readonly>
+                            min="-12" max="12" value="<?= $song['capo_alt'] ?? '' ?>" readonly>
                         <button type="button" class="btn btn-outline-secondary capo-increment" data-target="capo_alt">+</button>
                     </div>
                     
@@ -270,13 +270,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <script>
             document.addEventListener('DOMContentLoaded', function() {
+                const minCapo = -12;
+                const maxCapo = 12;
+
                 // Handle increment buttons
                 document.querySelectorAll('.capo-increment').forEach(button => {
                     button.addEventListener('click', function() {
                         const targetId = this.getAttribute('data-target');
                         const input = document.getElementById(targetId);
-                        let value = parseInt(input.value) || 0;
-                        if (value < 7) {
+                        let value = parseInt(input.value);
+                        if (isNaN(value)) value = 0;
+
+                        if (value < maxCapo) {
                             input.value = value + 1;
                         }
                     });
@@ -287,8 +292,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     button.addEventListener('click', function() {
                         const targetId = this.getAttribute('data-target');
                         const input = document.getElementById(targetId);
-                        let value = parseInt(input.value) || 0;
-                        if (value > (targetId === 'capo' ? 0 : 1)) {
+                        let value = parseInt(input.value);
+                        if (isNaN(value)) value = 0;
+
+                        if (value > minCapo) {
                             input.value = value - 1;
                         }
                     });
@@ -300,6 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
             });
             </script>
+
 
             <div class="mb-3">
                 <label for="category" class="form-label">Category</label>
