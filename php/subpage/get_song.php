@@ -100,9 +100,12 @@ if (isset($_GET['id'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-2 d-flex align-items-center">
+                            <?php
+                            $capoValue = $song['capo'] ?? 0;
+                            $capoClass = $capoValue == 0 ? 'capo-circle capo-circle-muted' : 'capo-circle';
+                            ?>
                             <strong class="me-2">Capo:</strong>
-                            <div class="capo-circle"><?= htmlspecialchars($song['capo']) ?></div>
-
+                            <div class="<?= $capoClass ?>"><?= htmlspecialchars($capoValue) ?></div>
                             <?php if ($song["capo_alt"] != NULL) { ?>
                                 <div class="capo-circle-alt"><?= htmlspecialchars($song['capo_alt']) ?></div>
                             <?php } ?>

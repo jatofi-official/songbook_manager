@@ -256,9 +256,14 @@ document.addEventListener("DOMContentLoaded", () => {
                             : '&nbsp;') . 
                         "</div><div class='mt-2'>";
 
-                    if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
-                        echo "<span class='badge " . ($song['is_public'] ? 'bg-success' : 'bg-secondary') . "'>" . ($song['is_public'] ? "Public" : "Private") . "</span> ";
+                    if (!$song['is_public']) {
+                        // Always show badge if private
+                        echo "<span class='badge bg-secondary'>Private</span> ";
+                    } else if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
+                        // Show public badge only if admin_view
+                        echo "<span class='badge bg-success'>Public</span> ";
                     }
+
 
                     $tags = $song['tags'] ?? '';
                     foreach (explode(',', $tags) as $tag) {

@@ -93,24 +93,34 @@ body {
 .capo-circle-alt {
     display: inline-flex;
     justify-content: center;
-    align-items: center; /* <-- this guarantees vertical centering */
+    align-items: center; /* <-- vertical centering */
     width: 32px;
     height: 32px;
     border-radius: 50%;
     font-weight: bold;
     font-size: 0.9rem;
     margin-right: 6px;
-    background-color: var(--primary);
-    color: white;
     vertical-align: middle;
     font-family: system-ui, sans-serif; 
     line-height: 1;
 }
 
-.capo-circle-alt {
-    background-color: #e0e0e0;
-    color: #333;
+.capo-circle {
+    background-color: var(--primary);
+    color: white;
 }
+
+.capo-circle-muted {
+    background-color: #e0e0e0; 
+    color: #333; 
+    font-weight: normal;
+}
+
+.capo-circle-alt {
+    background-color: #9b7ecd; 
+    color: #fff; 
+}
+
 
 
 
