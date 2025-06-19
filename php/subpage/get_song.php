@@ -48,10 +48,14 @@ if (isset($_GET['id'])) {
                                     ? $song['youtube_link'] 
                                     : 'https://www.youtube.com/watch?v=' . $song['youtube_link']
                             ) ?>" 
-                            target="_blank" class="btn btn-danger mb-3">
-                                Watch
+                            target="_blank" class="btn btn-outline-danger mb-3" title="Watch on YouTube">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                                    class="bi bi-youtube" viewBox="0 0 16 16">
+                                    <path d="M8.051 1.999h-.002C4.42 1.996 1.582 2.167 1.151 2.226 0.51 2.312 0 2.847 0 3.49v9.021c0 .643.51 1.178 1.151 1.264.431.059 3.27.229 6.899.227h.002c3.63 0 6.468-.168 6.898-.227.641-.086 1.15-.62 1.15-1.263V3.49c0-.643-.51-1.178-1.15-1.264-.43-.059-3.268-.23-6.898-.227zM6.545 10.568V5.432l4.273 2.568-4.273 2.568z"/>
+                                </svg>
                             </a>
                         <?php endif; ?>
+
 
                         <?php if ($isEmbedded): ?>
                             <a href="song.php?id=<?= (int)$id ?>" class="btn btn-primary mb-3">
