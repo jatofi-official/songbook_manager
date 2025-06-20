@@ -358,22 +358,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <!-- Tags and difficulty -->
              <?php
-            $tags = $song["tags"] ??"";
-
-            $tagsArray = array_filter(array_map('trim', explode(',', strtolower($tags))));
-            $validDifficulties = ['easy', 'normal', 'hard'];
-            $difficulty = '';
-            $filteredTags = [];
-            foreach ($tagsArray as $tag) {
-                if (in_array($tag, $validDifficulties, true)) {
-                    $difficulty = $tag;
-                } else {
-                    $filteredTags[] = $tag;
-                }
-            }
-            $tags = implode(',', $filteredTags);
-
-
+                $output = filter_difficulty_tags($song["tags"]);
+                $tags = $output["tags"];
+                $difficulty = $output["difficulty"];
              ?>
 
             <div class="form-row">

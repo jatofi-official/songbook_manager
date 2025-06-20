@@ -125,12 +125,35 @@ if (isset($_GET['id'])) {
                                 <span class="badge instrument-badge"><?= htmlspecialchars(trim($inst)) ?></span>
                             <?php endforeach; ?>
                         </div>
+                        <?php 
+                        $output = filter_difficulty_tags($song["tags"]);
+                        
+                        $difficultyRaw = $output["difficulty"] ?? null;
+                        $difficulty = ($difficultyRaw != "") ? strtolower($difficultyRaw) : '';
+                        $difficultyClass = match ($difficulty) {
+                            'easy' => 'tag-success',
+                            'normal' => 'tag-secondary',
+                            'hard' => 'tag-danger',
+                            default => 'tag-secondary'
+                        };
+                        ?>
+                        <div class="mb-2"><strong>Difficulty:</strong>
+                            <?php if ($difficulty): ?>
+                                <span class="tag <?= $difficultyClass ?>">
+                                    <?= ucfirst(htmlspecialchars($difficulty)) ?>
+                                </span>
+                            <?php else: ?>
+                                Not set
+                            <?php endif; ?>
+                        </div>
+
+
                         <div class="mb-2"><strong>Tags:</strong>
                             <?php
-                            if ($song["tags"] == "") {
+                            if ($output["tags"] == "") {
                                 echo "No tags";
                             } else {
-                                foreach (explode(',', $song['tags']) as $tag): ?>
+                                foreach (explode(',', $output["tags"]) as $tag): ?>
                                     <span class="tag"><?= htmlspecialchars(trim($tag)) ?></span>
                                 <?php endforeach;
                             } ?>

@@ -158,3 +158,26 @@ body {
     height: 500px;
     resize: none; /* Disable manual resize handle */
 }
+
+
+.tag-success {
+    background-color: #198754; /* Bootstrap btn-success */
+    color: white;
+    padding: 0.2em 0.6em;
+    border-radius: 0.5em;
+}
+
+.tag-warning {
+    background-color: #ffc107;
+    color: black;
+}
+
+.tag-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.tag-secondary {
+    background-color: #6c757d;
+    color: white;
+}

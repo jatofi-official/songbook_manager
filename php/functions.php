@@ -189,6 +189,29 @@ function add_song($mysqli, $data) {
     }
 }
 
+function filter_difficulty_tags($string) {
+    if (!is_string($string)) {
+        $string = '';
+    }
+
+    $tagsArray = array_filter(array_map('trim', explode(',', strtolower($string))));
+    $validDifficulties = ['easy', 'normal', 'hard'];
+    $difficulty = '';
+    $filteredTags = [];
+
+    foreach ($tagsArray as $tag) {
+        if (in_array($tag, $validDifficulties, true)) {
+            $difficulty = $tag;
+        } else {
+            $filteredTags[] = $tag;
+        }
+    }
+
+    return [
+        'tags' => implode(',', $filteredTags),
+        'difficulty' => $difficulty
+    ];
+}
 
 
 
@@ -217,9 +240,6 @@ function edit_song($mysqli, $id, $data) {
 
     $tagsToAdd = array_diff($newTagsArray, $originalTags);
     $tagsToRemove = array_diff($originalTags, $newTagsArray);
-
-    print_r($tagsToAdd);
-    print_r($tagsToRemove);
 
 
     $is_fixed = (count($newTagsArray) >= FIXED_TAGS_COUNT) ? 1 : 0;
