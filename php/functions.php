@@ -126,7 +126,7 @@ function add_song($mysqli, $data) {
     // Normalize and clean tags
     $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
     $normalizedTags = (implode(",",$tagsArray)!="") ? implode(',', $tagsArray) : null;
-    $is_fixed = (count($tagsArray) >= 3) ? 1 : 0;
+    $is_fixed = (count($tagsArray) >= FIXED_TAGS_COUNT) ? 1 : 0;
 
     // Sanitize and normalize fields
     $category = (int)$data["category"];
@@ -213,12 +213,16 @@ function edit_song($mysqli, $id, $data) {
 
     $originalTags = array_filter(array_map('trim', explode(',', $originalTagsStr ?? '')));
     $newTagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
-    $normalizedTags = implode(',', $newTagsArray);
+    $normalizedTags = (implode(",",$newTagsArray)!="") ? implode(',', $newTagsArray) : null;
 
     $tagsToAdd = array_diff($newTagsArray, $originalTags);
     $tagsToRemove = array_diff($originalTags, $newTagsArray);
 
-    $is_fixed = (count($newTagsArray) >= 3) ? 1 : 0;
+    print_r($tagsToAdd);
+    print_r($tagsToRemove);
+
+
+    $is_fixed = (count($newTagsArray) >= FIXED_TAGS_COUNT) ? 1 : 0;
     $data["is_nsfw"] = isset($data["is_nsfw"]) && $data["is_nsfw"] !== '' ? (int)$data["is_nsfw"] : 0;
 
     // Base fields always updated:

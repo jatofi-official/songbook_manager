@@ -57,7 +57,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $capo      = (int)($_POST["capo"] ?? 0);
     $capo_alt  = isset($_POST["capo_alt"]) && $_POST["capo_alt"] !== "" ? (int)$_POST["capo_alt"] : NULL;
     $category  = $_POST["category"] ?? "";
+
+    // Tags:
     $tags      = trim($_POST["tags"] ?? "");
+    $difficulty = isset($_POST['difficulty']) ? $_POST['difficulty'] : '';  
+
+    $tagsArray = array_filter(array_map('trim', explode(',', strtolower($tags))));
+
+    if ($difficulty !== '') {
+        if (!in_array($difficulty, $tagsArray, true)) {
+            $tagsArray[] = strtolower($difficulty);  // lowercase for consistency
+        }
+    }
+
+    $tags = implode(',', $tagsArray);
+
+
     $instruments = $_POST["instruments"] ?? [];
     $content   = trim($_POST["content"] ?? "");
     $is_public = isset($_POST['is_public']) ? 1 : 0;
@@ -341,12 +356,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php endforeach; ?>
                 </div>
             </div>
+            <!-- Tags and difficulty -->
+             <?php
+            $tags = $song["tags"] ??"";
+
+            $tagsArray = array_filter(array_map('trim', explode(',', strtolower($tags))));
+            $validDifficulties = ['easy', 'normal', 'hard'];
+            $difficulty = '';
+            $filteredTags = [];
+            foreach ($tagsArray as $tag) {
+                if (in_array($tag, $validDifficulties, true)) {
+                    $difficulty = $tag;
+                } else {
+                    $filteredTags[] = $tag;
+                }
+            }
+            $tags = implode(',', $filteredTags);
+
+
+             ?>
+
+            <div class="form-row">
+            <label>Difficulty:</label><br>
+            <input type="hidden" name="difficulty" id="difficulty" value="<?= htmlspecialchars($difficulty) ?>">
+
+            <div class="btn-group" role="group" aria-label="Difficulty selection">
+                <button type="button" class="btn btn-outline-success rounded-pill btn-sm m-1 <?= $difficulty === 'easy' ? 'btn-success text-white' : '' ?>" data-value="easy">Easy</button>
+                <button type="button" class="btn btn-outline-warning rounded-pill btn-sm m-1 <?= $difficulty === 'normal' ? 'btn-warning text-white' : '' ?>" data-value="normal">Normal</button>
+                <button type="button" class="btn btn-outline-danger rounded-pill btn-sm m-1 <?= $difficulty === 'hard' ? 'btn-danger text-white' : '' ?>" data-value="hard">Hard</button>
+            </div>
+            </div>
+
+
+
+            <script>
+            document.querySelectorAll('.form-row .btn-group button').forEach(button => {
+            button.addEventListener('click', () => {
+                const value = button.getAttribute('data-value');
+                document.getElementById('difficulty').value = value;
+
+                button.parentElement.querySelectorAll('button').forEach(btn => {
+                btn.classList.remove('btn-success', 'btn-warning', 'btn-danger', 'text-white');
+                });
+
+                if (value === 'easy') button.classList.add('btn-success', 'text-white');
+                else if (value === 'normal') button.classList.add('btn-warning', 'text-white');
+                else if (value === 'hard') button.classList.add('btn-danger', 'text-white');
+            });
+            });
+            </script>
 
             <div class="mb-3">
                 <label for="tags" class="form-label">Tags</label>
                 <input type="text" name="tags" id="tags"
                        class="form-control" maxlength="50"
-                        value="<?= isset($song["tags"]) ? htmlspecialchars($song["tags"]) : '' ?>">
+                        value="<?= isset($tags) ? htmlspecialchars($tags) : '' ?>">
             </div>
 
             <div class="mb-3">
@@ -409,6 +473,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
     });
     </script>
+
 <?php endif; ?>
 
 
