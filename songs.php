@@ -96,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 </div>
 
-
+                <!-- Advanced options -->
                 <?php
                 if(isset($_SESSION["advanced_search"])&&$_SESSION["advanced_search"]==true){
                     $advancedOpen = true;
@@ -147,6 +147,22 @@ document.addEventListener("DOMContentLoaded", () => {
                             <label for="owner" class="form-label mb-1">User</label>
                             <input type="text" name="owner" class="form-control form-control-sm" value="<?= htmlspecialchars($_GET['owner'] ?? '') ?>">
                         </div>
+                        <?php 
+                        if (isset($_SESSION["admin_view"])&& $_SESSION["admin_view"]==true){
+                        ?>
+                        
+                        <div class="mb-2">
+                            <label class="form-label mb-1">Need to be fixed</label>
+                            <!-- Finished filter -->
+                            <select name="finished" class="form-select form-select-sm">
+                                <option value="" <?php  echo ((!isset($_GET["finished"])) || ($_GET["finished"]!=1 && $_GET["finished"] != 0)) ? "selected" : "" ;?> >All songs</option>
+                                <option value="1" <?php  echo (isset($_GET['finished']) && $_GET['finished'] == 1) ? 'selected' : '' ;?> >Finished sons</option>
+                                <option value="0" <?php  echo (isset($_GET['finished']) && $_GET['finished'] == 0) ? 'selected' : '' ;?> >Unfinished songs</option>
+
+                            </select>
+
+                        </div>
+                        <?php } ?>
                     </div>
                 </div>
 
@@ -165,7 +181,8 @@ document.addEventListener("DOMContentLoaded", () => {
         "select[name='instruments'], " +
         "input[name='owner'], " +
         "input[name='tags[]'], " +
-        "input[name='search']"
+        "select[name='finished'], " +
+        "input[name='search']" 
     );
 
     // Auto-submit on change for ALL fields except search
@@ -204,13 +221,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 $instrumentsRaw = $_GET['instruments'] ?? '';
                 $selectedTags = $_GET['tags'] ?? [];
                 $owner = isset($_GET['owner']) ? trim($_GET['owner']) : '';
-
+                $finished = isset($_GET['finished']) ? trim($_GET['finished']) : null;
                 $selectedInstruments = [];
                 if (!empty($instrumentsRaw)) {
                     $selectedInstruments = is_array($instrumentsRaw) ? $instrumentsRaw : [$instrumentsRaw];
                 }
 
-                $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags, $owner);
+                $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags, $owner, $finished);
             }
             $songs = $songData['songs'];
             $totalPages = $songData['totalPages'];

@@ -499,7 +499,7 @@ function get_recent_activity($mysqli, $number) {
 	}
 }
 
-function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = [], $owner = null) {
+function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = [], $owner = null, $finished = null) {
     if ($mysqli->connect_errno) {
         return [
             'songs' => [],
@@ -525,6 +525,13 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         $conditions[] = "owner LIKE ?";
         $params[] = "%" . $owner . "%";
         $types .= "s";
+    }
+
+    // Finished filter
+    if ($finished === "0" || $finished === "1") {
+        $conditions[] = "is_fixed = ?";
+        $params[] = (int)$finished;
+        $types .= "i";
     }
 
     // Search query - not case sensitive, match title OR artist
