@@ -739,8 +739,10 @@ function time_elapsed_string($datetime, $full = false) {
     $ago = new DateTime($datetime);
     $diff = $now->diff($ago);
 
-    $weeks = floor($diff->d / 7);
-    $days = $diff->d - ($weeks * 7);
+    $diffDays = $now->diff($ago)->format('%a');
+    $weeks = floor($diffDays / 7);
+    $days = $diffDays % 7;
+
 
     $string = [
         'y' => $diff->y ? $diff->y . ' year' . ($diff->y > 1 ? 's' : '') : null,
