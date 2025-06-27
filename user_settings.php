@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once('php/auth.php'); // handles session and cookie login
 include('php/db.php');
 include('php/data.php');
 $website = "user";
@@ -8,45 +9,37 @@ include("php/header.php");
 include('php/navigation.php');
 
 // Handle logout
-if(isset($_POST["logout"])){
-	session_unset();
-	session_destroy();
-	header("Location: " . $_SERVER['PHP_SELF']);
-	exit();
+if (isset($_POST["logout"])) {
+    header("Location: php/logout.php");
+    exit();
 }
 
 
-
-// Get user info from DB
-$userData = null;
-if (isset($_SESSION["id"])) {
-    $stmt = $mysqli->prepare("SELECT * FROM users WHERE id = ?");
-    $stmt->bind_param("i", $_SESSION["id"]);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $userData = $result->fetch_assoc();
-}
-?>
-
-<?php 
-if(isset($_POST["submit"]) && isset($_POST["username"]) && isset($_POST["password"])){
-	if ($_POST["submit"]=="Register"){
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["username"]) && isset($_POST["password"])) {
+	if ($_POST["submit"] == "Register") {
 		header("Location: register_user.php");
 		exit();
-	}
-	else{
-		$result = login_user($mysqli,$_POST["username"],$_POST["password"]);
-		if ($result){
+	} else {
+		$result = login_user($mysqli, $_POST["username"], $_POST["password"]);
+		if ($result) {
 			$_SESSION["user"] = $result["username"];
 			$_SESSION["admin"] = $result["admin"];
 			$_SESSION["name"] = $result["name"];
-			$_SESSION["id"]=$result["id"];
+			$_SESSION["id"] = $result["id"];
 			$_SESSION["admin_view"] = false;
-			header("Location: " . $_SERVER['PHP_SELF']);
-			exit();
+
+			// Call login.php to set the cookie/token (via GET with ?id=...)
+			if (isset($_POST['rememberme'])) {
+				header("Location: php/login.php?remember=" . $result["id"]);
+				exit();
+			} else {
+				header("Location: " . $_SERVER['PHP_SELF']);
+				exit();
+			}
 		}
 	}
 }
+
 
 // PAGE CONTENT
 if (isset($_SESSION["user"])): ?>
@@ -101,6 +94,11 @@ if (isset($_SESSION["user"])): ?>
 					<label for="password" class="form-label">Password:</label>
 					<input name="password" type="password" class="form-control" id="password" maxlength="30" required>
 				</div>
+				<div class="mb-3 form-check">
+					<input type="checkbox" class="form-check-input" id="rememberme" name="rememberme" checked>
+					<label class="form-check-label" for="rememberme">Remember me</label>
+				</div>
+
 
 				<div class="d-flex justify-content-between">
 					<button type="submit" name="submit" class="btn btn-primary">Login</button>
