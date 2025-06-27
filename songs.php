@@ -247,20 +247,33 @@ document.addEventListener("DOMContentLoaded", () => {
                             : '&nbsp;') . 
                         "</div><div class='mt-2'>";
 
+
+                    // Middle row
+
+
                     if (!$song['is_public']) {
-                        // Always show badge if private
-                        echo "<span class='badge bg-secondary'>Private</span> ";
-                    } else if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
-                        // Show public badge only if admin_view
-                        echo "<span class='badge bg-success'>Public</span> ";
-                    }
+                        // PRIVATE
+                        echo "<span class='badge bg-dark'>Private</span> ";
+                    } 
+                    // else if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
+                    //     // PUBLIC
+                    //     echo "<span class='badge bg-secondary'>Public</span> ";
+                    // }
                     
 
-                    // Show tags
+
                     $tagsRaw = $song['tags'] ?? '';
                     $tagsFiltered = filter_difficulty_tags($tagsRaw);
                     $tags =$tagsFiltered["tags"];
                     $difficulty = $tagsFiltered["difficulty"];
+
+                    // Difficulty
+                    if (isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
+                        display_difficulty_span($difficulty,FALSE);
+                    }
+
+
+                    // Show tags
                     foreach (explode(',', $tags) as $tag) {
                         $trimmedTag = trim($tag);
                         if (!empty($trimmedTag)) {
@@ -268,14 +281,17 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
                     
+                    // Bottom Row
                     // Show instruments
-                    // $instruments = $song['instruments'] ?? '';
-                    // foreach (explode(',', $instruments) as $inst) {
-                    //     $trimmedInst = trim($inst);
-                    //     if (!empty($trimmedInst)) {
-                    //         echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
-                    //     }
-                    // }
+                    if (isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
+                        $instruments = $song['instruments'] ?? '';
+                        foreach (explode(',', $instruments) as $inst) {
+                            $trimmedInst = trim($inst);
+                            if (!empty($trimmedInst)) {
+                                echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
+                            }
+                        }
+                    }
 
 
                     echo "</div></div>";
