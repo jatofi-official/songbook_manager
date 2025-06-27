@@ -257,32 +257,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             </style>
 
-            <div class="mb-3">
-                <!-- <label class="form-label">Capo Settings</label> -->
-                <div class="capo-control">
-                    <!-- Main Capo -->
-                    <span> Capo:</span>
-                    <div class="capo-input-group">
-                        <button type="button" class="btn btn-outline-secondary capo-decrement" data-target="capo">-</button>
-                        <input type="number" name="capo" id="capo" class="form-control" 
-                            min="-12" max="12" value="<?= $song['capo'] ?? 0 ?>" readonly>
-                        <button type="button" class="btn btn-outline-secondary capo-increment" data-target="capo">+</button>
-                    </div>
-                    
-                    <span> Alternative:</span>
-                    
-                    <!-- Alternative Capo -->
-                    <div class="capo-input-group">
-                        <button type="button" class="btn btn-outline-secondary capo-decrement" data-target="capo_alt">-</button>
-                        <input type="number" name="capo_alt" id="capo_alt" class="form-control" 
-                            min="-12" max="12" value="<?= $song['capo_alt'] ?? '' ?>" readonly>
-                        <button type="button" class="btn btn-outline-secondary capo-increment" data-target="capo_alt">+</button>
-                    </div>
-                    
-                    <!-- Reset Button -->
-                    <button type="button" class="btn btn-outline-danger capo-reset">No Alt</button>
-                </div>
-            </div>
+<div class="mb-3">
+  <div class="capo-control row gx-3 gy-2 align-items-center">
+    <!-- Main Capo -->
+    <div class="col-12 col-sm-auto d-flex align-items-center">
+      <span>Capo:</span>
+      <div class="capo-input-group ms-2 d-flex">
+        <button type="button" class="btn btn-outline-secondary capo-decrement" data-target="capo">-</button>
+        <input type="number" name="capo" id="capo" class="form-control mx-1" 
+               min="-12" max="12" value="<?= $song['capo'] ?? 0 ?>" readonly>
+        <button type="button" class="btn btn-outline-secondary capo-increment" data-target="capo">+</button>
+      </div>
+    </div>
+
+    <!-- Alternative Capo -->
+    <div class="col-12 col-sm-auto d-flex align-items-center">
+      <span>Alternative:</span>
+      <div class="capo-input-group ms-2 d-flex">
+        <button type="button" class="btn btn-outline-secondary capo-decrement" data-target="capo_alt">-</button>
+        <input type="number" name="capo_alt" id="capo_alt" class="form-control mx-1" 
+               min="-12" max="12" value="<?= $song['capo_alt'] ?? '' ?>" readonly>
+        <button type="button" class="btn btn-outline-secondary capo-increment" data-target="capo_alt">+</button>
+      </div>
+    </div>
+
+    <!-- Reset Button -->
+    <div class="col-12 col-sm-auto">
+      <button type="button" class="btn btn-outline-danger capo-reset">No Alt</button>
+    </div>
+  </div>
+</div>
+
 
             <script>
             document.addEventListener('DOMContentLoaded', function() {
