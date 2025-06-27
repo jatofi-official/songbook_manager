@@ -1169,29 +1169,32 @@ function display_tag_selector($mysqli, $selectedTags = '') {
     $uniqid = uniqid();
     ?>
     <div class="tag-selector compact-inline" id="tag-selector-<?= $uniqid ?>">
-        <div class="d-flex flex-nowrap align-items-center gap-2 flex-wrap">
-            <!-- Combined Tag list on the left -->
-            <div class="popular-tags flex-grow-0">
-                <?php foreach ($display_tags as $tag): ?>
-                    <span class="tag badge rounded-pill bg-secondary" data-tag="<?= htmlspecialchars($tag) ?>">
-                        <?= htmlspecialchars($tag) ?>
-                    </span>
-                <?php endforeach; ?>
-            </div>
-
-            <!-- Visual-only container for non-sidebar selected tags (optional) -->
-            <div class="selected-tags d-flex flex-wrap gap-1 flex-grow-1"></div>
-
-            <!-- Search input -->
-            <div class="position-relative" style="flex-grow: 0;">
-            <div class="input-group input-group-sm">
-                <input type="text" class="form-control tag-search" placeholder="Search..." style="min-width: 120px;">
-                <button class="btn btn-outline-secondary add-tag-btn" type="button" disabled title="Add tag">
-                    +
-                </button>
-            </div>
+        <div class="d-flex flex-column gap-2">
+            <!-- Search input row (on top) -->
+            <div class="position-relative" style="max-width: 250px;">
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control tag-search" placeholder="Search..." style="min-width: 120px;">
+                    <button class="btn btn-outline-secondary add-tag-btn" type="button" disabled title="Add tag">
+                        +
+                    </button>
+                </div>
                 <div class="search-results position-absolute d-none bg-white shadow-sm"></div>
             </div>
+
+            <!-- Tag display row (popular + selected) -->
+            <div class="d-flex flex-wrap gap-1 align-items-center">
+                <div class="popular-tags d-flex flex-wrap gap-1 flex-grow-0">
+                    <?php foreach ($display_tags as $tag): ?>
+                        <span class="tag badge rounded-pill bg-secondary" data-tag="<?= htmlspecialchars($tag) ?>">
+                            <?= htmlspecialchars($tag) ?>
+                        </span>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Non-popular selected tags -->
+                <div class="selected-tags d-flex flex-wrap gap-1 flex-grow-1"></div>
+            </div>
+
         </div>
         <input type="hidden" name="selected_tags" class="selected-tags-input">
     </div>
@@ -1227,6 +1230,11 @@ function display_tag_selector($mysqli, $selectedTags = '') {
             user-select: none;
             cursor: pointer;
         }
+        .tag-selector.compact-inline .selected-tags span {
+            user-select: none;
+            cursor: pointer;
+        }
+
     </style>
 
 <script>
