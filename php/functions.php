@@ -1148,6 +1148,250 @@ function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
 }
 
 
+<<<<<<< Updated upstream
+=======
+function display_tag_selector($mysqli, $selectedTags = '') {
+    $all_tags = get_all_tags($mysqli);
+
+    $top8_tags = array_slice($all_tags, 0, 8);
+    $joinedTagsString = implode(',', $top8_tags);
+    $filtered = filter_difficulty_tags($joinedTagsString);
+
+    $popular_tags = explode(',', $filtered['tags']);
+    $popular_tags = array_filter(array_map('trim', $popular_tags));
+    $popular_tags = array_slice($popular_tags, 0, 5);
+
+    $selectedTagsArray = array_filter(array_map('trim', explode(',', $selectedTags)));
+
+    // Merge selected and popular tags for left display
+    $display_tags = array_unique(array_merge($popular_tags, $selectedTagsArray));
+
+    $all_tags = (array)$all_tags;
+    $display_tags = array_values($display_tags); // reindex
+    $selectedTagsArray = array_map('strtolower', $selectedTagsArray); // normalize for JS
+    $uniqid = uniqid();
+    ?>
+    <div class="tag-selector compact-inline" id="tag-selector-<?= $uniqid ?>">
+        <div class="d-flex flex-nowrap align-items-center gap-2 flex-wrap">
+            <!-- Combined Tag list on the left -->
+            <div class="popular-tags flex-grow-0">
+                <?php foreach ($display_tags as $tag): ?>
+                    <span class="tag badge rounded-pill bg-secondary" data-tag="<?= htmlspecialchars($tag) ?>">
+                        <?= htmlspecialchars($tag) ?>
+                    </span>
+                <?php endforeach; ?>
+            </div>
+
+            <!-- Visual-only container for non-sidebar selected tags (optional) -->
+            <div class="selected-tags d-flex flex-wrap gap-1 flex-grow-1"></div>
+
+            <!-- Search input -->
+            <div class="position-relative" style="flex-grow: 0;">
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control tag-search" placeholder="Search..." style="min-width: 120px;">
+                <button class="btn btn-outline-secondary add-tag-btn" type="button" disabled title="Add tag">
+                    +
+                </button>
+            </div>
+                <div class="search-results position-absolute d-none bg-white shadow-sm"></div>
+            </div>
+        </div>
+        <input type="hidden" name="selected_tags" class="selected-tags-input">
+    </div>
+
+    <style>
+        .tag-selector.compact-inline .tag {
+            cursor: pointer;
+            padding: 0.2rem 0.4rem;
+            margin-right: 0.2rem;
+            display: inline-block;
+        }
+        .tag-selector.compact-inline .tag.selected {
+            background-color: #212529 !important;
+            color: white;
+        }
+        .tag-selector.compact-inline .search-results {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            padding: 0.3rem;
+            z-index: 100;
+            margin-top: 0.2rem;
+            width: max-content;
+            min-width: 150px;
+        }
+        .tag-selector.compact-inline .popular-tags {
+            white-space: nowrap;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+        .tag-selector.compact-inline .selected-tags span {
+            user-select: none;
+            cursor: pointer;
+        }
+    </style>
+
+<script>
+(function() {
+    const container = document.getElementById('tag-selector-<?= $uniqid ?>');
+    const allTags = <?= json_encode($all_tags) ?>;
+    const displayTags = new Set(<?= json_encode($display_tags) ?>);
+    const selectedTags = new Set(<?= json_encode($selectedTagsArray) ?>);
+
+    const searchInput = container.querySelector('.tag-search');
+    const searchResults = container.querySelector('.search-results');
+    const addTagBtn = container.querySelector('.add-tag-btn');
+
+    function filterOutDifficulty(tagsArray) {
+        const difficultySet = new Set(['easy', 'normal', 'hard']);
+        return tagsArray.filter(tag => !difficultySet.has(tag.toLowerCase()));
+    }
+
+    function toggleTagSelection(tag) {
+        if (selectedTags.has(tag)) {
+            selectedTags.delete(tag);
+        } else {
+            selectedTags.add(tag);
+        }
+        updateUI();
+    }
+
+    function addNewTag(tag) {
+        tag = tag.trim();
+        if (!tag || selectedTags.has(tag)) return;
+
+        selectedTags.add(tag);
+        updateUI();
+        searchInput.value = '';
+        searchResults.classList.add('d-none');
+        updateAddTagButton();
+    }
+
+    function updateAddTagButton() {
+        const input = searchInput.value.trim().toLowerCase();
+        const isNew = input.length > 0 && !selectedTags.has(input);
+        addTagBtn.disabled = !isNew;
+    }
+
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('tag')) {
+            const tag = e.target.dataset.tag;
+            toggleTagSelection(tag);
+
+            if (searchResults.contains(e.target)) {
+                searchInput.value = '';
+                searchResults.classList.add('d-none');
+                updateAddTagButton();
+            }
+        }
+    });
+
+    container.querySelector('.selected-tags').addEventListener('click', function(e) {
+        if (e.target.tagName === 'SPAN') {
+            const tag = e.target.textContent.trim();
+            if (selectedTags.has(tag)) {
+                toggleTagSelection(tag);
+                updateAddTagButton();
+            }
+        }
+    });
+
+    searchInput.addEventListener('input', function() {
+        const term = this.value.toLowerCase();
+        searchResults.innerHTML = '';
+        updateAddTagButton();
+
+        if (term.length < 1) {
+            searchResults.classList.add('d-none');
+            return;
+        }
+
+        let matches = allTags.filter(tag =>
+            tag.toLowerCase().startsWith(term) &&
+            !selectedTags.has(tag) &&
+            !displayTags.has(tag)
+        );
+
+        matches = filterOutDifficulty(matches).slice(0, 8);
+
+        if (matches.length) {
+            matches.forEach(tag => {
+                const span = document.createElement('span');
+                span.className = 'tag badge rounded-pill bg-secondary';
+                span.dataset.tag = tag;
+                span.textContent = tag;
+                searchResults.appendChild(span);
+            });
+            searchResults.classList.remove('d-none');
+        } else {
+            searchResults.classList.add('d-none');
+        }
+    });
+
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const newTag = this.value.trim();
+            if (newTag.length > 0) {
+                addNewTag(newTag);
+            }
+        }
+    });
+
+    addTagBtn.addEventListener('click', function() {
+        const newTag = searchInput.value.trim();
+        if (newTag.length > 0) {
+            addNewTag(newTag);
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!container.contains(e.target)) {
+            searchResults.classList.add('d-none');
+        }
+    });
+
+    function updateUI() {
+        const tagSpans = container.querySelectorAll('.popular-tags .tag');
+        tagSpans.forEach(span => {
+            const tag = span.dataset.tag;
+            if (selectedTags.has(tag)) {
+                span.classList.add('selected');
+                span.classList.remove('bg-secondary');
+                span.classList.add('bg-dark');
+            } else {
+                span.classList.remove('selected');
+                span.classList.remove('bg-dark');
+                span.classList.add('bg-secondary');
+            }
+        });
+
+        const display = container.querySelector('.selected-tags');
+        display.innerHTML = '';
+        selectedTags.forEach(tag => {
+            if (!displayTags.has(tag)) {
+                const span = document.createElement('span');
+                span.className = 'badge rounded-pill bg-dark';
+                span.textContent = tag;
+                display.appendChild(span);
+            }
+        });
+
+        container.querySelector('.selected-tags-input').value = Array.from(selectedTags).join(',');
+    }
+
+    updateUI();
+})();
+</script>
+
+
+
+    <?php
+}
+
+>>>>>>> Stashed changes
+
 
 
 

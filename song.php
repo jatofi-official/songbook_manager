@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category  = $_POST["category"] ?? "";
 
     // Tags:
-    $tags      = trim($_POST["tags"] ?? "");
+    $tags      = trim($_POST["selected_tags"] ?? "");
     $difficulty = isset($_POST['difficulty']) ? $_POST['difficulty'] : '';  
 
     $tagsArray = array_filter(array_map('trim', explode(',', strtolower($tags))));
@@ -160,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         $editing = true;
-    } elseif ($id) {
+    } elseif ($id) {#tag
         $stmt = $mysqli->prepare(
             "SELECT * FROM songs WHERE id = ? AND (is_public = 1 OR owner = ? OR ? = 1)"
         );
@@ -396,9 +396,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="mb-3">
                 <label for="tags" class="form-label">Tags</label>
-                <input type="text" name="tags" id="tags"
-                       class="form-control" maxlength="50"
-                        value="<?= isset($tags) ? htmlspecialchars($tags) : '' ?>">
+                    <?php 
+                    if(!$tags){
+                        $tags = "";
+                    }
+
+                    display_tag_selector($mysqli,$tags); ?>
+
             </div>
 
             <div class="mb-3">
