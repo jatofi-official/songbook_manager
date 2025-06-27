@@ -148,9 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             <label for="owner" class="form-label mb-1">User</label>
                             <input type="text" name="owner" class="form-control form-control-sm" value="<?= htmlspecialchars($_GET['owner'] ?? '') ?>">
                         </div>
-                        <?php 
-                        if (isset($_SESSION["admin_view"])&& $_SESSION["admin_view"]==true){
-                        ?>
                         
                         <div class="mb-2">
                             <label class="form-label mb-1">Need to be fixed</label>
@@ -163,7 +160,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             </select>
 
                         </div>
-                        <?php } ?>
                     </div>
                 </div>
 
@@ -236,7 +232,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!empty($songs)) {
                 foreach ($songs as $song) {
                     echo "<div class='song-list-item' data-id='{$song['id']}'>";
-                    echo "<div class='song-title'>" . htmlspecialchars($song['title']) . "</div>";
+
+                    // Title
+                    echo "<div class='song-title'>" . htmlspecialchars($song['title']); 
+                    if ($song['is_nsfw'] == true) {
+                        echo " <span class='badge bg-danger align-middle'>nsfw</span>";
+                    } 
+                    echo "</div>";
+
+
                     echo "<div class='song-artist'>" . 
                         (isset($song['artist']) && trim($song['artist']) !== '' 
                             ? htmlspecialchars($song['artist']) 
@@ -250,27 +254,28 @@ document.addEventListener("DOMContentLoaded", () => {
                         // Show public badge only if admin_view
                         echo "<span class='badge bg-success'>Public</span> ";
                     }
-                    if ($song['is_nsfw']==true) {
-                        // Show NSFW badge if set
-                        echo "<span class='badge bg-danger'>NSFW</span> ";
-                    }
+                    
 
-
-                    $tags = $song['tags'] ?? '';
+                    // Show tags
+                    $tagsRaw = $song['tags'] ?? '';
+                    $tagsFiltered = filter_difficulty_tags($tagsRaw);
+                    $tags =$tagsFiltered["tags"];
+                    $difficulty = $tagsFiltered["difficulty"];
                     foreach (explode(',', $tags) as $tag) {
                         $trimmedTag = trim($tag);
                         if (!empty($trimmedTag)) {
                             echo "<span class='tag'>" . htmlspecialchars($trimmedTag) . "</span> ";
                         }
                     }
-
-                    $instruments = $song['instruments'] ?? '';
-                    foreach (explode(',', $instruments) as $inst) {
-                        $trimmedInst = trim($inst);
-                        if (!empty($trimmedInst)) {
-                            echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
-                        }
-                    }
+                    
+                    // Show instruments
+                    // $instruments = $song['instruments'] ?? '';
+                    // foreach (explode(',', $instruments) as $inst) {
+                    //     $trimmedInst = trim($inst);
+                    //     if (!empty($trimmedInst)) {
+                    //         echo "<span class='badge instrument-badge'>" . htmlspecialchars($trimmedInst) . "</span> ";
+                    //     }
+                    // }
 
 
                     echo "</div></div>";

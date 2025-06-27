@@ -139,7 +139,7 @@ if (isset($_GET['id'])) {
                         ?>
                         <div class="mb-2"><strong>Difficulty:</strong>
                             <?php if ($difficulty): ?>
-                                <span class="tag <?= $difficultyClass ?>">
+                                <span class="tag <?= $difficultyClass ?> rounded-pill">
                                     <?= ucfirst(htmlspecialchars($difficulty)) ?>
                                 </span>
                             <?php else: ?>
