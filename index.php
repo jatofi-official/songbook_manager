@@ -1,5 +1,6 @@
 <?php
 session_start();
+include('php/auth.php'); 
 include('php/db.php');          
 include('php/data.php');      
 $website = "index";

@@ -1,6 +1,6 @@
 <?php
 session_start();
-include('php/auth.php'); // handles session and cookie login
+include('php/auth.php'); 
 require_once('php/db.php');
 include('php/data.php');
 $website = "user";

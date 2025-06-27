@@ -120,15 +120,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
 
                 if (!$error) {
-                    // Log in user
+                    if (!empty($_POST["remember_me"])) {
+                        header("Location: php/login.php?remember=$user_id");
+                    } else {
+                        // Set session manually and redirect
+                        $_SESSION["id"] = $user_id;
+                        $_SESSION["user"] = $username;
+                        $_SESSION["admin"] = false;
+                        $_SESSION["admin_view"] = false;
 
-                    $_SESSION["id"] = $user_id;
-                    $_SESSION["user"] = $username;
-                    $_SESSION["admin"] = false;
-                    $_SESSION["admin_view"] = false;
-
-                    header("Location: user_settings.php");
+                        header("Location: user_settings.php");
+                    }
                     exit;
+
                 }
             } else {
                 $error = "Failed to create user.";
@@ -195,6 +199,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="mb-3">
                 <label for="profile_picture" class="form-label">Profile Picture (optional)</label>
                 <input type="file" name="profile_picture" id="profile_picture" class="form-control" accept="image/*">
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="remember_me" id="remember_me">
+                <label class="form-check-label" for="remember_me">
+                    Remember me
+                </label>
             </div>
 
             <button type="submit" class="btn btn-primary w-100 mt-3">Register</button>

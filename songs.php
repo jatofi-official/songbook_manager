@@ -1,7 +1,8 @@
 <?php
 session_start();
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+include('php/auth.php'); 
+// error_reporting(E_ALL);
+// ini_set('display_errors', 1);
 include('php/db.php');
 include('php/data.php');
 include('php/functions.php');
