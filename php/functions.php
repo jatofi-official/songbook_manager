@@ -1148,8 +1148,7 @@ function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
 }
 
 
-<<<<<<< Updated upstream
-=======
+
 function display_tag_selector($mysqli, $selectedTags = '') {
     $all_tags = get_all_tags($mysqli);
 
@@ -1389,8 +1388,6 @@ function display_tag_selector($mysqli, $selectedTags = '') {
 
     <?php
 }
-
->>>>>>> Stashed changes
 
 
 
