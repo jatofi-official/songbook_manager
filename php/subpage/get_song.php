@@ -129,24 +129,12 @@ if (isset($_GET['id'])) {
                         $output = filter_difficulty_tags($song["tags"]);
                         
                         $difficultyRaw = $output["difficulty"] ?? null;
-                        $difficulty = ($difficultyRaw != "") ? strtolower($difficultyRaw) : '';
-                        $difficultyClass = match ($difficulty) {
-                            'easy' => 'tag-success',
-                            'normal' => 'tag-secondary',
-                            'hard' => 'tag-danger',
-                            default => 'tag-secondary'
-                        };
                         ?>
                         <div class="mb-2"><strong>Difficulty:</strong>
-                            <?php if ($difficulty): ?>
-                                <span class="tag <?= $difficultyClass ?> rounded-pill">
-                                    <?= ucfirst(htmlspecialchars($difficulty)) ?>
-                                </span>
-                            <?php else: ?>
-                                Not set
-                            <?php endif; ?>
+                            <?php
+                            display_difficulty_span($difficultyRaw);
+                            ?>
                         </div>
-
 
                         <div class="mb-2"><strong>Tags:</strong>
                             <?php

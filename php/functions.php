@@ -214,7 +214,24 @@ function filter_difficulty_tags($string) {
 }
 
 
-
+function display_difficulty_span($diff,$displayNotSet = True){
+    $difficulty = ($diff != "") ? strtolower($diff) : '';
+    $difficultyClass = match ($difficulty) {
+        'easy' => 'tag-success',
+        'normal' => 'tag-secondary',
+        'hard' => 'tag-danger',
+        default => 'tag-secondary'
+    };
+    
+    if ($difficulty){
+        echo ' <span class="tag ' . $difficultyClass .' rounded-pill">';
+        echo     ucfirst(htmlspecialchars($difficulty));
+        echo '</span>';
+    }
+    else if ($displayNotSet){
+        echo "Not set";
+    }
+}
 
 
 function edit_song($mysqli, $id, $data) {
