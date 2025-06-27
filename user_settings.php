@@ -1,7 +1,7 @@
 <?php
 session_start();
-require_once('php/auth.php'); // handles session and cookie login
-include('php/db.php');
+include('php/auth.php'); // handles session and cookie login
+require_once('php/db.php');
 include('php/data.php');
 $website = "user";
 include('php/functions.php');

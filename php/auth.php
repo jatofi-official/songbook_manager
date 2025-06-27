@@ -1,12 +1,16 @@
 <?php
 session_start();
-include("db.php");
+require_once("db.php");
 
 if (!isset($_SESSION["id"]) && isset($_COOKIE["rememberme"])) {
     $token = $_COOKIE["rememberme"];
     $hashedToken = hash("sha256", $token);
 
-    $stmt = $mysqli->prepare("SELECT user_id FROM login_tokens WHERE token = ? AND expiry > NOW()");
+    $stmt = $mysqli->prepare("SELECT user_id FROM login_tokens WHERE token_hash = ? AND expires_at > NOW()");
+    if (!$stmt) {
+        die("Prepare failed: " . $mysqli->error);
+    }
+
     $stmt->bind_param("s", $hashedToken);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -16,6 +20,10 @@ if (!isset($_SESSION["id"]) && isset($_COOKIE["rememberme"])) {
 
         // Fetch user info
         $stmt = $mysqli->prepare("SELECT * FROM users WHERE id = ?");
+        if (!$stmt) {
+            die("Prepare failed: " . $mysqli->error);
+        }
+
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $userResult = $stmt->get_result();
