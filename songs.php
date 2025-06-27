@@ -268,7 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     $difficulty = $tagsFiltered["difficulty"];
 
                     // Difficulty
-                    if (isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
+                    if ((isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true)|| (isset($_SESSION["advanced_view"])&&$_SESSION["advanced_view"]==true)){
                         display_difficulty_span($difficulty,FALSE);
                     }
 
@@ -283,7 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     // Bottom Row
                     // Show instruments
-                    if (isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){
+                    if ((isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true)|| (isset($_SESSION["advanced_view"])&&$_SESSION["advanced_view"]==true)){
                         $instruments = $song['instruments'] ?? '';
                         foreach (explode(',', $instruments) as $inst) {
                             $trimmedInst = trim($inst);

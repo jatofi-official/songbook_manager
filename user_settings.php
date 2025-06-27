@@ -27,6 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["username"]) && isset(
 			$_SESSION["name"] = $result["name"];
 			$_SESSION["id"] = $result["id"];
 			$_SESSION["admin_view"] = false;
+			$_SESSION["advanced_view"] = false;
+
 
 			// Call login.php to set the cookie/token (via GET with ?id=...)
 			if (isset($_POST['rememberme'])) {
@@ -62,6 +64,17 @@ if (isset($_SESSION["user"])): ?>
 			$_SESSION['admin_view'] = !$_SESSION['admin_view'];
 		}
 	}
+	if (isset($_POST['toggle_advanced_view'])) {
+		$_SESSION['advanced_view'] = !$_SESSION['admin_view'];
+	}
+	?>
+	<form method="post">
+		<button class="btn btn-primary mt-3" type="submit" name="toggle_advanced_view">
+			<?= $_SESSION["advanced_view"] ? "Disable Advanced View" : "Enable Advanced View" ?>
+		</button>
+	</form>
+
+	<?php
 
 	if ($_SESSION["admin"] == true): ?>
 		<form method="post">
