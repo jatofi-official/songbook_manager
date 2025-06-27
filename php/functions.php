@@ -1147,6 +1147,8 @@ function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
     ];
 }
 
+
+
 function display_tag_selector($mysqli, $selectedTags = '') {
     $all_tags = get_all_tags($mysqli);
 
@@ -1174,7 +1176,7 @@ function display_tag_selector($mysqli, $selectedTags = '') {
             <div class="position-relative" style="max-width: 250px;">
                 <div class="input-group input-group-sm">
                     <input type="text" class="form-control tag-search" placeholder="Search..." style="min-width: 120px;">
-                    <button class="btn btn-outline-secondary add-tag-btn" type="button" disabled title="Add tag">
+                    <button class="btn btn-outline-success add-tag-btn" type="button" disabled title="Add tag">
                         +
                     </button>
                 </div>
@@ -1312,11 +1314,15 @@ function display_tag_selector($mysqli, $selectedTags = '') {
             return;
         }
 
-        let matches = allTags.filter(tag =>
-            tag.toLowerCase().startsWith(term) &&
-            !selectedTags.has(tag) &&
-            !displayTags.has(tag)
-        );
+        let matches = allTags.filter(tag => {
+            const lowerTag = tag.toLowerCase();
+            return (
+                lowerTag.startsWith(term) &&
+                !Array.from(selectedTags).some(t => t.toLowerCase() === lowerTag) &&
+                !Array.from(displayTags).some(t => t.toLowerCase() === lowerTag)
+            );
+        });
+
 
         matches = filterOutDifficulty(matches).slice(0, 8);
 
