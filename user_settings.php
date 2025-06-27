@@ -65,7 +65,7 @@ if (isset($_SESSION["user"])): ?>
 		}
 	}
 	if (isset($_POST['toggle_advanced_view'])) {
-		$_SESSION['advanced_view'] = !$_SESSION['admin_view'];
+		$_SESSION['advanced_view'] = !$_SESSION['advanced_view'];
 	}
 	?>
 	<form method="post">
