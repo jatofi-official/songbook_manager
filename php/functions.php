@@ -1148,6 +1148,197 @@ function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
 }
 
 
+// Display tag selection
+function display_tag_selector($mysqli) {
+    // Fetch all tags from DB (assumes get_all_tags is available)
+    $all_tags = get_all_tags($mysqli);
+
+    // Take top 8 tags from all tags
+    $top8_tags = array_slice($all_tags, 0, 8);
+
+    // Filter difficulty tags from top 8 tags
+    $joinedTagsString = implode(',', $top8_tags);
+    $filtered = filter_difficulty_tags($joinedTagsString);
+
+    // Extract tags and slice top 5 popular tags
+    $popular_tags = explode(',', $filtered['tags']);
+    $popular_tags = array_filter(array_map('trim', $popular_tags));
+    $popular_tags = array_slice($popular_tags, 0, 5);
+
+    $all_tags = (array)$all_tags;
+    $popular_tags = (array)$popular_tags;
+    $uniqid = uniqid();
+    ?>
+    <div class="tag-selector compact-inline" id="tag-selector-<?= $uniqid ?>">
+        <div class="d-flex flex-nowrap align-items-center gap-2 flex-wrap">
+            <div class="popular-tags flex-grow-0">
+                <?php foreach ($popular_tags as $tag): ?>
+                    <span class="tag badge rounded-pill bg-secondary" data-tag="<?= htmlspecialchars($tag) ?>">
+                        <?= htmlspecialchars($tag) ?>
+                    </span>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="selected-tags d-flex flex-wrap gap-1 flex-grow-1"></div>
+
+            <div class="position-relative" style="max-width: 120px; flex-grow: 0;">
+                <input type="text" class="form-control form-control-sm tag-search" placeholder="Search..." style="width: 100%">
+                <div class="search-results position-absolute d-none bg-white shadow-sm"></div>
+            </div>
+        </div>
+        <input type="hidden" name="selected_tags" class="selected-tags-input">
+    </div>
+
+    <style>
+        .tag-selector.compact-inline {
+            font-size: 0.9rem;
+        }
+        .tag-selector.compact-inline .tag {
+            cursor: pointer;
+            padding: 0.2rem 0.4rem;
+            margin-right: 0.2rem;
+            display: inline-block;
+        }
+        .tag-selector.compact-inline .tag.selected {
+            background-color: #212529 !important;
+            color: white;
+        }
+        .tag-selector.compact-inline .search-results {
+            max-height: 150px;
+            overflow-y: auto;
+            width: 200px;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            padding: 0.3rem;
+            z-index: 100;
+            margin-top: 0.2rem;
+        }
+        .tag-selector.compact-inline .popular-tags {
+            white-space: nowrap;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+        .tag-selector.compact-inline .selected-tags span {
+            user-select: none;
+            cursor: pointer;
+        }
+    </style>
+
+    <script>
+    (function() {
+        const container = document.getElementById('tag-selector-<?= $uniqid ?>');
+        const allTags = <?= json_encode($all_tags) ?>;
+        const popularTags = new Set(<?= json_encode($popular_tags) ?>);
+        const selectedTags = new Set();
+
+        function filterOutDifficulty(tagsArray) {
+            const difficultySet = new Set(['easy', 'normal', 'hard']);
+            return tagsArray.filter(tag => !difficultySet.has(tag.toLowerCase()));
+        }
+
+        container.addEventListener('click', function(e) {
+            if (e.target.classList.contains('tag')) {
+                const tag = e.target.dataset.tag;
+                toggleTagSelection(tag);
+
+                if (searchResults.contains(e.target)) {
+                    searchInput.value = '';
+                    searchResults.classList.add('d-none');
+                }
+            }
+        });
+
+        container.querySelector('.selected-tags').addEventListener('click', function(e) {
+            if (e.target.tagName === 'SPAN') {
+                const tag = e.target.textContent.trim();
+                if (selectedTags.has(tag)) {
+                    toggleTagSelection(tag);
+                }
+            }
+        });
+
+        const searchInput = container.querySelector('.tag-search');
+        const searchResults = container.querySelector('.search-results');
+
+        searchInput.addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            searchResults.innerHTML = '';
+
+            if (term.length < 1) {
+                searchResults.classList.add('d-none');
+                return;
+            }
+
+            let matches = allTags.filter(tag =>
+                tag.toLowerCase().startsWith(term) && !selectedTags.has(tag) && !popularTags.has(tag)
+            );
+
+            matches = filterOutDifficulty(matches);
+
+            matches = matches.slice(0, 8);
+
+            if (matches.length) {
+                matches.forEach(tag => {
+                    const span = document.createElement('span');
+                    span.className = 'tag badge rounded-pill bg-secondary d-block mb-1';
+                    span.dataset.tag = tag;
+                    span.textContent = tag;
+                    searchResults.appendChild(span);
+                });
+                searchResults.classList.remove('d-none');
+            } else {
+                searchResults.classList.add('d-none');
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!container.contains(e.target)) {
+                searchResults.classList.add('d-none');
+            }
+        });
+
+        function toggleTagSelection(tag) {
+            if (selectedTags.has(tag)) {
+                selectedTags.delete(tag);
+            } else {
+                selectedTags.add(tag);
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            const popularTagSpans = container.querySelectorAll('.popular-tags .tag');
+            popularTagSpans.forEach(span => {
+                const tag = span.dataset.tag;
+                if (selectedTags.has(tag)) {
+                    span.classList.add('selected');
+                    span.classList.remove('bg-secondary');
+                } else {
+                    span.classList.remove('selected');
+                    span.classList.add('bg-secondary');
+                }
+            });
+
+            const display = container.querySelector('.selected-tags');
+            display.innerHTML = '';
+
+            selectedTags.forEach(tag => {
+                if (!popularTags.has(tag)) {
+                    const span = document.createElement('span');
+                    span.className = 'badge rounded-pill bg-dark';
+                    span.textContent = tag;
+                    display.appendChild(span);
+                }
+            });
+
+            const input = container.querySelector('.selected-tags-input');
+            input.value = Array.from(selectedTags).join(',');
+        }
+    })();
+    </script>
+    <?php
+}
+
 
 
 
