@@ -181,7 +181,6 @@ document.addEventListener("DOMContentLoaded", () => {
         "select[name='category'], " +
         "select[name='instruments'], " +
         "input[name='owner'], " +
-        "input[name='selected_tags'], " +
         "select[name='finished'], " +
         "input[name='search']" 
     );
@@ -204,8 +203,29 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
     });
+
+
+    // Listen for changes to selected_tags and submit the form
+    const tagInput = document.querySelector("input[name='selected_tags']");
+    if (tagInput) {
+        const observer = new MutationObserver(() => {
+            form.querySelector("input[name='page']").value = 1;
+            form.submit();
+        });
+
+        observer.observe(tagInput, { attributes: true, attributeFilter: ['value'] });
+
+        // Optional fallback: also listen for manual change
+        tagInput.addEventListener("change", () => {
+            form.querySelector("input[name='page']").value = 1;
+            form.submit();
+        });
+    }
+
 });
+
 </script>
+
 
 
         <div class="song-list">
