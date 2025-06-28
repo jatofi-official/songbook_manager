@@ -140,6 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                     echo "<label class='form-check-label' for='tag_$tag'>$tag</label>";
                                     echo "</div>";
                                 }
+
                                 ?>
                             </div>
                         </div>

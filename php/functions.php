@@ -1300,9 +1300,14 @@ function display_tag_selector($mysqli, $selectedTags = '') {
             padding: 0.3rem;
             z-index: 100;
             margin-top: 0.2rem;
-            width: max-content;
-            min-width: 150px;
+            min-width: 200px;
+            max-width: 300px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            background-color: white;
         }
+
         .tag-selector.compact-inline .popular-tags {
             white-space: nowrap;
             overflow-x: auto;
@@ -1384,27 +1389,20 @@ function display_tag_selector($mysqli, $selectedTags = '') {
         }
     });
 
-    searchInput.addEventListener('input', function() {
-        const term = this.value.toLowerCase();
+    function updateSearchResults(term = '') {
         searchResults.innerHTML = '';
         updateAddTagButton();
-
-        if (term.length < 1) {
-            searchResults.classList.add('d-none');
-            return;
-        }
 
         let matches = allTags.filter(tag => {
             const lowerTag = tag.toLowerCase();
             return (
-                lowerTag.startsWith(term) &&
+                (term === '' || lowerTag.startsWith(term)) &&
                 !Array.from(selectedTags).some(t => t.toLowerCase() === lowerTag) &&
                 !Array.from(displayTags).some(t => t.toLowerCase() === lowerTag)
             );
         });
 
-
-        matches = filterOutDifficulty(matches).slice(0, 8);
+        matches = filterOutDifficulty(matches);
 
         if (matches.length) {
             matches.forEach(tag => {
@@ -1418,7 +1416,17 @@ function display_tag_selector($mysqli, $selectedTags = '') {
         } else {
             searchResults.classList.add('d-none');
         }
+    }
+
+    searchInput.addEventListener('input', function() {
+        const term = this.value.toLowerCase();
+        updateSearchResults(term);
     });
+
+    searchInput.addEventListener('focus', function() {
+        updateSearchResults(this.value.toLowerCase());
+    });
+
 
     searchInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
