@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 console.log("Advanced search is now " + (data.advanced_search ? "ON" : "OFF"));
                             })
                             .catch(error => {
-                                console.error("Error toggling dark mode:", error);
+                                console.error("Error toggling Advanced search:", error);
                             });
                     });
                     </script>
@@ -129,7 +129,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             <label class="form-label d-block">Tags</label>
                             <div class="d-flex flex-wrap gap-1">
                                 <?php
-                                $selectedTags = $_GET['tags'] ?? [];
+
+                                $rawTags = $_GET['selected_tags'] ?? "";
+                                $selectedTags = explode(",",$rawTags) ?? [];
                                 // if (!is_array($selectedTags)) $selectedTags = [];
 
                                 // foreach ($allTags as $tag) {
@@ -179,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "select[name='category'], " +
         "select[name='instruments'], " +
         "input[name='owner'], " +
-        "input[name='tags[]'], " +
+        "input[name='selected_tags'], " +
         "select[name='finished'], " +
         "input[name='search']" 
     );
@@ -218,7 +220,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 $search = $_GET['search'] ?? '';
                 $category = $_GET['category'] ?? '';
                 $instrumentsRaw = $_GET['instruments'] ?? '';
-                $selectedTags = $_GET['tags'] ?? [];
+                
+                $rawTags = $_GET['selected_tags'] ?? "";
+                $selectedTags = explode(",",$rawTags) ?? [];                
+                
                 $owner = isset($_GET['owner']) ? trim($_GET['owner']) : '';
                 $finished = isset($_GET['finished']) ? trim($_GET['finished']) : null;
                 $selectedInstruments = [];
