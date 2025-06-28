@@ -146,8 +146,8 @@ function add_song($mysqli, $data) {
 
     $stmt = $mysqli->prepare("INSERT INTO songs (
         category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
-        tags, instruments, content, is_fixed, is_nsfw, youtube_link
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?)");
+        tags, instruments, content, is_fixed, is_nsfw, youtube_link, views
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0)");
 
     if (!$stmt) {
         return "Prepare failed: " . $mysqli->error;
@@ -188,6 +188,39 @@ function add_song($mysqli, $data) {
         return $error;
     }
 }
+
+function increment_song_view(mysqli $mysqli, int $songId): void {
+    if (!isset($_SESSION['viewed_songs'])) {
+        $_SESSION['viewed_songs'] = [];
+    }
+
+    $now = time();
+    $lastViewed = $_SESSION['viewed_songs'][$songId] ?? 0;
+
+    if ($now - $lastViewed >= 3600) {
+        // Not viewed in the last hour, increment view count
+        $stmt = $mysqli->prepare("UPDATE songs SET views = views + 1 WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param("i", $songId);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        // Update session timestamp
+        $_SESSION['viewed_songs'][$songId] = $now;
+    }
+    clean_old_views();
+
+}
+
+function clean_old_views(){
+    foreach ($_SESSION['viewed_songs'] as $id => $timestamp) {
+        if (time() - $timestamp > 86400) { // older than 1 day
+            unset($_SESSION['viewed_songs'][$id]);
+        }
+    }
+}
+
 
 function filter_difficulty_tags($string) {
     if (!is_string($string)) {

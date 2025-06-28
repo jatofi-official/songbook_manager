@@ -28,6 +28,10 @@ if (isset($_GET['id'])) {
         $userResult = $stmtUser->get_result();
         $user = $userResult->fetch_assoc();
 
+
+        // Increment song view
+        increment_song_view($mysqli,$id);
+
         ob_start(); ?>
         <div class="song-header">
             <div class="d-flex justify-content-between align-items-start">
