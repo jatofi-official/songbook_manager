@@ -9,9 +9,9 @@ include("php/header.php");
 include('php/navigation.php');
 
 
-// ini_set('display_errors', 1);
-// ini_set('display_startup_errors', 1);
-// error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 ?>
    <!-- Dashboard Header -->
@@ -51,13 +51,50 @@ include('php/navigation.php');
             </a>
         </div>
 
+        <?php
+         // Temporary for now
+
+        // Total songs
+        $resultTotal = $mysqli->query("SELECT COUNT(*) AS total FROM songs");
+        $totalRow = $resultTotal->fetch_assoc();
+        $totalSongs = (int)$totalRow['total'];
+
+        // Finished songs (4+ tags)
+        $resultFinished = $mysqli->query("
+            SELECT COUNT(*) AS finished FROM songs
+            WHERE (LENGTH(tags) - LENGTH(REPLACE(tags, ',', '')) + 1) >= 4
+            AND TRIM(tags) != ''
+        ");
+        $finishedRow = $resultFinished->fetch_assoc();
+        $finishedSongs = (int)$finishedRow['finished'];
+
+        // Progress percentage
+        $progressPercent = ($totalSongs > 0) ? ($finishedSongs / $totalSongs) * 100 : 0;
+
+        // Example: Adjust the session variable name if different
+        $isAdmin = isset($_SESSION['admin']) && $_SESSION['admin'] == true;
+        $hrefLink = $isAdmin ? "songs.php?finished=0" : "songs.php?finished=1";
+        ?>
+
         <div class="col-6 col-md-3 mb-3 mb-md-0">
-            <a href="songbooks.php" class="stat-card-link">
-                <div class="stat-card p-3">
-                    <div class="number">1</div>
-                    <div class="label">Songbooks</div>
+        <a href="<?= htmlspecialchars($hrefLink) ?>" class="stat-card-link" style="text-decoration: none;">
+            <div class="stat-card p-3 d-flex flex-column justify-content-between" style="height: 100%;">
+            <div class="d-flex justify-content-center align-items-baseline mb-2">
+                <div class="text-muted small"><?= $finishedSongs ?> / <?= $totalSongs ?></div>
+            </div>
+
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-success" role="progressbar"
+                style="width: <?= round($progressPercent) ?>%;"
+                aria-valuenow="<?= round($progressPercent) ?>"
+                aria-valuemin="0" aria-valuemax="100">
+                <?= round($progressPercent) ?>%
                 </div>
-            </a>
+            </div>
+
+            <div class="label text-center">Finished Songs</div>
+            </div>
+        </a>
         </div>
 
         <div class="col-6 col-md-3">
