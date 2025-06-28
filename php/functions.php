@@ -811,16 +811,51 @@ function get_user($mysqli, $id) {
 
 function calculate_level(int $xp): array {
     $level = 1;
-    $required = 150;
+    $required = 100;
     $increment = 50;
-    $cap = 1000;
+    $max_increment = 1000;
     $current_total = 0;
+    $used_1000 = false;
 
     while ($xp >= $required) {
         $xp -= $required;
         $current_total += $required;
         $level++;
-        $increment = min($increment + 50, $cap);
+
+        // Determine next increment
+        if ($level <= 5) {
+            $increment += 50;
+        } else {
+            if (!$used_1000) {
+                // Normal +100 increments, skipping 900
+                $increment += 100;
+                if ($increment === 900) {
+                    $increment = 1000;
+                }
+
+                if ($increment >= 1000) {
+                    $increment = 1000;
+                    $used_1000 = true;
+
+                    // First time using 1000, make sure cumulative XP ends in 000
+                    if ($current_total % 1000 !== 0) {
+                        $adjustment = 1000 - ($current_total % 1000);
+
+                        if ($xp < $adjustment) {
+                            // Not enough XP left — backtrack and stop
+                            $level--;
+                            $current_total -= $required;
+                            $xp += $required;
+                            break;
+                        }
+
+                        $xp -= $adjustment;
+                        $current_total += $adjustment;
+                    }
+                }
+            }
+        }
+
         $required = $increment;
     }
 
@@ -833,6 +868,7 @@ function calculate_level(int $xp): array {
         'next_level_xp' => $next_level_xp
     ];
 }
+
 
 function get_xp(mysqli $mysqli, int $id): ?array {
     // $stmt = $mysqli->prepare("SELECT * FROM user_xp WHERE user_id = ?");
