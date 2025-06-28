@@ -508,46 +508,48 @@ function get_activities_user($mysqli, string $type, string $username): int {
 }
 
 
-function get_recent_activity($mysqli, $number) {
-	if (!$mysqli->connect_errno){
-		// Base query
-		$sql = "SELECT username, type, time, description 
-				FROM activity_log ";
+function get_recent_activity($mysqli, int $number, ?string $username = null): array {
+	if ($mysqli->connect_errno) return [];
 
-		$params = [];
-		$types = "";
+	// Base query
+	$sql = "SELECT username, type, time, description 
+			FROM activity_log ";
 
-		// Apply visibility rules
-		if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
-			// Not an admin: show public or own private entries
-			$sql .= "WHERE is_public = 1 OR username = ? ";
-			$params[] = $_SESSION["user"];
-			$types .= "s";
-		}
-		// Append ordering and limit
-		$sql .= "ORDER BY time DESC LIMIT ?";
-		$params[] = $number;
-		$types .= "i";
+	$params = [];
+	$types = "";
 
-		$stmt = $mysqli->prepare($sql);
-		if ($stmt === false) return [];
-
-		// Bind parameters dynamically
-		$stmt->bind_param($types, ...$params);
-		$stmt->execute();
-		$result = $stmt->get_result();
-
-		$activities = [];
-		while ($row = $result->fetch_assoc()) {
-			$activities[] = $row;
-		}
-
-		return $activities;
+	if ($username !== null) {
+		// Show all activity of the specified user
+		$sql .= "WHERE username = ? ";
+		$params[] = $username;
+		$types .= "s";
+	} elseif (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
+		// Not an admin: show public or own private entries
+		$sql .= "WHERE is_public = 1 OR username = ? ";
+		$params[] = $_SESSION["user"];
+		$types .= "s";
 	}
-	else{
-		return [];
+	// Append ordering and limit
+	$sql .= "ORDER BY time DESC LIMIT ?";
+	$params[] = $number;
+	$types .= "i";
+
+	$stmt = $mysqli->prepare($sql);
+	if ($stmt === false) return [];
+
+	// Bind parameters dynamically
+	$stmt->bind_param($types, ...$params);
+	$stmt->execute();
+	$result = $stmt->get_result();
+
+	$activities = [];
+	while ($row = $result->fetch_assoc()) {
+		$activities[] = $row;
 	}
+
+	return $activities;
 }
+
 
 function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = [], $owner = null, $finished = null) {
     if ($mysqli->connect_errno) {

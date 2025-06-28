@@ -139,6 +139,45 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
             </div>
         </div>
         
+<!-- Right Column -->
+<div class="col-12 col-md-7 order-2 order-md-1">
+    <h3 class="section-title mb-1">Recent Activity</h3>
+    <div class="bg-light rounded p-3" style="max-height: 500px; ">
+        <div class="list-group">
+            <?php
+            $activities = get_recent_activity($mysqli, 5, $username);
+
+            foreach ($activities as $activity) {
+                $timeAgo = time_elapsed_string($activity['time']);
+                ?>
+                <div class="list-group-item border rounded mb-2 p-3">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <h6 class="mb-1">
+                            <?php 
+                            $typeLabels = [
+                                'edit' => 'Edited Song',
+                                'add' => 'Added Song',
+                                'delete' => 'Deleted Song',
+                                "new_user" => "New user"
+                            ];
+
+                            $type = $activity['type'];
+                            echo htmlspecialchars($typeLabels[$type] ?? ucfirst($type));
+                            ?>
+                        </h6>
+                        <small class="text-muted"><?php echo $timeAgo; ?></small>
+                    </div>
+                    <p class="mb-0 small text-muted"><?php echo htmlspecialchars($activity['description']); ?></p>
+                </div>
+                <?php
+            }
+            ?>
+        </div>
+    </div>
+</div>
+
+
+        
     </div>
 </div>
 
