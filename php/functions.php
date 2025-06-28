@@ -509,46 +509,55 @@ function get_activities_user($mysqli, string $type, string $username): int {
 
 
 function get_recent_activity($mysqli, int $number, ?string $username = null): array {
-	if ($mysqli->connect_errno) return [];
+    if ($mysqli->connect_errno) return [];
 
-	// Base query
-	$sql = "SELECT username, type, time, description 
-			FROM activity_log ";
+    // Base query
+    $sql = "SELECT username, type, time, description 
+            FROM activity_log ";
 
-	$params = [];
-	$types = "";
+    $params = [];
+    $types = "";
 
-	if ($username !== null) {
-		// Show all activity of the specified user
-		$sql .= "WHERE username = ? ";
-		$params[] = $username;
-		$types .= "s";
-	} elseif (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
-		// Not an admin: show public or own private entries
-		$sql .= "WHERE is_public = 1 OR username = ? ";
-		$params[] = $_SESSION["user"];
-		$types .= "s";
-	}
-	// Append ordering and limit
-	$sql .= "ORDER BY time DESC LIMIT ?";
-	$params[] = $number;
-	$types .= "i";
+    if ($username !== null) {
+        // If admin view, show all activity of $username
+        // Otherwise, restrict by is_public or own username
+        if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true) {
+            $sql .= "WHERE username = ? ";
+            $params[] = $username;
+            $types .= "s";
+        } else {
+            $sql .= "WHERE username = ? AND (is_public = 1 OR username = ?) ";
+            $params[] = $username;
+            $params[] = $_SESSION["user"];
+            $types .= "ss";
+        }
+    } elseif (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
+        // Not an admin: show public or own private entries
+        $sql .= "WHERE is_public = 1 OR username = ? ";
+        $params[] = $_SESSION["user"];
+        $types .= "s";
+    }
+    // Append ordering and limit
+    $sql .= "ORDER BY time DESC LIMIT ?";
+    $params[] = $number;
+    $types .= "i";
 
-	$stmt = $mysqli->prepare($sql);
-	if ($stmt === false) return [];
+    $stmt = $mysqli->prepare($sql);
+    if ($stmt === false) return [];
 
-	// Bind parameters dynamically
-	$stmt->bind_param($types, ...$params);
-	$stmt->execute();
-	$result = $stmt->get_result();
+    // Bind parameters dynamically
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-	$activities = [];
-	while ($row = $result->fetch_assoc()) {
-		$activities[] = $row;
-	}
+    $activities = [];
+    while ($row = $result->fetch_assoc()) {
+        $activities[] = $row;
+    }
 
-	return $activities;
+    return $activities;
 }
+
 
 
 function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = [], $owner = null, $finished = null) {
