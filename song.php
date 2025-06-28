@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
     $instruments = $_POST["instruments"] ?? [];
-    $content   = trim($_POST["content"] ?? "");
+    $content   = $_POST["content"] ?? "";
     $is_public = isset($_POST['is_public']) ? 1 : 0;
     $youtube_link = trim($_POST["youtube_link"] ?? "");
     $nsfw = isset($_POST["nsfw"]) ? 1 : 0;
