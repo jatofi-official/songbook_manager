@@ -130,16 +130,17 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div class="d-flex flex-wrap gap-1">
                                 <?php
                                 $selectedTags = $_GET['tags'] ?? [];
-                                if (!is_array($selectedTags)) $selectedTags = [];
+                                // if (!is_array($selectedTags)) $selectedTags = [];
 
-                                foreach ($allTags as $tag) {
-                                    $isSelected = in_array($tag, $selectedTags);
-                                    $checked = $isSelected ? 'checked' : '';
-                                    echo "<div class='form-check form-check-inline'>";
-                                    echo "<input class='form-check-input' type='checkbox' name='tags[]' value='" . htmlspecialchars($tag) . "' id='tag_$tag' $checked>";
-                                    echo "<label class='form-check-label' for='tag_$tag'>$tag</label>";
-                                    echo "</div>";
-                                }
+                                // foreach ($allTags as $tag) {
+                                //     $isSelected = in_array($tag, $selectedTags);
+                                //     $checked = $isSelected ? 'checked' : '';
+                                //     echo "<div class='form-check form-check-inline'>";
+                                //     echo "<input class='form-check-input' type='checkbox' name='tags[]' value='" . htmlspecialchars($tag) . "' id='tag_$tag' $checked>";
+                                //     echo "<label class='form-check-label' for='tag_$tag'>$tag</label>";
+                                //     echo "</div>";
+                                // }
+                                display_tag_selector($mysqli,implode(",",$selectedTags),FALSE);
 
                                 ?>
                             </div>

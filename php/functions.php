@@ -1229,21 +1229,13 @@ function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
 
 
 
-function display_tag_selector($mysqli, $selectedTags = '') {
+function display_tag_selector($mysqli, $selectedTags = '', $allow_new = True) {
     $all_tags = get_all_tags($mysqli);
 
-    $top8_tags = array_slice($all_tags, 0, 8);
-    $joinedTagsString = implode(',', $top8_tags);
-    $filtered = filter_difficulty_tags($joinedTagsString);
-
-    $popular_tags = explode(',', $filtered['tags']);
-    $popular_tags = array_filter(array_map('trim', $popular_tags));
-    $popular_tags = array_slice($popular_tags, 0, 5);
 
     $selectedTagsArray = array_filter(array_map('trim', explode(',', $selectedTags)));
 
-    // Merge selected and popular tags for left display
-    $display_tags = array_unique(array_merge($popular_tags, $selectedTagsArray));
+    $display_tags = $selectedTagsArray;
 
     $all_tags = (array)$all_tags;
     $display_tags = array_values($display_tags); // reindex
@@ -1256,9 +1248,11 @@ function display_tag_selector($mysqli, $selectedTags = '') {
             <div class="position-relative" style="max-width: 250px;">
                 <div class="input-group input-group-sm">
                     <input type="text" class="form-control tag-search" placeholder="Search..." style="min-width: 120px;">
+                    <?php if($allow_new ) {?>
                     <button class="btn btn-outline-success add-tag-btn" type="button" disabled title="Add tag">
                         +
                     </button>
+                    <?php }?>
                 </div>
                 <div class="search-results position-absolute d-none bg-white shadow-sm"></div>
             </div>
@@ -1361,10 +1355,12 @@ function display_tag_selector($mysqli, $selectedTags = '') {
     }
 
     function updateAddTagButton() {
+        if (!addTagBtn) return;  // <-- skip if button doesn't exist
         const input = searchInput.value.trim().toLowerCase();
         const isNew = input.length > 0 && !selectedTags.has(input);
         addTagBtn.disabled = !isNew;
     }
+
 
     container.addEventListener('click', function(e) {
         if (e.target.classList.contains('tag')) {
@@ -1438,12 +1434,16 @@ function display_tag_selector($mysqli, $selectedTags = '') {
         }
     });
 
-    addTagBtn.addEventListener('click', function() {
-        const newTag = searchInput.value.trim();
-        if (newTag.length > 0) {
-            addNewTag(newTag);
-        }
-    });
+    <?php if ($allow_new) : ?>
+        addTagBtn.addEventListener('click', function() {
+            const newTag = searchInput.value.trim();
+            if (newTag.length > 0) {
+                addNewTag(newTag);
+            }
+        });
+    <?php endif; ?>
+
+
 
     document.addEventListener('click', function(e) {
         if (!container.contains(e.target)) {
