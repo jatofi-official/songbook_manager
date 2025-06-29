@@ -1,16 +1,16 @@
 function isChordLine(line) {
-    const chordToken = "\\(?[A-GH](#|b)?(mi|m|dim|aug|sus|add)?[0-9]*[\\+\\-]?\\)?";
-    // allowed tokens: ®, :, /:, :/  (we treat ® and : as single chars, and /: and :/ as pairs)
-    // We'll match either ®, : (alone), /: or :/
-    // For regex grouping, list them as alternatives
-    const allowedSymbols = "(®|:|/:|:/)";
+    const chordToken = "\\(?[A-GH](#|b)?(maj|min|mi|m|dim|aug|sus|add)?[0-9]*(7|9|11|13)?[\\+\\-]?\\)?(\\/([A-GH](#|b)?))?";
+    const allowedSymbols = "(®:|®|:|/:|:/)";
+    const tokenPatternStr = `^(${chordToken}|${allowedSymbols})$`;
+    const tokenPattern = new RegExp(tokenPatternStr, 'i');
 
-    // tokens separated by spaces or commas (with optional spaces)
-    const fullPatternStr = `^\\s*(${chordToken}|${allowedSymbols})(\\s*[,\\s]\\s*(${chordToken}|${allowedSymbols}))*\\s*$`;
-    const fullPattern = new RegExp(fullPatternStr, 'i');
+    // Split by spaces or commas, trimming tokens
+    const tokens = line.split(/[\s,]+/).filter(t => t.length > 0);
 
-    return fullPattern.test(line);
+    // Check if every token matches chord or allowed symbol pattern
+    return tokens.every(token => tokenPattern.test(token));
 }
+
 
 
 
