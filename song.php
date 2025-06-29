@@ -456,7 +456,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p>Loading song...</p>
     </div>
 
-    <script src="/songbook_manager/javascript/song-render.js"></script>
+    <script src="js/song-render.js"></script>
 
     <script>
     document.addEventListener("DOMContentLoaded", function () {

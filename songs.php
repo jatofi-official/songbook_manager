@@ -16,7 +16,7 @@ $categories = $categories ?? [];
 <?php include('php/navigation.php'); ?>
 <?php include("php/categories.php"); ?>
 
-<script src="javascript/song-render.js"></script>
+<script src="js/song-render.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
