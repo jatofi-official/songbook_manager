@@ -1,15 +1,17 @@
 function isChordLine(line) {
     const chordToken = "\\(?[A-GH](#|b)?(maj|min|mi|m|dim|aug|sus|add)?[0-9]*(7|9|11|13)?[\\+\\-]?\\)?(\\/([A-GH](#|b)?))?";
     const allowedSymbols = "(®:|®|:|/:|:/)";
-    const tokenPatternStr = `^(${chordToken}|${allowedSymbols})$`;
+    const dashToken = "-";
+    const tokenPatternStr = `^(${chordToken}|${allowedSymbols}|${dashToken})$`;
     const tokenPattern = new RegExp(tokenPatternStr, 'i');
 
     // Split by spaces or commas, trimming tokens
     const tokens = line.split(/[\s,]+/).filter(t => t.length > 0);
 
-    // Check if every token matches chord or allowed symbol pattern
+    // Check if every token matches chord, allowed symbol, or dash
     return tokens.every(token => tokenPattern.test(token));
 }
+
 
 
 
