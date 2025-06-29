@@ -518,25 +518,41 @@ function get_recent_activity($mysqli, int $number, ?string $username = null): ar
     $params = [];
     $types = "";
 
-    if ($username !== null) {
-        // If admin view, show all activity of $username
-        // Otherwise, restrict by is_public or own username
-        if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true) {
-            $sql .= "WHERE username = ? ";
+if ($username !== null) {
+    // A specific username is being filtered
+    if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true) {
+        // Admin sees everything for the user
+        $sql .= "WHERE username = ? ";
+        $params[] = $username;
+        $types .= "s";
+    } else {
+        // Non-admin: show public entries of that user or private if it's the same user
+        $sql .= "WHERE username = ? AND (is_public = 1";
+        $params[] = $username;
+        $types .= "s";
+
+        if (isset($_SESSION["user"]) && $_SESSION["user"] === $username) {
+            $sql .= " OR username = ?";
             $params[] = $username;
             $types .= "s";
-        } else {
-            $sql .= "WHERE username = ? AND (is_public = 1 OR username = ?) ";
-            $params[] = $username;
-            $params[] = $_SESSION["user"];
-            $types .= "ss";
         }
-    } elseif (isset($_SESSION["user"])&&(!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false)) {
-        // Not an admin: show public or own private entries
+
+        $sql .= ") ";
+    }
+} else {
+    // No username filter
+    if (isset($_SESSION["user"]) && (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] !== true)) {
+        // Logged-in user: show public and own private
         $sql .= "WHERE is_public = 1 OR username = ? ";
         $params[] = $_SESSION["user"];
         $types .= "s";
+    } else {
+        // Not logged in or admin viewing general list: show only public
+        $sql .= "WHERE is_public = 1 ";
     }
+}
+
+
     // Append ordering and limit
     $sql .= "ORDER BY time DESC LIMIT ?";
     $params[] = $number;
