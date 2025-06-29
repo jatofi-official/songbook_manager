@@ -531,7 +531,7 @@ function get_recent_activity($mysqli, int $number, ?string $username = null): ar
             $params[] = $_SESSION["user"];
             $types .= "ss";
         }
-    } elseif (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false) {
+    } elseif (isset($_SESSION["user"])&&(!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] == false)) {
         // Not an admin: show public or own private entries
         $sql .= "WHERE is_public = 1 OR username = ? ";
         $params[] = $_SESSION["user"];
