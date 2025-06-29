@@ -16,6 +16,8 @@ $categories = $categories ?? [];
 <?php include('php/navigation.php'); ?>
 <?php include("php/categories.php"); ?>
 
+<script src="javascript/song-render.js"></script>
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const songItems = document.querySelectorAll(".song-list-item");
@@ -34,7 +36,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 fetch(`php/subpage/get_song.php?id=${id}&embedded=1`)
                     .then(res => res.text())
-                    .then(html => detailContainer.innerHTML = html)
+                .then(html => {
+                    detailContainer.innerHTML = html;
+                    enhanceSongView();
+                })
+
                     .catch(() => detailContainer.innerHTML = "<p>Error loading song details.</p>");
             }
         });

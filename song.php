@@ -456,6 +456,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p>Loading song...</p>
     </div>
 
+    <script src="javascript/song-render.js"></script>
+
     <script>
     document.addEventListener("DOMContentLoaded", function () {
         const id = <?= (int)$song['id'] ?>;
@@ -463,6 +465,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .then(response => response.text())
             .then(html => {
                 document.getElementById("song-display").innerHTML = html;
+
+
+                enhanceSongView();
             })
             .catch(err => {
                 document.getElementById("song-display").innerHTML = "<p>Error loading song.</p>";

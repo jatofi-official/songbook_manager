@@ -159,9 +159,10 @@ if (isset($_GET['id'])) {
                 </div>
             </div>
         </div>
-        <div class="song-content mt-3">
-            <pre><?= htmlspecialchars($song['content']) ?></pre>
-        </div>
+        <div id="song-content-js" class="song-content mt-3" style="white-space: pre-wrap; font-family: monospace;"><?=
+            htmlspecialchars($song['content'])
+        ?></div>
+
         <?php
         echo ob_get_clean();
     } else {
