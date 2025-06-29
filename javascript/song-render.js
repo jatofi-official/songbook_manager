@@ -1,11 +1,18 @@
 function isChordLine(line) {
     const chordToken = "\\(?[A-GH](#|b)?(mi|m|dim|aug|sus|add)?[0-9]*[\\+\\-]?\\)?";
-    const allowedSymbols = "[®:]+";
-    const fullPatternStr = `^\\s*(${chordToken}|${allowedSymbols})(\\s+(${chordToken}|${allowedSymbols}))*\\s*$`;
+    // allowed tokens: ®, :, /:, :/  (we treat ® and : as single chars, and /: and :/ as pairs)
+    // We'll match either ®, : (alone), /: or :/
+    // For regex grouping, list them as alternatives
+    const allowedSymbols = "(®|:|/:|:/)";
+
+    // tokens separated by spaces or commas (with optional spaces)
+    const fullPatternStr = `^\\s*(${chordToken}|${allowedSymbols})(\\s*[,\\s]\\s*(${chordToken}|${allowedSymbols}))*\\s*$`;
     const fullPattern = new RegExp(fullPatternStr, 'i');
 
-    return fullPattern.test(line.trim());
+    return fullPattern.test(line);
 }
+
+
 
 
 function renderSong(content) {
