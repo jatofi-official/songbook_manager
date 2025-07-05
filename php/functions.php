@@ -1155,7 +1155,7 @@ function get_all_instruments($mysqli) {
 function get_all_categories($mysqli) {
     $categories = [];
 
-    $sql = "SELECT id, name FROM categories";
+    $sql = "SELECT id, name FROM categories ORDER BY category_index ASC";
     $result = $mysqli->query($sql);
 
     if (!$result) {
