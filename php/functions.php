@@ -931,23 +931,24 @@ function calculate_level(int $xp): array {
 
 
 function get_xp(mysqli $mysqli, int $id): ?array {
-    // $stmt = $mysqli->prepare("SELECT * FROM user_xp WHERE user_id = ?");
-    // if (!$stmt) return null;
+    $stmt = $mysqli->prepare("SELECT * FROM user_xp WHERE user_id = ?");
+    if (!$stmt) return null;
 
-    // $stmt->bind_param("i", $id);
-    // $stmt->execute();
-    // $result = $stmt->get_result();
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-    // if ($result->num_rows === 0) {
-    //     $stmt->close();
-    //     return null;
-    // }
+    if ($result->num_rows === 0) {
+        $stmt->close();
+        return null;
+    }
 
-    // $row = $result->fetch_assoc();
-    // $stmt->close();
+    $row = $result->fetch_assoc();
+    $stmt->close();
 
     // $xp_add = (int)$row["xp_add_song"];
     // $xp_edit = (int)$row["xp_edit_song"];
+    $xp_special = (int)$row["special_xp"];
 
 
     // Instead calculate this manually
@@ -968,7 +969,7 @@ function get_xp(mysqli $mysqli, int $id): ?array {
 
 
     // continue normally
-    $xp_total = $xp_add + $xp_edit;
+    $xp_total = $xp_add + $xp_edit + $xp_special;
 
     $levelInfo = calculate_level($xp_total);
 
