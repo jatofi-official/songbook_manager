@@ -1507,6 +1507,179 @@ function display_tag_selector($mysqli, $selectedTags = '', $allow_new = True) {
 
 
 
+// SONGBOOK FUNCTIONS
+
+
+function create_songbook($mysqli, $name, $description, $owner, $admins, $categories, $songs, $groupId = null, $isPublic = false) {
+    $numberOfSongs = empty(trim($songs)) ? 0 : count(explode(",", $songs));
+
+    $stmt = $mysqli->prepare("INSERT INTO songbooks (name, description, owner, admins, categories, songs, number_of_songs, group_id, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssisssiii", $name, $description, $owner, $admins, $categories, $songs, $numberOfSongs, $groupId, $isPublic);
+
+    $result = $stmt->execute();
+    $stmt->close();
+
+    return $result;
+}
+
+
+
+function update_songbook($mysqli, $id, $name, $description, $admins, $categories, $songs, $groupId = null, $isPublic = false) {
+    $userId = $_SESSION["id"];
+
+    $stmt = $mysqli->prepare("SELECT admins FROM songbooks WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->bind_result($adminStr);
+    $stmt->fetch();
+    $stmt->close();
+
+    $adminIds = array_map('trim', explode(",", $adminStr));
+    if (!in_array($userId, $adminIds)) {
+        return false; // Not authorized
+    }
+
+    $numberOfSongs = empty(trim($songs)) ? 0 : count(explode(",", $songs));
+
+    $stmt = $mysqli->prepare("UPDATE songbooks SET name = ?, description = ?, admins = ?, categories = ?, songs = ?, number_of_songs = ?, group_id = ?, is_public = ?, modified_date = NOW() WHERE id = ?");
+    $stmt->bind_param("sssssiiii", $name, $description, $admins, $categories, $songs, $numberOfSongs, $groupId, $isPublic, $id);
+
+    $result = $stmt->execute();
+    $stmt->close();
+
+    return $result;
+}
+
+
+
+function delete_songbook($mysqli, $id) {
+    $userId = $_SESSION["id"];
+
+    $stmt = $mysqli->prepare("SELECT owner FROM songbooks WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->bind_result($ownerId);
+    $stmt->fetch();
+    $stmt->close();
+
+    if ($ownerId != $userId) {
+        return false; // Not authorized
+    }
+
+    $stmt = $mysqli->prepare("DELETE FROM songbooks WHERE id = ?");
+    $stmt->bind_param("i", $id);
+
+    $result = $stmt->execute();
+    $stmt->close();
+
+    return $result;
+}
+
+
+
+function get_all_songbooks($mysqli, $limit = 20, $offset = 0, $search = null, $groupId = null) {
+    $params = [];
+    $types = "";
+    $conditions = ["s.is_public = 1"]; // Only public songbooks
+
+    // Search condition
+    if (!empty($search)) {
+        $conditions[] = "(s.name LIKE ? OR s.description LIKE ?)";
+        $searchParam = '%' . $search . '%';
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+        $types .= "ss";
+    }
+
+    // Filter by group
+    if (!empty($groupId)) {
+        $conditions[] = "s.group_id = ?";
+        $params[] = $groupId;
+        $types .= "i";
+    }
+
+    $whereClause = "";
+    if (!empty($conditions)) {
+        $whereClause = " WHERE " . implode(" AND ", $conditions);
+    }
+
+    // --- COUNT QUERY ---
+    $countSql = "SELECT COUNT(*) FROM songbooks s" . $whereClause;
+    $countStmt = $mysqli->prepare($countSql);
+    if (!empty($params)) {
+        $countStmt->bind_param($types, ...$params);
+    }
+    $countStmt->execute();
+    $countStmt->bind_result($totalCount);
+    $countStmt->fetch();
+    $countStmt->close();
+
+    $totalPages = ($limit > 0) ? ceil($totalCount / $limit) : 1;
+
+    // --- DATA QUERY ---
+    $dataSql = "
+        SELECT 
+            s.id,
+            s.name,
+            s.description,
+            s.owner,
+            s.number_of_songs,
+            g.name AS group_name
+        FROM songbooks s
+        LEFT JOIN group_list g ON s.group_id = g.id
+        $whereClause
+        ORDER BY s.name ASC
+        LIMIT ? OFFSET ?
+    ";
+
+    $dataStmt = $mysqli->prepare($dataSql);
+
+    $finalParams = $params;
+    $finalTypes = $types . "ii";
+    $finalParams[] = $limit;
+    $finalParams[] = $offset;
+
+    $dataStmt->bind_param($finalTypes, ...$finalParams);
+    $dataStmt->execute();
+    $result = $dataStmt->get_result();
+
+    $songbooks = [];
+    while ($row = $result->fetch_assoc()) {
+        $songbooks[] = $row;
+    }
+
+    $dataStmt->close();
+
+    return [
+        "songbooks" => $songbooks,
+        "total" => $totalCount,
+        "totalPages" => $totalPages
+    ];
+}
+
+function get_all_songbooks_alt($mysqli) {
+    $sql = "SELECT * FROM songbooks ORDER BY name ASC";
+    $result = $mysqli->query($sql);
+
+    $songbooks = [];
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $songbooks[] = $row;
+        }
+    }
+
+    $total = count($songbooks);
+    $totalPages = 1; // No paging in this version
+
+    return [
+        "songbooks" => $songbooks,
+        "total" => $total,
+        "totalPages" => $totalPages
+    ];
+}
+
+
+
 
 
 

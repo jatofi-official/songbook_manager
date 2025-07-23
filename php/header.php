@@ -29,6 +29,9 @@
     else if($website=="users"){
         echo '<link href="styles/users_view.css" rel="stylesheet">	';
     }
+    else if($website=="songbooks"){
+        echo '<link href="styles/songbooks_view.css" rel="stylesheet">	';
+    }
     ?>
 </head>
 

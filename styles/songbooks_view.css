@@ -1,0 +1,203 @@
+.user-management-header {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    padding: 40px 0;
+    margin-bottom: 30px;
+}
+
+.user-card {
+    background-color: white;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent; /* no border by default */
+    cursor: pointer; /* indicates clickable */
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.user-card--selected {
+    border-left-color: var(--primary);
+}
+
+.user-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
+    text-decoration: none;
+    color: inherit;
+    border-left-color: var(--primary); /* your highlight color */
+}
+
+.user-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #eef2ff;
+    box-shadow: 0 3px 8px rgba(67, 97, 238, 0.15);
+}
+
+.level-badge {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    font-weight: bold;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+
+
+
+@keyframes shine {
+    0% { transform: translateX(-100%) rotate(30deg); }
+    100% { transform: translateX(100%) rotate(30deg); }
+}
+
+
+.xp-value {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 1.25rem;
+}
+
+.xp-label {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.org-badge {
+    background-color: #e6f7ff;
+    color: #1890ff;
+    border-radius: 20px;
+    padding: 5px 15px;
+    font-size: 0.9rem;
+    display: inline-block;
+}
+
+/* New wrapper for username + admin */
+.user-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    /* Adjust user name style inside the new wrapper */
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0; /* remove margin for vertical alignment */
+
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 3px;
+
+}
+
+
+
+.xp-badge {
+    background-color: #f0f5ff;
+    color: var(--primary);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-weight: 600;
+    font-size: 0.9rem; /* same as username */
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+.xp-badge i {
+    font-size: 0.9rem; /* smaller icon */
+    margin-right: 3px;
+}
+
+.xp-badge i.bi {
+    vertical-align: middle;
+}
+
+.action-btn {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    margin: 0 3px;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    transform: scale(1.1);
+}
+
+.search-container {
+    background-color: white;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    margin-bottom: 25px;
+}
+
+
+.username {
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.section-title {
+    font-weight: 600;
+    color: #334155;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+@media (max-width: 768px) {
+    .user-avatar {
+        width: 50px;
+        height: 50px;
+    }
+
+    .level-badge {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+}
+
+.admin-badge {
+    background-color: #f0f5ff;
+    color: var(--primary);
+    border-radius: 12px;
+    padding: 4px 8px 2px; /* Adjusted top/bottom padding */
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: baseline; /* Changed from center to baseline */
+    justify-content: center;
+    line-height: 1.2; /* Slightly increased line height */
+}
+
+.admin-badge i {
+    font-size: 0.85rem; /* Slightly smaller icon */
+    margin-right: 4px;
+    position: relative;
+    top: 0.1em; /* Fine-tune icon position */
+}
+
+
+
+.user-list-header {
+    background-color: #f8fafc;
+    border-radius: 12px 12px 12px 12px;
+    margin-top: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+

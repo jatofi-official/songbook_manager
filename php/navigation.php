@@ -16,9 +16,9 @@
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="songs") echo "active"?>" href="songs.php">Songs</a>
                 </li>
-                <!-- <li class="nav-item">
-                    <a class="nav-link  <?php if($website=="songbooks") echo "active"?>" href="#">Songbooks</a>
-                </li> -->
+                <li class="nav-item">
+                    <a class="nav-link  <?php if($website=="songbooks") echo "active"?>" href="songbooks.php">Songbooks</a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="users") echo "active"?>" href="users.php">Users</a>
                 </li>
