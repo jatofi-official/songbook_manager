@@ -43,15 +43,17 @@ function renderA4Preview(songs, orderedIds) {
         songDiv.style.border = '1px dashed red';
         songDiv.style.backgroundColor = '#fdfdfd';
 
-        const header = document.createElement('div');
-        header.innerHTML = `<strong>${partSong.title}</strong> <em>${partSong.artist}</em>`;
-        header.style.marginBottom = '10px';
+        if (!partSong.continuation) {
+          const header = document.createElement('div');
+          header.innerHTML = `<strong>${partSong.title}</strong> <em>${partSong.artist}</em>`;
+          header.style.marginBottom = '10px';
+          songDiv.appendChild(header);
+        }
 
         const pre = document.createElement('pre');
         pre.textContent = partSong.left_content;
         pre.style.margin = 0;
 
-        songDiv.appendChild(header);
         songDiv.appendChild(pre);
 
         tempContainer.appendChild(songDiv);

@@ -102,44 +102,65 @@ function splitPageIfNeeded(song, container, maxHeight) {
   if (song.right_content) return [song];
 
   const lines = (song.left_content || song.content || '').split('\n').map(line => line.replace(/\s+$/, ''));
-
   if (lines.length === 0) return [song];
 
   const fullHeight = measureHeight(lines.join('\n'), container);
-  if (fullHeight <= maxHeight) {
-    return [song];
-  }
+  if (fullHeight <= maxHeight) return [song];
 
-  let splitIndex = lines.length;
-  for (let i = Math.floor(lines.length / 2); i < lines.length; i++) {
-    const leftLines = lines.slice(0, i);
-    const leftHeight = measureHeight(leftLines.join('\n'), container);
-    if (leftHeight > maxHeight) {
-      splitIndex = i - 1;
-      break;
+  // Step 1: Find all empty lines that could be good split points
+  let bestSplit = -1;
+
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].trim() !== '') continue; // not an empty line
+
+    const testLines = lines.slice(0, i + 1); // include the empty line
+    const testHeight = measureHeight(testLines.join('\n'), container);
+
+    if (testHeight <= maxHeight) {
+      bestSplit = i + 1; // split after the empty line
+    } else {
+      break; // further lines will only be taller
     }
   }
 
-  if (splitIndex <= 0) splitIndex = 1;
+  // Step 2: Fallback — if no good empty line split found, do original logic
+  if (bestSplit === -1) {
+    // Binary search fallback
+    bestSplit = lines.length;
+    for (let i = Math.floor(lines.length / 2); i < lines.length; i++) {
+      const leftLines = lines.slice(0, i);
+      const leftHeight = measureHeight(leftLines.join('\n'), container);
+      if (leftHeight > maxHeight) {
+        bestSplit = i - 1;
+        break;
+      }
+    }
+  }
 
-  let rightLines = lines.slice(splitIndex);
+  if (bestSplit <= 0) bestSplit = 1;
+
+  // Trim leading empty lines on the right part
+  let rightLines = lines.slice(bestSplit);
   while (rightLines.length && rightLines[0].trim() === '') {
     rightLines.shift();
   }
 
-  return [
+    return [
     {
-      ...song,
-      left_content: lines.slice(0, splitIndex).join('\n'),
-      right_content: null,
+        ...song,
+        left_content: lines.slice(0, bestSplit).join('\n'),
+        right_content: null,
     },
     {
-      ...song,
-      left_content: rightLines.join('\n'),
-      right_content: null,
+        ...song,
+        left_content: rightLines.join('\n'),
+        right_content: null,
+        continuation: true, // 👈 NEW FLAG
     },
-  ];
+    ];
+
 }
+
 
 
 
