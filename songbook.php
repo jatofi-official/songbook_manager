@@ -182,24 +182,36 @@ document.getElementById('searchBtn').addEventListener('click', () => {
       const ul = document.createElement('ul');
       ul.classList.add('list-group');
 
-      songs.forEach(song => {
+        songs.forEach(song => {
         const li = document.createElement('li');
         li.className = 'list-group-item d-flex align-items-center';
 
+        const radioId = `songRadio_${song.id}`;
+
+        // Create radio input
         const radio = document.createElement('input');
         radio.type = 'radio';
         radio.name = 'selectedSong';
         radio.value = song.id;
+        radio.id = radioId;
         radio.classList.add('me-2');
 
-        li.appendChild(radio);
+        // Create label wrapping the radio and song text
+        const label = document.createElement('label');
+        label.setAttribute('for', radioId);
+        label.classList.add('mb-0', 'd-flex', 'align-items-center', 'w-100', 'cursor-pointer'); // full width + pointer cursor
+
+        label.appendChild(radio);
 
         const text = document.createElement('span');
         text.textContent = `${song.title} ${song.artist ? '– ' + song.artist : ''}`;
-        li.appendChild(text);
+
+        label.appendChild(text);
+        li.appendChild(label);
 
         ul.appendChild(li);
-      });
+        });
+
 
       container.appendChild(ul);
 
