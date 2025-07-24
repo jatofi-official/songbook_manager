@@ -108,84 +108,96 @@ function renderA4Preview(songs, orderedIds) {
       }
 
     } else {
-      // For two-column songs, render as before, no splitting by page height
+  // For two-column songs, render with full-width title/author header
 
-      let songDiv = document.createElement('div');
-      songDiv.className = 'song-block split-song d-flex mb-4';
-      songDiv.style.border = '1px dashed red';
-      songDiv.style.backgroundColor = '#fdfdfd';
+  let songDiv = document.createElement('div');
+  songDiv.className = 'song-block split-song mb-4';
+  songDiv.style.border = '1px dashed red';
+  songDiv.style.backgroundColor = '#fdfdfd';
+  songDiv.style.display = 'flex';
+  songDiv.style.flexDirection = 'column';
 
-      const leftCol = document.createElement('div');
-      leftCol.className = 'left-column flex-grow-1 pe-3';
-      const header = document.createElement('div');
-      header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
-      header.style.marginBottom = '10px';
-      const leftPre = document.createElement('pre');
-      leftPre.textContent = song.left_content;
-      leftPre.style.margin = 0;
-      leftCol.appendChild(header);
-      leftCol.appendChild(leftPre);
+  // Full-width title and artist
+  const header = document.createElement('div');
+  header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
+  header.style.marginBottom = '10px';
+  songDiv.appendChild(header);
 
-      const rightCol = document.createElement('div');
-      rightCol.className = 'right-column flex-grow-1 ps-3';
-      const rightPre = document.createElement('pre');
-      rightPre.textContent = song.right_content;
-      rightPre.style.margin = 0;
-      rightCol.appendChild(rightPre);
+  // Columns wrapper
+  const columns = document.createElement('div');
+  columns.className = 'd-flex';
 
-      songDiv.appendChild(leftCol);
-      songDiv.appendChild(rightCol);
+  const leftCol = document.createElement('div');
+  leftCol.className = 'left-column flex-grow-1 pe-3';
 
-      tempContainer.appendChild(songDiv);
+  const leftPre = document.createElement('pre');
+  leftPre.textContent = song.left_content;
+  leftPre.style.margin = 0;
+  leftCol.appendChild(leftPre);
 
-      // Measure widest line width
-      let maxLineWidth = 0;
-      const preElements = songDiv.querySelectorAll('pre');
-      preElements.forEach(pre => {
-        const lines = pre.textContent.split('\n');
-        lines.forEach(line => {
-          const trimmedLine = line.replace(/\s+$/, '');
-          const measurer = document.createElement('span');
-          measurer.style.visibility = 'hidden';
-          measurer.style.position = 'absolute';
-          measurer.style.whiteSpace = 'pre';
-          measurer.style.fontFamily = 'Fira Mono, monospace';
-          measurer.style.fontSize = '14px';
-          measurer.textContent = trimmedLine;
-          tempContainer.appendChild(measurer);
-          const lineWidth = measurer.getBoundingClientRect().width;
-          tempContainer.removeChild(measurer);
-          if (lineWidth > maxLineWidth) maxLineWidth = lineWidth;
-        });
-      });
+  const rightCol = document.createElement('div');
+  rightCol.className = 'right-column flex-grow-1 ps-3';
 
-      const blockHeight = songDiv.getBoundingClientRect().height;
-      tempContainer.removeChild(songDiv);
+  const rightPre = document.createElement('pre');
+  rightPre.textContent = song.right_content;
+  rightPre.style.margin = 0;
+  rightCol.appendChild(rightPre);
 
-      if (currentHeight + blockHeight > maxHeight) {
-        currentPage = createPage();
-        container.appendChild(currentPage);
-        currentHeight = 0;
-        totalPages++;
-      }
+  columns.appendChild(leftCol);
+  columns.appendChild(rightCol);
+  songDiv.appendChild(columns);
 
-      // Add debug label to side
-      const debugLabel = document.createElement('div');
-      debugLabel.style.position = 'absolute';
-      debugLabel.style.right = '-200px';
-      debugLabel.style.bottom = '50px';
-      debugLabel.style.fontSize = '12px';
-      debugLabel.style.color = '#007bff';
-      debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
+  tempContainer.appendChild(songDiv);
 
-      const wrapper = document.createElement('div');
-      wrapper.style.position = 'relative';
-      wrapper.appendChild(songDiv);
-      wrapper.appendChild(debugLabel);
+  // Measure widest line width
+  let maxLineWidth = 0;
+  const preElements = songDiv.querySelectorAll('pre');
+  preElements.forEach(pre => {
+    const lines = pre.textContent.split('\n');
+    lines.forEach(line => {
+      const trimmedLine = line.replace(/\s+$/, '');
+      const measurer = document.createElement('span');
+      measurer.style.visibility = 'hidden';
+      measurer.style.position = 'absolute';
+      measurer.style.whiteSpace = 'pre';
+      measurer.style.fontFamily = 'Fira Mono, monospace';
+      measurer.style.fontSize = '14px';
+      measurer.textContent = trimmedLine;
+      tempContainer.appendChild(measurer);
+      const lineWidth = measurer.getBoundingClientRect().width;
+      tempContainer.removeChild(measurer);
+      if (lineWidth > maxLineWidth) maxLineWidth = lineWidth;
+    });
+  });
 
-      currentPage.appendChild(wrapper);
-      currentHeight += blockHeight;
-    }
+  const blockHeight = songDiv.getBoundingClientRect().height;
+  tempContainer.removeChild(songDiv);
+
+  if (currentHeight + blockHeight > maxHeight) {
+    currentPage = createPage();
+    container.appendChild(currentPage);
+    currentHeight = 0;
+    totalPages++;
+  }
+
+  // Add debug label to side
+  const debugLabel = document.createElement('div');
+  debugLabel.style.position = 'absolute';
+  debugLabel.style.right = '-200px';
+  debugLabel.style.bottom = '50px';
+  debugLabel.style.fontSize = '12px';
+  debugLabel.style.color = '#007bff';
+  debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
+
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'relative';
+  wrapper.appendChild(songDiv);
+  wrapper.appendChild(debugLabel);
+
+  currentPage.appendChild(wrapper);
+  currentHeight += blockHeight;
+}
+
   }
 
   document.body.removeChild(tempContainer);
