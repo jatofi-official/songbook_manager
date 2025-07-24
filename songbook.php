@@ -157,41 +157,68 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 </div>
 
 <script>
+  const songbook = {
+    songs_categories: <?= json_encode(array_map(function($cat) use ($mysqli) {
+      return [
+        "id" => $cat["id"],
+        "name" => $cat["name"],
+        "songs" => array_map(function($songId) use ($mysqli) {
+          $song = get_song_title($mysqli, $songId);
+          $user = get_user_by_username($mysqli, $song['owner']);
+          return [
+            "id" => $song["id"],
+            "title" => $song["title"],
+            "artist" => $song["artist"],
+            "owner" => $song["owner"],
+            "owner_name" => $user ? $user["name"] : $song["owner"]
+          ];
+        }, $cat["songs"])
+      ];
+    }, $songbook["songs_categories"])) ?>,
+    categories: <?= json_encode($songbook["categories"]) ?>
+  };
+</script>
+
+
+<script>
 // Inject PHP data safely
 const categoriesData = <?php echo json_encode($jsCategories, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const categorySelectOptions = <?php echo json_encode($jsCategorySelect, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
 function createSongListItem(song) {
-    const li = document.createElement('li');
-    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+  const li = document.createElement('li');
+  li.className = 'list-group-item d-flex justify-content-between align-items-center';
 
-    const leftDiv = document.createElement('div');
-    leftDiv.textContent = song.title + (song.artist ? " – " + song.artist : "");
-    li.appendChild(leftDiv);
+  const leftDiv = document.createElement('div');
+  leftDiv.textContent = song.title + (song.artist ? " – " + song.artist : "");
+  li.appendChild(leftDiv);
 
-    const rightDiv = document.createElement('div');
-    if (song.owner && song.owner.id && song.owner.name) {
-        const a = document.createElement('a');
-        a.href = `user.php?id=${song.owner.id}`;
-        a.className = 'badge bg-primary text-decoration-none';
-        a.textContent = song.owner.name;
-        rightDiv.appendChild(a);
-    } else if (song.owner && song.owner.username) {
-        const span = document.createElement('span');
-        span.className = 'badge bg-secondary';
-        span.textContent = song.owner.username;
-        rightDiv.appendChild(span);
-    }
-    li.appendChild(rightDiv);
+  const rightDiv = document.createElement('div');
 
-    return li;
+  if (song.owner && song.owner_name) {
+    const a = document.createElement('a');
+    a.href = `user.php?id=${song.owner}`;
+    a.className = 'badge bg-primary text-decoration-none';
+    a.textContent = song.owner_name;
+    rightDiv.appendChild(a);
+  } else if (song.owner) {
+    const span = document.createElement('span');
+    span.className = 'badge bg-secondary';
+    span.textContent = song.owner;
+    rightDiv.appendChild(span);
+  }
+
+  li.appendChild(rightDiv);
+
+  return li;
 }
+
 
 function renderCategories() {
     const container = document.getElementById('category-container');
     container.innerHTML = '';
 
-    categoriesData.forEach(category => {
+    songbook.songs_categories.forEach(category => {
         const catDiv = document.createElement('div');
         catDiv.className = 'mb-5 category-block';
 
@@ -325,20 +352,53 @@ document.getElementById('searchBtn').addEventListener('click', () => {
 
 document.getElementById('addSongToCategoryBtn').addEventListener('click', () => {
   const selectedSongRadio = document.querySelector('input[name="selectedSong"]:checked');
-  if (!selectedSongRadio) return alert('Please select a song.');
+  const categoryId = document.getElementById('categorySelect').value;
 
-  const songId = selectedSongRadio.value;
-  const category = document.getElementById('categorySelect').value;
+  if (!selectedSongRadio || !categoryId) {
+    alert('Please select both a song and category.');
+    return;
+  }
 
-  if (!category) return alert('Please select a category.');
+  const songId = parseInt(selectedSongRadio.value);
 
-  console.log('Selected Song ID:', songId, 'Category ID:', category);
+  // Fetch the full song details from backend
+  fetch(`php/get_song_by_id.php?id=${songId}`)
+    .then(res => res.json())
+    .then(song => {
+      if (!song || !song.title) {
+        alert('Could not load song details.');
+        return;
+      }
 
-  // TODO: Replace console.log with AJAX to add song to songbook category in future
+      const cat = songbook.songs_categories.find(c => c.id == categoryId);
+      if (!cat) {
+        alert('Invalid category');
+        return;
+      }
 
-  // Optionally, close modal or reset selections
-  // bootstrap.Modal.getInstance(document.getElementById('addSongModal')).hide();
+      // Prevent duplicates
+      if (cat.songs.some(s => s.id === song.id)) {
+        alert('Song already exists in this category.');
+        return;
+      }
+
+      // Add song to category
+      cat.songs.push(song);
+
+      renderCategories(); // Re-render the categories & songs
+
+      // Close modal
+      bootstrap.Modal.getInstance(document.getElementById('addSongModal')).hide();
+    })
+    .catch(err => {
+      console.error('Failed to fetch song data:', err);
+      alert('Error adding song.');
+    });
 });
+
+
+
+
 </script>
 
 <?php 
