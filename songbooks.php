@@ -51,10 +51,9 @@ if(!isset($_SESSION["admin"]) || $_SESSION["admin"]==0){
             <select class="form-select" name="group">
                 <option value="">All Groups</option>
                 <?php foreach ($groupList as $group): 
-                    $gName = htmlspecialchars($group['name']);
-                    $selected = ($gName === $selectedGroup) ? 'selected' : '';
+                    $selected = ($group["id"] === $selectedGroup) ? 'selected' : '';
                 ?>
-                    <option value="<?= $gName ?>" <?= $selected ?>><?= $gName ?></option>
+                    <option value="<?= $group["id"] ?>" <?= $selected ?>><?= $group["name"] ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -100,13 +99,12 @@ if(!isset($_SESSION["admin"]) || $_SESSION["admin"]==0){
     $group = $_GET['group'] ?? '';
 
     // Fetch user data
-    // $songbooksData = get_all_songbooks($mysqli,$limit=$perPage,$offset=$page,$search=$searchQuery,$groupId=$group);
-    $songbooksData = get_all_songbooks_alt($mysqli);
+    $songbooksData = get_all_songbooks($mysqli,$limit=$perPage,$offset=$page-1,$search=$searchQuery,$groupId=$group);
+    // $songbooksData = get_all_songbooks_alt($mysqli);
     $songbooks = $songbooksData['songbooks'];
     $totalPages = $songbooksData['totalPages'];
     $total = $songbooksData["total"];
 
-    print_r($songbooksData);
 
 echo <<<HTML
 <!-- Header Row -->
@@ -123,10 +121,6 @@ echo <<<HTML
             <span class="text-muted fw-bold">Songs</span>
         </div>
         
-        <!-- Level Column -->
-        <div class="col-md-2 text-start ps-3">
-            <span class="text-muted fw-bold">Level</span>
-        </div>
         
         <!-- Group Column -->
         <div class="col-md-4 text-start ps-4">
@@ -143,7 +137,7 @@ if (!empty($songbooks)) {
         foreach ($songbooks as $songbook) {
 
         $id = (int)$songbook["id"];
-        $name = htmlspecialchars($songbook["id"]);
+        $name = htmlspecialchars($songbook["name"]);
         $owner = htmlspecialchars($songbook["owner"]);
         $description = htmlspecialchars($songbook["description"]);
         $groupName = htmlspecialchars($songbook['group_name'] ?? '');
@@ -153,7 +147,7 @@ if (!empty($songbooks)) {
         $groupHtml = $groupName !== '' ? "<span class=\"org-badge\">$groupName</span>" : '';
 
         echo <<<HTML
-        <a href="songbook.php?id=$id" class="user-card $selectedClass text-decoration-none text-reset d-block">
+        <a href="songbook.php?id=$id" class="user-card text-decoration-none text-reset d-block">
         <div class="row align-items-center">
             <div class="col-md-4 mb-3 mb-md-0"> 
                 <div class="d-flex align-items-center">
@@ -166,7 +160,7 @@ if (!empty($songbooks)) {
             </div>
             <div class="col-md-2 mb-3 mb-md-0"> <!-- Reduced from 3 to 2 to compensate -->
                 <div>
-                    <div class="xp-value">$description</div>
+                    <div class="username">$description</div>
                 </div>
             </div>
 

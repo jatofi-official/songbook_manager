@@ -1679,6 +1679,60 @@ function get_all_songbooks_alt($mysqli) {
     ];
 }
 
+function get_songbook($mysqli, $id) {
+    $stmt = $mysqli->prepare("SELECT * FROM songbooks WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $songbook = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$songbook) {
+        return null;
+    }
+
+    // Parse admins as array
+    $songbook["admins"] = $songbook["admins"] ? explode(",", $songbook["admins"]) : [];
+
+    // Parse categories into id-name pairs
+    $categories_raw = $songbook["categories"] ? explode(",", $songbook["categories"]) : [];
+    $categories = [];
+    foreach ($categories_raw as $cat) {
+        [$catId, $catName] = explode("-", $cat, 2);
+        $categories[$catId] = $catName;
+    }
+
+    // Parse songs and group by category ID
+    $songs_raw = $songbook["songs"] ? explode(",", $songbook["songs"]) : [];
+    $songs_by_category = [];
+
+    foreach ($songs_raw as $pair) {
+        [$catId, $songId] = explode("-", $pair, 2);
+        if (!isset($songs_by_category[$catId])) {
+            $songs_by_category[$catId] = [];
+        }
+        $songs_by_category[$catId][] = $songId;
+    }
+
+    // Build structured categories with songs
+    $songs_categories = [];
+    foreach ($categories as $catId => $catName) {
+        $songs_categories[] = [
+            "id" => (int)$catId,
+            "name" => $catName,
+            "songs" => isset($songs_by_category[$catId]) ? $songs_by_category[$catId] : []
+        ];
+    }
+
+    // Replace the raw fields with structured ones
+    $songbook["songs_categories"] = $songs_categories;
+    unset($songbook["songs"]);
+    unset($songbook["categories"]);
+
+    return $songbook;
+}
+
+
 
 
 
