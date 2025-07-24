@@ -9,12 +9,11 @@ include('php/functions.php');
 $website = "songs";
 
 $allTags = get_all_tags($mysqli);
-$categories = $categories ?? [];
-
+$categories = get_all_categories($mysqli);
 ?>
 <?php include("php/header.php"); ?>
-<?php include('php/navigation.php'); ?>
-<?php include("php/categories.php"); ?>
+<?php include('php/navigation.php');?>
+<?php include("php/categories.php");?>
 
 <script src="js/song-render.js"></script>
 
@@ -70,11 +69,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     <select name="category" class="form-select form-select-sm">
                         <option value="">All Categories</option>
                         <?php 
-                            $index = 1;
-                            foreach($categories as $category){
+                            foreach($categories as $index=>$category){
                                 $selected = (isset($_GET['category']) && $_GET['category'] == $index) ? 'selected' : '';
                                 echo "<option value='$index' $selected>$category</option>";
-                                $index++;
+
                             }
                         ?>
                     </select>
