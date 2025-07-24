@@ -91,6 +91,55 @@ function splitSongIfNeeded(song) {
   };
 }
 
+function measureHeight(text) {
+  // This should use your existing hidden container 'measurer' element
+  measurer.textContent = text;
+  return measurer.getBoundingClientRect().height;
+}
+
+
+function splitPageIfNeeded(song, container, maxHeight) {
+  if (song.right_content) return [song];
+
+  const lines = (song.left_content || song.content || '').split('\n').map(line => line.replace(/\s+$/, ''));
+
+  if (lines.length === 0) return [song];
+
+  const fullHeight = measureHeight(lines.join('\n'), container);
+  if (fullHeight <= maxHeight) {
+    return [song];
+  }
+
+  let splitIndex = lines.length;
+  for (let i = Math.floor(lines.length / 2); i < lines.length; i++) {
+    const leftLines = lines.slice(0, i);
+    const leftHeight = measureHeight(leftLines.join('\n'), container);
+    if (leftHeight > maxHeight) {
+      splitIndex = i - 1;
+      break;
+    }
+  }
+
+  if (splitIndex <= 0) splitIndex = 1;
+
+  let rightLines = lines.slice(splitIndex);
+  while (rightLines.length && rightLines[0].trim() === '') {
+    rightLines.shift();
+  }
+
+  return [
+    {
+      ...song,
+      left_content: lines.slice(0, splitIndex).join('\n'),
+      right_content: null,
+    },
+    {
+      ...song,
+      left_content: rightLines.join('\n'),
+      right_content: null,
+    },
+  ];
+}
 
 
 
