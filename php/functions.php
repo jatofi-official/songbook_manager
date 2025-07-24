@@ -1506,6 +1506,42 @@ function display_tag_selector($mysqli, $selectedTags = '', $allow_new = True) {
     <?php
 }
 
+function get_song_title($mysqli, $id) {
+    $stmt = $mysqli->prepare("
+        SELECT title, artist, capo, capo_alt, owner
+        FROM songs
+        WHERE id = ?
+    ");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->bind_result($title, $artist, $capo, $capo_alt, $owner);
+    $stmt->fetch();
+    $stmt->close();
+
+    return [
+        "title" => $title ?? "Untitled",
+        "artist" => $artist ?? "",
+        "capo" => $capo,
+        "capo_alt" => $capo_alt,
+        "owner" => $owner
+    ];
+}
+
+function get_user_by_username($mysqli, $username) {
+    $stmt = $mysqli->prepare("SELECT id, name FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+    
+    return $user;
+}
+
+
+
+
+
 
 
 // SONGBOOK FUNCTIONS
@@ -1724,10 +1760,9 @@ function get_songbook($mysqli, $id) {
         ];
     }
 
-    // Replace the raw fields with structured ones
+    // Include both raw parsed categories and grouped songs
+    $songbook["categories"] = $categories; // flat array: [id => name]
     $songbook["songs_categories"] = $songs_categories;
-    unset($songbook["songs"]);
-    unset($songbook["categories"]);
 
     return $songbook;
 }
