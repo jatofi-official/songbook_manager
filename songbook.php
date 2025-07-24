@@ -579,12 +579,12 @@ async function handleGenerateForCategory(category) {
   const ids = category.songs.map(s => s.id);
   const songs = await fetchSongsByIds(ids);
 
-  const orderedSongs = optimizeSongOrder(songs, 800); // 800px ≈ A4 half-page width
+//   const orderedSongs = optimizeSongOrder(songs, 800); // 800px ≈ A4 half-page width
 
-  console.log(orderedSongs);
+  console.log(songs);
   // Next: render or save the new order
 
-  renderA4Preview(orderedSongs);
+  renderA4Preview(songs,ids);
 
 }
 

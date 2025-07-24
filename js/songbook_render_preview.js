@@ -1,6 +1,12 @@
-function renderA4Preview(orderedSongs) {
+function renderA4Preview(songs, orderedIds) {
   const container = document.getElementById('a4-preview-container');
   container.innerHTML = '';
+
+  // Preprocess songs: add left_content and right_content
+  const processedSongs = songs.map(song => splitSongIfNeeded(song));
+
+  // Then your existing rendering logic, but iterate over orderedIds
+  // to keep print order consistent
 
   // Create hidden temp container for measuring
   const tempContainer = document.createElement('div');
@@ -14,17 +20,19 @@ function renderA4Preview(orderedSongs) {
   tempContainer.style.padding = '32px';
   document.body.appendChild(tempContainer);
 
-  const maxHeight = 1000;
+  const maxHeight = 1100;
   let currentPage = createPage();
   container.appendChild(currentPage);
   let currentHeight = 0;
   let totalPages = 1;
 
-  orderedSongs.forEach((song, index) => {
-    if (song.right_content && song.part === 'right') return;
+  for (const id of orderedIds) {
+    const song = processedSongs.find(s => s.id === id);
+    if (!song) continue;
+
+    if (song.right_content && song.part === 'right') continue; // skip right half standalone
 
     let songDiv;
-
     if (song.right_content) {
       // Two-column layout
       songDiv = document.createElement('div');
@@ -71,15 +79,35 @@ function renderA4Preview(orderedSongs) {
       songDiv.appendChild(pre);
     }
 
-    // Measure height
     tempContainer.appendChild(songDiv);
+
+    // Find the widest line width inside the `<pre>` elements:
+    let maxLineWidth = 0;
+    const preElements = songDiv.querySelectorAll('pre');
+    preElements.forEach(pre => {
+      const lines = pre.textContent.split('\n');
+      lines.forEach(line => {
+        const trimmedLine = line.replace(/\s+$/, '');
+        // Use a temporary span for measuring text width
+        const measurer = document.createElement('span');
+        measurer.style.visibility = 'hidden';
+        measurer.style.position = 'absolute';
+        measurer.style.whiteSpace = 'pre';
+        measurer.style.fontFamily = 'Fira Mono, monospace';
+        measurer.style.fontSize = '14px';
+        measurer.textContent = trimmedLine;
+        tempContainer.appendChild(measurer);
+        const lineWidth = measurer.getBoundingClientRect().width;
+        tempContainer.removeChild(measurer);
+
+        if (lineWidth > maxLineWidth) maxLineWidth = lineWidth;
+      });
+    });
+
     const blockHeight = songDiv.getBoundingClientRect().height;
     tempContainer.removeChild(songDiv);
 
-    console.log(`Song ${index}: "${song.title}" height = ${blockHeight}px (used so far = ${currentHeight}px)`);
-
     if (currentHeight + blockHeight > maxHeight) {
-      console.log(`---- New Page ----`);
       currentPage = createPage();
       container.appendChild(currentPage);
       currentHeight = 0;
@@ -89,10 +117,11 @@ function renderA4Preview(orderedSongs) {
     // Add debug label to side
     const debugLabel = document.createElement('div');
     debugLabel.style.position = 'absolute';
-    debugLabel.style.right = '-80px';
+    debugLabel.style.right = '-200px';
+    debugLabel.style.bottom = '50px';
     debugLabel.style.fontSize = '12px';
     debugLabel.style.color = '#007bff';
-    debugLabel.textContent = `${blockHeight.toFixed(0)}px`;
+        debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
 
     const wrapper = document.createElement('div');
     wrapper.style.position = 'relative';
@@ -101,21 +130,83 @@ function renderA4Preview(orderedSongs) {
 
     currentPage.appendChild(wrapper);
     currentHeight += blockHeight;
-  });
+
+
+  }
 
   document.body.removeChild(tempContainer);
-
   console.log(`✅ Total pages used: ${totalPages}`);
 }
 
 
 
-// Helper: create A4 page div
+
+function renderSingleColumnSong(song, content) {
+  const songDiv = document.createElement('div');
+  songDiv.className = 'song-block mb-4';
+  songDiv.style.border = '1px dashed red';
+  songDiv.style.backgroundColor = '#fdfdfd';
+
+  const header = document.createElement('div');
+  header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
+  header.style.marginBottom = '10px';
+
+  const pre = document.createElement('pre');
+  pre.textContent = content;
+  pre.style.margin = 0;
+
+  songDiv.appendChild(header);
+  songDiv.appendChild(pre);
+  return songDiv;
+}
+
+function renderTwoColumnHalf(song, content, isLeft) {
+  const colDiv = document.createElement('div');
+  colDiv.className = 'song-block mb-4';
+  colDiv.style.border = '1px dashed red';
+  colDiv.style.backgroundColor = '#fdfdfd';
+
+  if (isLeft) {
+    const header = document.createElement('div');
+    header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
+    header.style.marginBottom = '10px';
+    colDiv.appendChild(header);
+  }
+
+  const pre = document.createElement('pre');
+  pre.textContent = content;
+  pre.style.margin = 0;
+  colDiv.appendChild(pre);
+
+  return colDiv;
+}
+function measureBlockHeight(block, tempContainer) {
+  tempContainer.appendChild(block);
+  const height = block.getBoundingClientRect().height;
+  tempContainer.removeChild(block);
+  return height;
+}
+
+function wrapWithDebug(div, height) {
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'relative';
+
+  const label = document.createElement('div');
+  label.style.position = 'absolute';
+  label.style.right = '-80px';
+  label.style.fontSize = '12px';
+  label.style.color = '#007bff';
+  label.textContent = `${height.toFixed(0)}px`;
+
+  wrapper.appendChild(div);
+  wrapper.appendChild(label);
+  return wrapper;
+}
 function createPage() {
   const page = document.createElement('div');
-  page.className = 'a4-page p-4';  // padding inside the page
-  page.style.minHeight = '1123px'; // A4 height in pixels at 96dpi approx
-  page.style.maxWidth = '794px'; // A4 width in pixels approx
+  page.className = 'a4-page p-4';
+  page.style.minHeight = '1123px';
+  page.style.maxWidth = '794px';
   page.style.border = '1px solid #aaa';
   page.style.margin = '16px auto';
   page.style.backgroundColor = 'white';

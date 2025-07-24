@@ -31,33 +31,34 @@ function groupSongsByArtist(songs) {
 }
 
 function splitSongIfNeeded(song) {
-  const lines = song.content?.split('\n') || [];
+  // Split into lines and trim trailing spaces on each line
+  const lines = (song.content?.split('\n') || []).map(line => line.replace(/\s+$/, ''));
 
   if (lines.length <= 8) {
     return {
       ...song,
-      left_content: song.content,
+      left_content: lines.join('\n'),
       right_content: null,
     };
   }
 
-  const maxLinePixelWidth = 450;
+  const maxLinePixelWidth = 400;
   const anyTooLong = lines.some(line => measureTextWidth(line) > maxLinePixelWidth);
   if (anyTooLong) {
+    console.log(song.title);
     return {
       ...song,
-      left_content: song.content,
+      left_content: lines.join('\n'),
       right_content: null,
     };
   }
 
   const totalLines = lines.length;
-  const mid = Math.floor(totalLines / 2);
   let splitIndex = -1;
 
-  // Look for empty line between 40% and 65% of the way through the song
-  const minSplit = Math.floor(totalLines * 0.4);
-  const maxSplit = Math.floor(totalLines * 0.55);
+  // Look for empty line between 30% and 60% of the way through the song
+  const minSplit = Math.floor(totalLines * 0.3);
+  const maxSplit = Math.floor(totalLines * 0.6);
 
   for (let i = maxSplit; i >= minSplit; i--) {
     if (lines[i]?.trim() === '') {
@@ -70,17 +71,27 @@ function splitSongIfNeeded(song) {
   if (splitIndex === -1) {
     return {
       ...song,
-      left_content: song.content,
+      left_content: lines.join('\n'),
       right_content: null,
     };
+  }
+
+  // Slice right side lines
+  let rightLines = lines.slice(splitIndex);
+
+  // Remove leading empty lines from rightLines
+  while (rightLines.length && rightLines[0].trim() === '') {
+    rightLines.shift();
   }
 
   return {
     ...song,
     left_content: lines.slice(0, splitIndex).join('\n'),
-    right_content: lines.slice(splitIndex).join('\n'),
+    right_content: rightLines.join('\n'),
   };
 }
+
+
 
 
 
