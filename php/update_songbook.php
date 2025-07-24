@@ -1,9 +1,9 @@
 <?php
 session_start();
 require_once 'db.php';
+require_once "functions.php";
 
 header('Content-Type: application/json');
-error_log("Raw JSON input: " . file_get_contents('php://input'));
 
 if (!isset($_SESSION['id'])) {
     http_response_code(401);
@@ -68,41 +68,15 @@ $songsStr = implode(',', $songsStrParts);
 
 $groupIdVal = ($group_id === '' || $group_id === null) ? 'NULL' : intval($group_id);
 
-$sql = "UPDATE songbooks SET
-    name = ?,
-    description = ?,
-    admins = ?,
-    categories = ?,
-    songs = ?,
-    group_id = $groupIdVal,
-    is_public = ?,
-    modified_date = NOW()
-WHERE id = ?";
 
-$stmt = $mysqli->prepare($sql);
-if (!$stmt) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Prepare failed: ' . $mysqli->error]);
-    exit;
-}
+$result = update_songbook($mysqli,$id,$name,$description,$adminsStr,$categoriesStr,$songsStr,$groupIdVal,$is_public);
 
-$stmt->bind_param(
-    "ssssiii",
-    $name,
-    $description,
-    $adminsStr,
-    $categoriesStr,
-    $songsStr,
-    $is_public,
-    $id
-);
 
-if ($stmt->execute()) {
+
+if ($result) {
     echo json_encode(['success' => true]);
 } else {
     http_response_code(500);
     echo json_encode(['error' => 'Execute failed: ' . $stmt->error]);
 }
 
-$stmt->close();
-$mysqli->close();

@@ -1508,13 +1508,13 @@ function display_tag_selector($mysqli, $selectedTags = '', $allow_new = True) {
 
 function get_song_title($mysqli, $id) {
     $stmt = $mysqli->prepare("
-        SELECT title, artist, capo, capo_alt, owner
+        SELECT id, title, artist, capo, capo_alt, owner
         FROM songs
         WHERE id = ?
     ");
     $stmt->bind_param("i", $id);
     $stmt->execute();
-    $stmt->bind_result($title, $artist, $capo, $capo_alt, $owner);
+    $stmt->bind_result($id, $title, $artist, $capo, $capo_alt, $owner);
     $stmt->fetch();
     $stmt->close();
 
@@ -1527,6 +1527,7 @@ function get_song_title($mysqli, $id) {
         "owner" => $owner
     ];
 }
+
 
 function get_user_by_username($mysqli, $username) {
     $stmt = $mysqli->prepare("SELECT id, name FROM users WHERE username = ?");
@@ -1566,7 +1567,10 @@ function update_songbook($mysqli, $id, $name, $description, $admins, $categories
     $groupId = $groupId ?? 0;
     $isPublic = $isPublic ? 1 : 0;
 
-    // Add modified_date to be set to NOW()
+    // Debug dump
+    error_log("Songs string: " . $songs);
+    error_log("Updating songbook with SQL values: name=$name, description=$description, admins=$admins, categories=$categories, songs=$songs, groupId=$groupId, isPublic=$isPublic, id=$id");
+
     $sql = "UPDATE songbooks SET 
         name = ?, 
         description = ?, 
@@ -1583,7 +1587,7 @@ function update_songbook($mysqli, $id, $name, $description, $admins, $categories
         throw new Exception("Prepare failed: " . $mysqli->error);
     }
 
-    $stmt->bind_param("sssssiiii", $name, $description, $admins, $categories, $songs, $groupId, $isPublic, $id);
+    $stmt->bind_param("sssssiii", $name, $description, $admins, $categories, $songs, $groupId, $isPublic, $id);
     $stmt->execute();
 
     if ($stmt->error) {
@@ -1592,6 +1596,7 @@ function update_songbook($mysqli, $id, $name, $description, $admins, $categories
 
     return $stmt->affected_rows > 0;
 }
+
 
 
 

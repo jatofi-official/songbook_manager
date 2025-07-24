@@ -413,6 +413,7 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
 
 document.getElementById('saveSongbookBtn').addEventListener('click', () => {
   // Prepare categories array for payload
+  console.log("Save button clicked");
   const categories = songbook.songs_categories.map(cat => ({
     id: cat.id,
     name: cat.name
@@ -433,7 +434,7 @@ document.getElementById('saveSongbookBtn').addEventListener('click', () => {
     id: songbook.id,
     name: songbook.name,
     description: songbook.description || '',
-    admins: songbook.admins.split(',').map(s => s.trim()), // Convert string to array of admins
+    admins: songbook.admins, // ✅ Already an array
     group_id: songbook.group_id || null,
     is_public: songbook.is_public ? 1 : 0,
     categories: categories,
