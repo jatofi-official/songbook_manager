@@ -169,15 +169,24 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             "id" => $song["id"],
             "title" => $song["title"],
             "artist" => $song["artist"],
-            "owner" => $song["owner"],
-            "owner_name" => $user ? $user["name"] : $song["owner"]
+            "owner" => [
+              "id" => $user ? $user["id"] : null,
+              "username" => $song["owner"],
+              "name" => $user ? $user["name"] : $song["owner"]
+            ]
           ];
         }, $cat["songs"])
       ];
     }, $songbook["songs_categories"])) ?>,
-    categories: <?= json_encode($songbook["categories"]) ?>
+    id: <?= (int)$songbook["id"] ?>,
+    name: <?= json_encode($songbook["name"]) ?>,
+    description: <?= json_encode($songbook["description"]) ?>,
+    admins: <?= json_encode($songbook["admins"]) ?>,
+    group_id: <?= $songbook["group_id"] ? (int)$songbook["group_id"] : 'null' ?>,
+    is_public: <?= $songbook["is_public"] ? 'true' : 'false' ?>
   };
 </script>
+
 
 
 <script>
@@ -393,6 +402,56 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
       console.error('Failed to fetch song data:', err);
       alert('Error adding song.');
     });
+});
+
+document.getElementById('saveSongbookBtn').addEventListener('click', () => {
+  // Prepare categories array for payload
+  const categories = songbook.songs_categories.map(cat => ({
+    id: cat.id,
+    name: cat.name
+  }));
+
+  // Prepare songs array for payload (flatten songs with their category ids)
+  const songs = [];
+  songbook.songs_categories.forEach(cat => {
+    cat.songs.forEach(song => {
+      songs.push({
+        category_id: cat.id,
+        song_id: song.id
+      });
+    });
+  });
+
+  const payload = {
+    id: songbook.id,
+    name: songbook.name,
+    description: songbook.description || '',
+    admins: songbook.admins.split(',').map(s => s.trim()), // Convert string to array of admins
+    group_id: songbook.group_id || null,
+    is_public: songbook.is_public ? 1 : 0,
+    categories: categories,
+    songs: songs
+  };
+
+  fetch('php/update_songbook.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(response => {
+    if (response.success) {
+      alert('✅ Songbook saved successfully!');
+    } else {
+      alert('❌ Failed to save songbook: ' + (response.error || response.message));
+    }
+  })
+  .catch(err => {
+    console.error('Save error:', err);
+    alert('❌ Error saving songbook.');
+  });
 });
 
 

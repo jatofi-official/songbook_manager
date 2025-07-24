@@ -1562,30 +1562,37 @@ function create_songbook($mysqli, $name, $description, $owner, $admins, $categor
 
 
 function update_songbook($mysqli, $id, $name, $description, $admins, $categories, $songs, $groupId = null, $isPublic = false) {
-    $userId = $_SESSION["id"];
+    $groupId = $groupId ?? 0;
+    $isPublic = $isPublic ? 1 : 0;
 
-    $stmt = $mysqli->prepare("SELECT admins FROM songbooks WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $stmt->bind_result($adminStr);
-    $stmt->fetch();
-    $stmt->close();
+    // Add modified_date to be set to NOW()
+    $sql = "UPDATE songbooks SET 
+        name = ?, 
+        description = ?, 
+        admins = ?, 
+        categories = ?, 
+        songs = ?, 
+        group_id = ?, 
+        is_public = ?,
+        modified_date = NOW()
+        WHERE id = ?";
 
-    $adminIds = array_map('trim', explode(",", $adminStr));
-    if (!in_array($userId, $adminIds)) {
-        return false; // Not authorized
+    $stmt = $mysqli->prepare($sql);
+    if (!$stmt) {
+        throw new Exception("Prepare failed: " . $mysqli->error);
     }
 
-    $numberOfSongs = empty(trim($songs)) ? 0 : count(explode(",", $songs));
+    $stmt->bind_param("sssssiiii", $name, $description, $admins, $categories, $songs, $groupId, $isPublic, $id);
+    $stmt->execute();
 
-    $stmt = $mysqli->prepare("UPDATE songbooks SET name = ?, description = ?, admins = ?, categories = ?, songs = ?, number_of_songs = ?, group_id = ?, is_public = ?, modified_date = NOW() WHERE id = ?");
-    $stmt->bind_param("sssssiiii", $name, $description, $admins, $categories, $songs, $numberOfSongs, $groupId, $isPublic, $id);
+    if ($stmt->error) {
+        throw new Exception("Execute failed: " . $stmt->error);
+    }
 
-    $result = $stmt->execute();
-    $stmt->close();
-
-    return $result;
+    return $stmt->affected_rows > 0;
 }
+
+
 
 
 
