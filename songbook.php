@@ -284,13 +284,32 @@ function renderCategories() {
         const headerDiv = document.createElement('div');
         headerDiv.className = 'mb-2 d-flex justify-content-between align-items-center';
 
+        // Toggle button (arrow) for collapsing - collapsed by default
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'btn btn-sm btn-link p-0 me-2';
+        toggleBtn.style.userSelect = 'none';
+        toggleBtn.textContent = '▶'; // right arrow for collapsed initially
+        toggleBtn.setAttribute('aria-expanded', 'false');
+
+        // Category title container
         const h5 = document.createElement('h5');
-        h5.className = 'mb-0';
-        h5.textContent = category.name;
+        h5.className = 'mb-0 d-flex align-items-center';
+
+        // Song count span, shown only when collapsed
+        const songCountSpan = document.createElement('span');
+        songCountSpan.className = 'text-muted ms-2';
+        songCountSpan.textContent = `(${category.songs.length} songs)`;
+        songCountSpan.style.fontSize = '0.75em';
+        songCountSpan.style.color = '#666';
+
+
+        h5.appendChild(toggleBtn);
+        h5.appendChild(document.createTextNode(category.name));
+        h5.appendChild(songCountSpan);
 
         headerDiv.appendChild(h5);
 
-        // ➕ ADD generate button here if admin
+        // Admin generate button
         if (isCurrentUserAdmin()) {
             const generateBtn = document.createElement('button');
             generateBtn.className = 'btn btn-sm btn-outline-success';
@@ -313,36 +332,57 @@ function renderCategories() {
             ul.appendChild(li);
         });
 
+        // Hide songs list by default (collapsed)
+        ul.style.display = 'none';
+
         catDiv.appendChild(ul);
         container.appendChild(catDiv);
+
+        // Collapse/expand logic
+        toggleBtn.addEventListener('click', () => {
+            const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+            if (isExpanded) {
+                // Collapse
+                ul.style.display = 'none';
+                toggleBtn.textContent = '▶'; // right arrow
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                songCountSpan.style.display = 'inline'; // show count when collapsed
+            } else {
+                // Expand
+                ul.style.display = 'block';
+                toggleBtn.textContent = '▼'; // down arrow
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                songCountSpan.style.display = 'none'; // hide count when expanded
+            }
+        });
+
+        // Initially show song count (since collapsed)
+        songCountSpan.style.display = 'inline';
     });
 
- 
     // Add the buttons after categories — only for admins
     if (isCurrentUserAdmin()) {
-    const buttonsDiv = document.createElement('div');
-    buttonsDiv.className = 'text-end';
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.className = 'text-end';
 
-    const addSongBtn = document.createElement('button');
-    addSongBtn.className = 'btn btn-outline-secondary me-2';
-    addSongBtn.setAttribute('data-bs-toggle', 'modal');
-    addSongBtn.setAttribute('data-bs-target', '#addSongModal');
-    addSongBtn.textContent = '➕ Add Song';
+        const addSongBtn = document.createElement('button');
+        addSongBtn.className = 'btn btn-outline-secondary me-2';
+        addSongBtn.setAttribute('data-bs-toggle', 'modal');
+        addSongBtn.setAttribute('data-bs-target', '#addSongModal');
+        addSongBtn.textContent = '➕ Add Song';
 
-    const addCategoryBtn = document.createElement('button');
-    addCategoryBtn.id = 'add-category-btn';
-    addCategoryBtn.className = 'btn btn-outline-primary';
-    addCategoryBtn.textContent = '➕ Add Category';
+        const addCategoryBtn = document.createElement('button');
+        addCategoryBtn.id = 'add-category-btn';
+        addCategoryBtn.className = 'btn btn-outline-primary';
+        addCategoryBtn.textContent = '➕ Add Category';
 
-    buttonsDiv.appendChild(addSongBtn);
-    buttonsDiv.appendChild(addCategoryBtn);
+        buttonsDiv.appendChild(addSongBtn);
+        buttonsDiv.appendChild(addCategoryBtn);
 
-    container.appendChild(buttonsDiv);
-
-    
+        container.appendChild(buttonsDiv);
     }
-
 }
+
 
 function populateCategorySelect() {
     const select = document.getElementById('categorySelect');
