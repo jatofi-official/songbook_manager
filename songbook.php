@@ -28,6 +28,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         $stmt->close();
     }
 
+    print_r($songbook);
+
     $groupHtml = $groupName !== '' ? "<span class=\"org-badge\">$groupName</span>" : '';
 } else {
     exit("Missing or invalid songbook ID.");
@@ -135,18 +137,16 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           <div class="col-md-7">
             <input type="text" id="song-search-input" class="form-control" placeholder="Search songs by title or artist">
           </div>
-          <div class="col-md-3">
-            <select id="category-select" class="form-select">
-              <option value="" disabled selected>Select category to add to</option>
-              <?php
-              $categories = explode(',', $songbook['categories']);
-              foreach ($categories as $cat) {
-                list($catId, $catName) = explode('-', $cat, 2);
-                echo '<option value="' . (int)$catId . '">' . htmlspecialchars($catName) . '</option>';
-              }
-              ?>
+          <div class="mb-3">
+            <label for="categorySelect" class="form-label">Select Category</label>
+            <select id="categorySelect" class="form-select" required>
+                <option value="">Select Category</option>
+                <?php foreach ($songbook['categories'] as $catId => $catName): ?>
+                <option value="<?= (int)$catId ?>"><?= htmlspecialchars($catName) ?></option>
+                <?php endforeach; ?>
             </select>
-          </div>
+            </div>
+
           <div class="col-md-2">
             <button id="search-button" class="btn btn-primary w-100">Search</button>
           </div>
