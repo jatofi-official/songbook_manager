@@ -204,35 +204,19 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 const categorySelectOptions = <?php echo json_encode($jsCategorySelect, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
 
-
 function createSongListItem(song, categoryId) {
   const li = document.createElement('li');
   li.className = 'list-group-item d-flex justify-content-between align-items-center';
 
-  // ❌ Remove button
-  const removeBtn = document.createElement('button');
-  removeBtn.className = 'btn btn-sm btn-outline-danger me-2';
-  removeBtn.textContent = '❌';
-  removeBtn.title = 'Remove this song';
-  removeBtn.onclick = () => {
-    // Find the category
-    const category = songbook.songs_categories.find(c => c.id === categoryId);
-    if (!category) return;
+  // Left: Title + artist
+  const leftDiv = document.createElement('div');
+  leftDiv.textContent = song.title + (song.artist ? " – " + song.artist : "");
+  li.appendChild(leftDiv);
 
-    // Remove the song from the category
-    category.songs = category.songs.filter(s => s.id !== song.id);
-
-    // Re-render
-    renderCategories();
-  };
-
-  // Title + artist
-  const middleDiv = document.createElement('div');
-  middleDiv.textContent = song.title + (song.artist ? " – " + song.artist : "");
-  middleDiv.className = 'flex-grow-1';
-
-  // Owner badge
+  // Right: Owner badge and optional remove button
   const rightDiv = document.createElement('div');
+  rightDiv.className = 'd-flex align-items-center gap-2';
+
   if (song.owner && song.owner.id && song.owner.name) {
     const a = document.createElement('a');
     a.href = `user.php?id=${song.owner.id}`;
@@ -246,12 +230,26 @@ function createSongListItem(song, categoryId) {
     rightDiv.appendChild(span);
   }
 
-  li.appendChild(removeBtn);
-  li.appendChild(middleDiv);
-  li.appendChild(rightDiv);
+  // Only show ❌ if user is admin
+if (songbook.admins.includes(String(currentUserId))) {
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'btn btn-sm btn-outline-danger';
+    removeBtn.textContent = '❌';
+    removeBtn.title = 'Remove this song';
+    removeBtn.onclick = () => {
+      const category = songbook.songs_categories.find(c => c.id === categoryId);
+      if (!category) return;
 
+      category.songs = category.songs.filter(s => s.id !== song.id);
+      renderCategories();
+    };
+    rightDiv.appendChild(removeBtn);
+  }
+
+  li.appendChild(rightDiv);
   return li;
 }
+
 
 
 function renderCategories() {
