@@ -12,7 +12,14 @@ $song = get_song_title($mysqli, $songId);
 
 if ($song) {
     $user = get_user_by_username($mysqli, $song['owner']);
-    $song['owner_name'] = $user ? $user['name'] : $song['owner'];
+
+    // Replace 'owner' with a structured object
+    $song['owner'] = [
+        'id' => $user ? $user['id'] : null,
+        'username' => $song['owner'],
+        'name' => $user ? $user['name'] : $song['owner']
+    ];
+
     echo json_encode($song);
 } else {
     echo json_encode([]);

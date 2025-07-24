@@ -3,6 +3,7 @@ session_start();
 require_once 'db.php';
 
 header('Content-Type: application/json');
+error_log("Raw JSON input: " . file_get_contents('php://input'));
 
 if (!isset($_SESSION['id'])) {
     http_response_code(401);
