@@ -12,9 +12,6 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 
-if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] !== true) {
-    exit;
-}
 
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
@@ -192,7 +189,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     is_public: <?= $songbook["is_public"] ? 'true' : 'false' ?>
   };
 
-  const currentUserId = <?= (int)$_SESSION["id"] ?>;
+  const currentUserId = <?= isset($_SESSION["id"]) ? json_encode((string)$_SESSION["id"]) : 'null' ?>;
+  const isAdminView = <?= isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true ? 'true' : 'false' ?>;
+
+  function isCurrentUserAdmin() {
+  return isAdminView || (currentUserId && songbook.admins.includes(currentUserId));
+}
+
 
 
 </script>
@@ -231,7 +234,7 @@ function createSongListItem(song, categoryId) {
   }
 
   // Only show ❌ if user is admin
-if (songbook.admins.includes(String(currentUserId))) {
+    if (isCurrentUserAdmin()) {
     const removeBtn = document.createElement('button');
     removeBtn.className = 'btn btn-sm btn-outline-danger';
     removeBtn.textContent = '❌';
@@ -281,8 +284,9 @@ function renderCategories() {
         catDiv.appendChild(ul);
         container.appendChild(catDiv);
     });
-
-    // Add the buttons after categories
+ 
+    // Add the buttons after categories — only for admins
+    if (isCurrentUserAdmin()) {
     const buttonsDiv = document.createElement('div');
     buttonsDiv.className = 'text-end';
 
@@ -301,6 +305,8 @@ function renderCategories() {
     buttonsDiv.appendChild(addCategoryBtn);
 
     container.appendChild(buttonsDiv);
+    }
+
 }
 
 function populateCategorySelect() {
