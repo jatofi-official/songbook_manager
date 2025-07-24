@@ -33,7 +33,6 @@ function groupSongsByArtist(songs) {
 function splitSongIfNeeded(song) {
   const lines = song.content?.split('\n') || [];
 
-  // Condition 1: Only split if more than 8 lines
   if (lines.length <= 8) {
     return {
       ...song,
@@ -42,19 +41,9 @@ function splitSongIfNeeded(song) {
     };
   }
 
-  // Condition 2: Longest line must fit in half-page column (by pixel width)
-  const maxLinePixelWidth = 360; // Approximate half of usable A4 width (adjust as needed)
-  let longestLineWidth = 0;
-
-  for (const line of lines) {
-    const trimmed = line.replace(/\s+$/, '');
-    const lineWidth = measureTextWidth(trimmed);
-    if (lineWidth > longestLineWidth) {
-      longestLineWidth = lineWidth;
-    }
-  }
-
-  if (longestLineWidth > maxLinePixelWidth) {
+  const maxLinePixelWidth = 450;
+  const anyTooLong = lines.some(line => measureTextWidth(line) > maxLinePixelWidth);
+  if (anyTooLong) {
     return {
       ...song,
       left_content: song.content,
@@ -62,20 +51,22 @@ function splitSongIfNeeded(song) {
     };
   }
 
-  // Condition 3: Find a good empty line near the middle
-  const mid = Math.floor(lines.length / 2);
+  const totalLines = lines.length;
+  const mid = Math.floor(totalLines / 2);
   let splitIndex = -1;
-  for (let offset = 0; offset <= mid; offset++) {
-    if (lines[mid - offset]?.trim() === '') {
-      splitIndex = mid - offset;
-      break;
-    }
-    if (lines[mid + offset]?.trim() === '') {
-      splitIndex = mid + offset;
+
+  // Look for empty line between 40% and 65% of the way through the song
+  const minSplit = Math.floor(totalLines * 0.4);
+  const maxSplit = Math.floor(totalLines * 0.55);
+
+  for (let i = maxSplit; i >= minSplit; i--) {
+    if (lines[i]?.trim() === '') {
+      splitIndex = i;
       break;
     }
   }
 
+  // If no good split point found, don't split
   if (splitIndex === -1) {
     return {
       ...song,
@@ -84,7 +75,6 @@ function splitSongIfNeeded(song) {
     };
   }
 
-  // Return with left/right content
   return {
     ...song,
     left_content: lines.slice(0, splitIndex).join('\n'),
@@ -95,17 +85,88 @@ function splitSongIfNeeded(song) {
 
 
 
-// Main function to order songs
-function optimizeSongOrder(songs) {
-    const grouped = groupSongsByArtist(songs);
-    const ordered = [];
 
-    grouped.forEach(group => {
-        group.forEach(song => {
-            const splitSong = splitSongIfNeeded(song);
-            ordered.push(splitSong);
-        });
-    });
+const LINES_PER_PAGE = 45; // Adjust as needed
 
-    return ordered;
+function estimateSongLines(song) {
+  const leftLines = song.left_content?.split('\n').length || 0;
+  const rightLines = song.right_content?.split('\n').length || 0;
+  return {
+    leftLines,
+    rightLines,
+    totalLines: leftLines + rightLines
+  };
 }
+
+function groupSongsByPages(songs) {
+  const pages = [];
+  let currentPage = [];
+  let currentLines = 0;
+
+  for (const song of songs) {
+    const { leftLines, rightLines } = estimateSongLines(song);
+
+    // Try to fit left part
+    if (currentLines + leftLines > LINES_PER_PAGE) {
+      if (currentPage.length) pages.push(currentPage);
+      currentPage = [];
+      currentLines = 0;
+    }
+    currentPage.push({ ...song, part: "left" });
+    currentLines += leftLines;
+
+    // Try to fit right part (if it exists)
+    if (song.right_content) {
+      if (currentLines + rightLines > LINES_PER_PAGE) {
+        if (currentPage.length) pages.push(currentPage);
+        currentPage = [];
+        currentLines = 0;
+      }
+      currentPage.push({ ...song, part: "right" });
+      currentLines += rightLines;
+    }
+  }
+
+  if (currentPage.length) pages.push(currentPage);
+  return pages.flat(); // Flatten pages back into a list
+}
+
+function optimizeSongOrder(songs) {
+  const grouped = groupSongsByArtist(songs);
+
+  const authorBlocks = grouped.map(group => {
+    const splitSongs = group.map(song => splitSongIfNeeded(song));
+    const filledPages = groupSongsByPages(splitSongs);
+
+    return {
+      songs: filledPages,
+      slack: filledPages.reduce((sum, song) => {
+        const lines = estimateSongLines(song);
+        return sum + lines.totalLines;
+      }, 0) % LINES_PER_PAGE
+    };
+  });
+
+  // Sort author blocks: tight fills in middle, slacky fills on edges
+  authorBlocks.sort((a, b) => a.slack - b.slack);
+
+  // Place most efficient (low-slack) authors in the middle
+  const centerOutOrder = [];
+  let left = 0;
+  let right = authorBlocks.length - 1;
+  let toggle = true;
+  while (left <= right) {
+    if (toggle) {
+      centerOutOrder.push(authorBlocks[left++]);
+    } else {
+      centerOutOrder.unshift(authorBlocks[right--]);
+    }
+    toggle = !toggle;
+  }
+
+  // Flatten ordered song blocks
+  const ordered = centerOutOrder.flatMap(block => block.songs);
+
+  return ordered;
+}
+
