@@ -9,40 +9,60 @@ function measureTextWidth(line) {
   return measurer.getBoundingClientRect().width;
 }
 
-// Split songs only if lines aren’t too long for half the page
-function splitSongIfNeeded(song, pageWidthPx = 800) {
-  const lines = song.content?.split('\n') || [];
-  const maxLinesPerColumn = 25;
-  const halfPagePx = pageWidthPx / 2;
+// Estimate line height in Fira Mono (must match your CSS)
+const lineHeightPx = 22; // Adjust this as needed to match visual spacing
 
-  // Find longest line width
-  let longestPx = 0;
-  for (const line of lines) {
-    const w = measureTextWidth(line);
-    if (w > longestPx) longestPx = w;
-  }
+// Split song if it has more than 8 lines and an empty line after that
+function splitSongIfNeeded(song) {
+    const lines = song.content?.split('\n') || [];
+    if (lines.length <= 8) return [song];  // Only split if more than 8 lines
 
-  if (lines.length <= maxLinesPerColumn || longestPx > halfPagePx) {
-    return [song];
-  }
+    const mid = Math.floor(lines.length / 2);
 
-  // Find safe split point
-  for (let i = maxLinesPerColumn; i < lines.length; i++) {
-    if (lines[i].trim() === '') {
-      const part1 = { ...song,
-        content: lines.slice(0, i).join('\n'),
-        isSplit: true, part: 1
-      };
-      const part2 = { ...song,
-        content: lines.slice(i).join('\n'),
-        isSplit: true, part: 2
-      };
-      return [part1, part2];
+    // Find closest empty line to middle, searching both directions
+    let splitIndex = -1;
+    for (let offset = 0; offset <= mid; offset++) {
+        if (lines[mid - offset]?.trim() === '') {
+            splitIndex = mid - offset;
+            break;
+        }
+        if (lines[mid + offset]?.trim() === '') {
+            splitIndex = mid + offset;
+            break;
+        }
     }
-  }
 
-  return [song];
+    if (splitIndex === -1) {
+        // No empty line near middle, fallback to original method: first empty line after 8 lines
+        for (let i = 8; i < lines.length; i++) {
+            if (lines[i].trim() === '') {
+                splitIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (splitIndex === -1) {
+        // No empty line at all, do not split
+        return [song];
+    }
+
+    const part1 = {
+        ...song,
+        content: lines.slice(0, splitIndex).join('\n'),
+        isSplit: true,
+        part: 1
+    };
+    const part2 = {
+        ...song,
+        content: lines.slice(splitIndex).join('\n'),
+        isSplit: true,
+        part: 2
+    };
+    return [part1, part2];
 }
+
+
 
 
 // Group songs by artist
@@ -111,17 +131,18 @@ function splitSongIfNeeded(song) {
 
 
 // Main function to order songs
-function optimizeSongOrder(songs, pageWidthPx = 800) {
+function optimizeSongOrder(songs) {
   const grouped = groupSongsByArtist(songs);
   const ordered = [];
 
   grouped.forEach(group => {
     group.forEach(song => {
-      const blocks = splitSongIfNeeded(song, pageWidthPx);
+      const blocks = splitSongIfNeeded(song);
       blocks.forEach(block => ordered.push(block));
     });
   });
 
   return ordered;
 }
+
 
