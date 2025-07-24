@@ -28,9 +28,38 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         $stmt->close();
     }
 
-    print_r($songbook);
+    $groupHtml = $groupName !== '' ? "<span class=\"org-badge\">".htmlspecialchars($groupName)."</span>" : '';
 
-    $groupHtml = $groupName !== '' ? "<span class=\"org-badge\">$groupName</span>" : '';
+    // Prepare songbook data to pass to JS
+    // We'll include categories and songs info, but need to fetch song details as well for JS
+    $jsCategories = [];
+    foreach ($songbook["songs_categories"] as $category) {
+        $cat = [
+            "id" => $category["id"] ?? null,
+            "name" => $category["name"],
+            "songs" => []
+        ];
+        foreach ($category["songs"] as $songId) {
+            $song = get_song_title($mysqli, $songId);
+            // fetch user for owner display
+            $user = get_user_by_username($mysqli, $song['owner']);
+            $cat["songs"][] = [
+                "id" => $song["id"],
+                "title" => $song["title"],
+                "artist" => $song["artist"],
+                "owner" => [
+                    "id" => $user ? (int)$user["id"] : null,
+                    "name" => $user ? $user["name"] : null,
+                    "username" => $song['owner']
+                ]
+            ];
+        }
+        $jsCategories[] = $cat;
+    }
+
+    // Categories for select (id => name) from $songbook['categories']
+    $jsCategorySelect = $songbook['categories'];
+
 } else {
     exit("Missing or invalid songbook ID.");
 }
@@ -69,39 +98,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             🗂️ Categories & Songs
           </div>
           <div class="card-body" id="category-container">
-            <?php foreach ($songbook["songs_categories"] as $category): ?>
-            <div class="mb-5 category-block">
-                <div class="mb-2 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><?= htmlspecialchars($category["name"]) ?></h5>
-                </div>
-                <ul class="list-group">
-                <?php foreach ($category["songs"] as $songId):
-                    $song = get_song_title($mysqli, $songId);
-                    $user = get_user_by_username($mysqli, $song['owner']); ?>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <?= htmlspecialchars($song["title"]) ?>
-                        <?php if (!empty($song["artist"])): ?>
-                        – <?= htmlspecialchars($song["artist"]) ?>
-                        <?php endif; ?>
-                    </div>
-                    <div>
-                        <?php if ($user): ?>
-                        <a href="user.php?id=<?= (int)$user['id'] ?>" class="badge bg-primary text-decoration-none"><?= htmlspecialchars($user['name']) ?></a>
-                        <?php else: ?>
-                        <span class="badge bg-secondary"><?= htmlspecialchars($song['owner']) ?></span>
-                        <?php endif; ?>
-                    </div>
-                    </li>
-                <?php endforeach; ?>
-                </ul>
-            </div>
-            <?php endforeach; ?>
-
-            <div class="text-end">
-              <button class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#addSongModal">➕ Add Song</button>
-              <button id="add-category-btn" class="btn btn-outline-primary">➕ Add Category</button>
-            </div>
+            <!-- JS will render categories and songs here -->
           </div>
         </div>
       </div>
@@ -147,10 +144,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
       <div class="modal-footer d-flex justify-content-between align-items-center">
         <!-- Category select smaller width -->
         <select id="categorySelect" class="form-select w-auto me-2" style="min-width: 180px;" required>
-          <option value="">Select Category</option>
-          <?php foreach ($songbook['categories'] as $catId => $catName): ?>
-            <option value="<?= (int)$catId ?>"><?= htmlspecialchars($catName) ?></option>
-          <?php endforeach; ?>
+          <!-- JS will populate -->
         </select>
 
         <div class="ms-auto">
@@ -163,6 +157,104 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 </div>
 
 <script>
+// Inject PHP data safely
+const categoriesData = <?php echo json_encode($jsCategories, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+const categorySelectOptions = <?php echo json_encode($jsCategorySelect, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
+function createSongListItem(song) {
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+    const leftDiv = document.createElement('div');
+    leftDiv.textContent = song.title + (song.artist ? " – " + song.artist : "");
+    li.appendChild(leftDiv);
+
+    const rightDiv = document.createElement('div');
+    if (song.owner && song.owner.id && song.owner.name) {
+        const a = document.createElement('a');
+        a.href = `user.php?id=${song.owner.id}`;
+        a.className = 'badge bg-primary text-decoration-none';
+        a.textContent = song.owner.name;
+        rightDiv.appendChild(a);
+    } else if (song.owner && song.owner.username) {
+        const span = document.createElement('span');
+        span.className = 'badge bg-secondary';
+        span.textContent = song.owner.username;
+        rightDiv.appendChild(span);
+    }
+    li.appendChild(rightDiv);
+
+    return li;
+}
+
+function renderCategories() {
+    const container = document.getElementById('category-container');
+    container.innerHTML = '';
+
+    categoriesData.forEach(category => {
+        const catDiv = document.createElement('div');
+        catDiv.className = 'mb-5 category-block';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'mb-2 d-flex justify-content-between align-items-center';
+
+        const h5 = document.createElement('h5');
+        h5.className = 'mb-0';
+        h5.textContent = category.name;
+
+        headerDiv.appendChild(h5);
+        catDiv.appendChild(headerDiv);
+
+        const ul = document.createElement('ul');
+        ul.className = 'list-group';
+
+        category.songs.forEach(song => {
+            const li = createSongListItem(song);
+            ul.appendChild(li);
+        });
+
+        catDiv.appendChild(ul);
+        container.appendChild(catDiv);
+    });
+
+    // Add the buttons after categories
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.className = 'text-end';
+
+    const addSongBtn = document.createElement('button');
+    addSongBtn.className = 'btn btn-outline-secondary me-2';
+    addSongBtn.setAttribute('data-bs-toggle', 'modal');
+    addSongBtn.setAttribute('data-bs-target', '#addSongModal');
+    addSongBtn.textContent = '➕ Add Song';
+
+    const addCategoryBtn = document.createElement('button');
+    addCategoryBtn.id = 'add-category-btn';
+    addCategoryBtn.className = 'btn btn-outline-primary';
+    addCategoryBtn.textContent = '➕ Add Category';
+
+    buttonsDiv.appendChild(addSongBtn);
+    buttonsDiv.appendChild(addCategoryBtn);
+
+    container.appendChild(buttonsDiv);
+}
+
+function populateCategorySelect() {
+    const select = document.getElementById('categorySelect');
+    select.innerHTML = '<option value="">Select Category</option>';
+    for (const [id, name] of Object.entries(categorySelectOptions)) {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = name;
+        select.appendChild(option);
+    }
+}
+
+// Initial render calls
+renderCategories();
+populateCategorySelect();
+
+// Your existing event listeners for search and add song:
+
 document.getElementById('searchBtn').addEventListener('click', () => {
   const query = document.getElementById('searchInput').value.trim();
   if (!query) return alert('Please enter a search term');
@@ -247,9 +339,7 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
   // Optionally, close modal or reset selections
   // bootstrap.Modal.getInstance(document.getElementById('addSongModal')).hide();
 });
-
 </script>
-
 
 <?php 
 include("php/footer.php");
