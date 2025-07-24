@@ -1519,6 +1519,7 @@ function get_song_title($mysqli, $id) {
     $stmt->close();
 
     return [
+        "id" => $id,
         "title" => $title ?? "Untitled",
         "artist" => $artist ?? "",
         "capo" => $capo,

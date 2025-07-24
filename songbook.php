@@ -7,6 +7,11 @@ include('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+
 if (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] !== true) {
     exit;
 }
@@ -56,6 +61,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         }
         $jsCategories[] = $cat;
     }
+
 
     // Categories for select (id => name) from $songbook['categories']
     $jsCategorySelect = $songbook['categories'];
@@ -203,18 +209,19 @@ function createSongListItem(song) {
 
   const rightDiv = document.createElement('div');
 
-  if (song.owner && song.owner_name) {
-    const a = document.createElement('a');
-    a.href = `user.php?id=${song.owner}`;
-    a.className = 'badge bg-primary text-decoration-none';
-    a.textContent = song.owner_name;
-    rightDiv.appendChild(a);
-  } else if (song.owner) {
-    const span = document.createElement('span');
-    span.className = 'badge bg-secondary';
-    span.textContent = song.owner;
-    rightDiv.appendChild(span);
-  }
+if (song.owner && song.owner.id && song.owner.name) {
+  const a = document.createElement('a');
+  a.href = `user.php?id=${song.owner.id}`;
+  a.className = 'badge bg-primary text-decoration-none';
+  a.textContent = song.owner.name;
+  rightDiv.appendChild(a);
+} else if (song.owner && song.owner.name) {
+  const span = document.createElement('span');
+  span.className = 'badge bg-secondary';
+  span.textContent = song.owner.name;
+  rightDiv.appendChild(span);
+}
+
 
   li.appendChild(rightDiv);
 
