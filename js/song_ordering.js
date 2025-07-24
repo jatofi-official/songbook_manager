@@ -1,3 +1,50 @@
+// Create off-screen span for measuring text width
+const measurer = document.createElement('span');
+measurer.className = 'song-content';
+document.body.appendChild(measurer);
+
+// Returns pixel width of a line in Fira Mono
+function measureTextWidth(line) {
+  measurer.textContent = line.replace(/\s+$/, '');
+  return measurer.getBoundingClientRect().width;
+}
+
+// Split songs only if lines aren’t too long for half the page
+function splitSongIfNeeded(song, pageWidthPx = 800) {
+  const lines = song.content?.split('\n') || [];
+  const maxLinesPerColumn = 25;
+  const halfPagePx = pageWidthPx / 2;
+
+  // Find longest line width
+  let longestPx = 0;
+  for (const line of lines) {
+    const w = measureTextWidth(line);
+    if (w > longestPx) longestPx = w;
+  }
+
+  if (lines.length <= maxLinesPerColumn || longestPx > halfPagePx) {
+    return [song];
+  }
+
+  // Find safe split point
+  for (let i = maxLinesPerColumn; i < lines.length; i++) {
+    if (lines[i].trim() === '') {
+      const part1 = { ...song,
+        content: lines.slice(0, i).join('\n'),
+        isSplit: true, part: 1
+      };
+      const part2 = { ...song,
+        content: lines.slice(i).join('\n'),
+        isSplit: true, part: 2
+      };
+      return [part1, part2];
+    }
+  }
+
+  return [song];
+}
+
+
 // Group songs by artist
 function groupSongsByArtist(songs) {
     const map = new Map();
@@ -64,16 +111,17 @@ function splitSongIfNeeded(song) {
 
 
 // Main function to order songs
-function optimizeSongOrder(songs) {
-    const grouped = groupSongsByArtist(songs);
-    const ordered = [];
+function optimizeSongOrder(songs, pageWidthPx = 800) {
+  const grouped = groupSongsByArtist(songs);
+  const ordered = [];
 
-    grouped.forEach(group => {
-        group.forEach(song => {
-            const blocks = splitSongIfNeeded(song);
-            blocks.forEach(block => ordered.push(block));
-        });
+  grouped.forEach(group => {
+    group.forEach(song => {
+      const blocks = splitSongIfNeeded(song, pageWidthPx);
+      blocks.forEach(block => ordered.push(block));
     });
+  });
 
-    return ordered;
+  return ordered;
 }
+

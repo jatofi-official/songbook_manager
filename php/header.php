@@ -33,6 +33,10 @@
         echo '<link href="styles/songbooks_view.css" rel="stylesheet">	';
     }
     ?>
+
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet">
+
+
 </head>
 
 <body class="d-flex flex-column min-vh-100"> 

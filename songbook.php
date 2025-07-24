@@ -530,15 +530,15 @@ async function fetchSongsByIds(ids) {
 
 
 async function handleGenerateForCategory(category) {
-    const songIds = category.songs.map(song => song.id);
-    const songs = await fetchSongsByIds(songIds);
+  const ids = category.songs.map(s => s.id);
+  const songs = await fetchSongsByIds(ids);
 
-    // console.log("Loaded songs for category:", category.name, songs);
-    // Step 3: group and reorder
-    const orderedSongs = optimizeSongOrder(songs);
+  const orderedSongs = optimizeSongOrder(songs, 800); // 800px ≈ A4 half-page width
 
-    console.log(orderedSongs);
+  console.log(orderedSongs);
+  // Next: render or save the new order
 }
+
 
 
 
