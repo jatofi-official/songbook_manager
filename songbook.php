@@ -82,9 +82,15 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         <div class="col-md-4">
             <?php echo $groupHtml; ?>
         </div>
+        <?php if (
+            (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"])) ||
+            (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true)
+        ): ?>
         <div class="col-md-2 text-end mt-3 mt-md-0">
             <button id="saveSongbookBtn" class="btn btn-success">💾 Save</button>
         </div>
+        <?php endif; ?>
+
       </div>
       <div class="mt-3">
         <div class="d-flex align-items-center" id="description-wrapper">
@@ -106,6 +112,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         </div>
       </div>
 
+        <?php if (
+            (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"])) ||
+            (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true)
+        ): ?>
       <!-- Actions Sidebar -->
       <div class="col-lg-3 mt-4 mt-lg-0">
         <div class="card shadow-sm">
@@ -119,6 +129,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           </div>
         </div>
       </div>
+
+        <?php endif; ?>
     </div>
   </div>
 </div>
