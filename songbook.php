@@ -144,63 +144,6 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
 
 
-<script>
-function toggleEdit(idPrefix) {
-  const textEl = document.getElementById(idPrefix + '-text');
-  const inputEl = document.getElementById(idPrefix + '-input');
-
-  if (textEl.classList.contains('d-none')) {
-    textEl.classList.remove('d-none');
-    inputEl.classList.add('d-none');
-  } else {
-    textEl.classList.add('d-none');
-    inputEl.classList.remove('d-none');
-    inputEl.focus();
-  }
-}
-
-function toggleCategoryEdit(index) {
-  const textEl = document.getElementById(`category-name-${index}-text`);
-  const inputEl = document.getElementById(`category-name-${index}-input`);
-
-  if (textEl.classList.contains('d-none')) {
-    textEl.classList.remove('d-none');
-    inputEl.classList.add('d-none');
-  } else {
-    textEl.classList.add('d-none');
-    inputEl.classList.remove('d-none');
-    inputEl.focus();
-  }
-}
-
-let categoryCounter = 2; // Adjust this if you have more preloaded categories
-
-document.getElementById("add-category-btn").addEventListener("click", function () {
-  categoryCounter++;
-  const container = document.getElementById("category-container");
-
-  const categoryHTML = `
-    <div class="mb-5 category-block">
-      <div class="mb-2 d-flex align-items-center justify-content-between">
-        <div>
-          <h5 class="mb-0 d-none" id="category-name-${categoryCounter}-text">New Category</h5>
-          <input type="text" class="form-control mt-2" id="category-name-${categoryCounter}-input" placeholder="New Category">
-        </div>
-        <button class="btn btn-sm btn-outline-secondary" onclick="toggleCategoryEdit(${categoryCounter})">✏️</button>
-      </div>
-      <ul class="list-group">
-        <li class="list-group-item d-flex align-items-center">
-          <input class="form-check-input me-2" type="checkbox">
-          <input type="text" class="form-control" placeholder="New Song">
-        </li>
-      </ul>
-    </div>
-  `;
-
-  container.insertAdjacentHTML("beforeend", categoryHTML);
-});
-</script>
-
 <?php 
 
 include("php/footer.php");
