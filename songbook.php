@@ -191,6 +191,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     group_id: <?= $songbook["group_id"] ? (int)$songbook["group_id"] : 'null' ?>,
     is_public: <?= $songbook["is_public"] ? 'true' : 'false' ?>
   };
+
+  const currentUserId = <?= (int)$_SESSION["id"] ?>;
+
+
 </script>
 
 
@@ -199,30 +203,51 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 // Inject PHP data safely
 const categorySelectOptions = <?php echo json_encode($jsCategorySelect, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
-function createSongListItem(song) {
+
+
+function createSongListItem(song, categoryId) {
   const li = document.createElement('li');
   li.className = 'list-group-item d-flex justify-content-between align-items-center';
 
-  const leftDiv = document.createElement('div');
-  leftDiv.textContent = song.title + (song.artist ? " – " + song.artist : "");
-  li.appendChild(leftDiv);
+  // ❌ Remove button
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'btn btn-sm btn-outline-danger me-2';
+  removeBtn.textContent = '❌';
+  removeBtn.title = 'Remove this song';
+  removeBtn.onclick = () => {
+    // Find the category
+    const category = songbook.songs_categories.find(c => c.id === categoryId);
+    if (!category) return;
 
+    // Remove the song from the category
+    category.songs = category.songs.filter(s => s.id !== song.id);
+
+    // Re-render
+    renderCategories();
+  };
+
+  // Title + artist
+  const middleDiv = document.createElement('div');
+  middleDiv.textContent = song.title + (song.artist ? " – " + song.artist : "");
+  middleDiv.className = 'flex-grow-1';
+
+  // Owner badge
   const rightDiv = document.createElement('div');
+  if (song.owner && song.owner.id && song.owner.name) {
+    const a = document.createElement('a');
+    a.href = `user.php?id=${song.owner.id}`;
+    a.className = 'badge bg-primary text-decoration-none';
+    a.textContent = song.owner.name;
+    rightDiv.appendChild(a);
+  } else if (song.owner && song.owner.name) {
+    const span = document.createElement('span');
+    span.className = 'badge bg-secondary';
+    span.textContent = song.owner.name;
+    rightDiv.appendChild(span);
+  }
 
-if (song.owner && song.owner.id && song.owner.name) {
-  const a = document.createElement('a');
-  a.href = `user.php?id=${song.owner.id}`;
-  a.className = 'badge bg-primary text-decoration-none';
-  a.textContent = song.owner.name;
-  rightDiv.appendChild(a);
-} else if (song.owner && song.owner.name) {
-  const span = document.createElement('span');
-  span.className = 'badge bg-secondary';
-  span.textContent = song.owner.name;
-  rightDiv.appendChild(span);
-}
-
-
+  li.appendChild(removeBtn);
+  li.appendChild(middleDiv);
   li.appendChild(rightDiv);
 
   return li;
@@ -251,7 +276,7 @@ function renderCategories() {
         ul.className = 'list-group';
 
         category.songs.forEach(song => {
-            const li = createSongListItem(song);
+            const li = createSongListItem(song, category.id);
             ul.appendChild(li);
         });
 
