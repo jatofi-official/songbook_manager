@@ -547,26 +547,41 @@ async function handleGenerateForCategory(category) {
 <script src="js/song_ordering.js"></script>
 <script src="js/songbook_render_preview.js"></script>
 
-<style>#a4-preview-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
+<style>
 
 .a4-page {
-  width: 794px; /* A4 width at 96dpi */
-  height: 1123px; /* A4 height at 96dpi */
-  padding: 40px;
-  margin: 0 auto;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
-  background: white;
-  overflow: hidden;
   font-family: 'Fira Mono', monospace;
   font-size: 14px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  position: relative;
+  line-height: 1.5;
+  color: #111;
+  background: white;
+  page-break-after: always;
 }
+
+.song-block {
+  /* margin-bottom handled by JS */
+}
+
+.split-song {
+  display: flex;
+  justify-content: space-between;
+}
+
+.left-column, .right-column {
+  width: 48%; /* just under half to fit nicely */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+pre {
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+
+
 </style>
 <div id="a4-preview-container" class="d-print-none mt-5"></div>
 

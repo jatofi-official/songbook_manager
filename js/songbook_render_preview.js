@@ -1,113 +1,89 @@
 function renderA4Preview(orderedSongs) {
-    const container = document.getElementById('a4-preview-container');
-    container.innerHTML = '';
+  const container = document.getElementById('a4-preview-container');
+  container.innerHTML = '';
 
-    let currentPage = createPage();
-    let currentHeight = 0;
-    const maxHeight = 1000; // Slightly less than full page to allow buffer
+  let currentPage = createPage();
+  container.appendChild(currentPage);
 
-    for (let i = 0; i < orderedSongs.length; i++) {
-        const song = orderedSongs[i];
+  let currentHeight = 0;
+  const maxHeight = 1000; // max height per page (adjust as needed)
 
-        if (song.isSplit && song.part === 1) {
-            // Find matching part 2
-            const nextSong = orderedSongs[i + 1];
-            if (nextSong && nextSong.isSplit && nextSong.part === 2 && nextSong.id === song.id) {
-                // Create two-column container for split song
-                const twoColDiv = document.createElement('div');
-                twoColDiv.className = 'song-block mb-4';
-                twoColDiv.style.display = 'flex';
-                twoColDiv.style.justifyContent = 'space-between';
+  orderedSongs.forEach(song => {
+    let songDiv;
 
-                // Left column
-                const leftCol = document.createElement('div');
-                leftCol.style.flex = '1';
-                leftCol.style.marginRight = '1em';
+    if (song.right_content) {
+      // Split song: two columns side-by-side
+      
+      songDiv = document.createElement('div');
+      songDiv.className = 'song-block split-song d-flex mb-4'; 
+      // 'd-flex' for horizontal flexbox; 'mb-4' for margin bottom
+      
+      // Left column with title, artist, and left_content
+      const leftCol = document.createElement('div');
+      leftCol.className = 'left-column flex-grow-1 pe-3'; // padding end for spacing
+      const header = document.createElement('div');
+      header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
+      header.style.marginBottom = '10px';
+      const leftPre = document.createElement('pre');
+      leftPre.textContent = song.left_content;
+      leftPre.style.margin = 0;
 
-                const leftHeader = document.createElement('div');
-                leftHeader.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
-                leftHeader.style.marginBottom = '10px';
-                leftCol.appendChild(leftHeader);
+      leftCol.appendChild(header);
+      leftCol.appendChild(leftPre);
 
-                const leftContent = document.createElement('pre');
-                leftContent.textContent = song.content;
-                leftContent.style.margin = 0;
-                leftContent.style.whiteSpace = 'pre-wrap';
-                leftContent.style.fontFamily = "'Fira Mono', monospace";
-                leftCol.appendChild(leftContent);
+      // Right column with right_content only (no title/artist)
+      const rightCol = document.createElement('div');
+      rightCol.className = 'right-column flex-grow-1 ps-3'; // padding start for spacing
+      const rightPre = document.createElement('pre');
+      rightPre.textContent = song.right_content;
+      rightPre.style.margin = 0;
 
-                // Right column — no title or artist
-                const rightCol = document.createElement('div');
-                rightCol.style.flex = '1';
+      rightCol.appendChild(rightPre);
 
-                const rightContent = document.createElement('pre');
-                rightContent.textContent = nextSong.content;
-                rightContent.style.margin = 0;
-                rightContent.style.whiteSpace = 'pre-wrap';
-                rightContent.style.fontFamily = "'Fira Mono', monospace";
-                rightCol.appendChild(rightContent);
+      songDiv.appendChild(leftCol);
+      songDiv.appendChild(rightCol);
 
-                twoColDiv.appendChild(leftCol);
-                twoColDiv.appendChild(rightCol);
+    } else {
+      // Single column song
+      songDiv = document.createElement('div');
+      songDiv.className = 'song-block mb-4';
 
+      const header = document.createElement('div');
+      header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
+      header.style.marginBottom = '10px';
 
-                currentPage.appendChild(twoColDiv);
-                container.appendChild(currentPage);
+      const content = document.createElement('pre');
+      content.textContent = song.left_content;
+      content.style.margin = 0;
 
-                // Check height and paginate if needed
-                if (currentPage.scrollHeight > maxHeight) {
-                    currentPage.removeChild(twoColDiv);
-                    currentPage = createPage();
-                    container.appendChild(currentPage);
-                    currentPage.appendChild(twoColDiv);
-                }
-
-                // Skip next song (part 2)
-                i++;
-                continue;
-            }
-        }
-
-        // Normal single song rendering
-        const songDiv = document.createElement('div');
-        songDiv.className = 'song-block mb-4';
-
-        const header = document.createElement('div');
-        header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
-        header.style.marginBottom = '10px';
-
-        const content = document.createElement('pre');
-        content.textContent = song.content;
-        content.style.margin = 0;
-        content.style.whiteSpace = 'pre-wrap';
-        content.style.fontFamily = "'Fira Mono', monospace";
-
-        songDiv.appendChild(header);
-        songDiv.appendChild(content);
-
-        currentPage.appendChild(songDiv);
-        container.appendChild(currentPage);
-
-        // Check height and paginate if needed
-        if (currentPage.scrollHeight > maxHeight) {
-            currentPage.removeChild(songDiv);
-            currentPage = createPage();
-            container.appendChild(currentPage);
-            currentPage.appendChild(songDiv);
-        }
+      songDiv.appendChild(header);
+      songDiv.appendChild(content);
     }
+
+    currentPage.appendChild(songDiv);
+
+    // Check if current page height exceeded maxHeight
+    if (currentPage.scrollHeight > maxHeight) {
+      // Remove last songDiv from current page
+      currentPage.removeChild(songDiv);
+
+      // Create new page and add songDiv there
+      currentPage = createPage();
+      container.appendChild(currentPage);
+      currentPage.appendChild(songDiv);
+    }
+  });
 }
 
+// Helper: create A4 page div
 function createPage() {
-    const page = document.createElement('div');
-    page.className = 'a4-page';
-    // Optional: add style to simulate A4 page size (e.g., width, height, border)
-    page.style.width = '794px'; // A4 width at 96dpi approx.
-    page.style.minHeight = '1123px'; // A4 height at 96dpi approx.
-    page.style.margin = '1em auto';
-    page.style.padding = '1em';
-    page.style.boxSizing = 'border-box';
-    page.style.border = '1px solid #ccc';
-    page.style.background = 'white';
-    return page;
+  const page = document.createElement('div');
+  page.className = 'a4-page p-4';  // padding inside the page
+  page.style.minHeight = '1123px'; // A4 height in pixels at 96dpi approx
+  page.style.maxWidth = '794px'; // A4 width in pixels approx
+  page.style.border = '1px solid #aaa';
+  page.style.margin = '16px auto';
+  page.style.backgroundColor = 'white';
+  page.style.boxSizing = 'border-box';
+  return page;
 }
