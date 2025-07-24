@@ -80,7 +80,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             <?php echo $groupHtml; ?>
         </div>
         <div class="col-md-2 text-end mt-3 mt-md-0">
-          <button class="btn btn-success w-100">💾 Save</button>
+            <button id="saveSongbookBtn" class="btn btn-success">💾 Save</button>
         </div>
       </div>
       <div class="mt-3">
@@ -182,7 +182,6 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
 <script>
 // Inject PHP data safely
-const categoriesData = <?php echo json_encode($jsCategories, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 const categorySelectOptions = <?php echo json_encode($jsCategorySelect, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
 function createSongListItem(song) {
