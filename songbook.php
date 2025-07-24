@@ -171,6 +171,12 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
   </div>
 </div>
 
+<!-- Adding scripts -->
+
+<script src="js/song_ordering.js"></script>
+<script src="js/songbook_render_preview.js"></script>
+
+
 <script>
   const songbook = {
     songs_categories: <?= json_encode(array_map(function($cat) use ($mysqli) {
@@ -544,8 +550,6 @@ async function handleGenerateForCategory(category) {
 
 </script>
 
-<script src="js/song_ordering.js"></script>
-<script src="js/songbook_render_preview.js"></script>
 
 <style>
 
