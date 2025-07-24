@@ -124,152 +124,119 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 </div>
 
 <!-- Add Song Modal -->
+<!-- Modal -->
 <div class="modal fade" id="addSongModal" tabindex="-1" aria-labelledby="addSongModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="addSongModalLabel">Add Song to Songbook Category</h5>
+        <h5 class="modal-title" id="addSongModalLabel">Add Song to Songbook</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <!-- Search Controls -->
-        <div class="row g-2 mb-3">
-          <div class="col-md-7">
-            <input type="text" id="song-search-input" class="form-control" placeholder="Search songs by title or artist">
-          </div>
-          <div class="mb-3">
-            <label for="categorySelect" class="form-label">Select Category</label>
-            <select id="categorySelect" class="form-select" required>
-                <option value="">Select Category</option>
-                <?php foreach ($songbook['categories'] as $catId => $catName): ?>
-                <option value="<?= (int)$catId ?>"><?= htmlspecialchars($catName) ?></option>
-                <?php endforeach; ?>
-            </select>
-            </div>
 
-          <div class="col-md-2">
-            <button id="search-button" class="btn btn-primary w-100">Search</button>
-          </div>
+        <!-- Search row: input + search button side by side -->
+        <div class="mb-3 d-flex">
+          <input type="text" id="searchInput" class="form-control me-2" placeholder="Search songs...">
+          <button id="searchBtn" class="btn btn-primary">Search</button>
         </div>
 
-        <!-- Search Results -->
-        <div id="search-results" style="max-height: 350px; overflow-y: auto;">
-          <!-- Results appear here -->
-        </div>
+        <!-- Results container -->
+        <div id="searchResults" style="max-height: 300px; overflow-y: auto;"></div>
+
       </div>
+      <div class="modal-footer d-flex justify-content-between align-items-center">
+        <!-- Category select smaller width -->
+        <select id="categorySelect" class="form-select w-auto me-2" style="min-width: 180px;" required>
+          <option value="">Select Category</option>
+          <?php foreach ($songbook['categories'] as $catId => $catName): ?>
+            <option value="<?= (int)$catId ?>"><?= htmlspecialchars($catName) ?></option>
+          <?php endforeach; ?>
+        </select>
 
-      <div class="modal-footer">
-        <button id="add-to-category-btn" class="btn btn-success" disabled>Add to Category</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="ms-auto">
+          <button id="addSongToCategoryBtn" class="btn btn-success me-2" disabled>Add to Category</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-(() => {
-  const searchInput = document.getElementById('song-search-input');
-  const categorySelect = document.getElementById('category-select');
-  const searchButton = document.getElementById('search-button');
-  const resultsDiv = document.getElementById('search-results');
-  const addBtn = document.getElementById('add-to-category-btn');
+document.getElementById('searchBtn').addEventListener('click', () => {
+  const query = document.getElementById('searchInput').value.trim();
+  if (!query) return alert('Please enter a search term');
 
-  let selectedSong = null;
+  fetch(`php/search_songs.php?search=${encodeURIComponent(query)}`)
+    .then(res => res.json())
+    .then(songs => {
+      const container = document.getElementById('searchResults');
+      container.innerHTML = '';
 
-  // Clear results and selection
-  function clearResults() {
-    resultsDiv.innerHTML = '';
-    selectedSong = null;
-    addBtn.disabled = true;
-  }
+      if (songs.length === 0) {
+        container.innerHTML = '<p>No songs found.</p>';
+        return;
+      }
 
-  // Render search results with radio buttons for selection
-  function renderResults(songs) {
-    clearResults();
-    if (songs.length === 0) {
-      resultsDiv.innerHTML = '<p>No songs found.</p>';
-      return;
-    }
-    const list = document.createElement('ul');
-    list.className = 'list-group';
+      // Create a list of results with radio buttons for selection
+      const ul = document.createElement('ul');
+      ul.classList.add('list-group');
 
-    songs.forEach(song => {
-      const li = document.createElement('li');
-      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+      songs.forEach(song => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex align-items-center';
 
-      // Unique ID for radio input
-      const radioId = 'song-radio-' + song.id;
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'selectedSong';
+        radio.value = song.id;
+        radio.classList.add('me-2');
 
-      li.innerHTML = `
-        <div>
-          <input type="radio" name="selectedSong" id="${radioId}" value="${song.id}" style="margin-right: 10px;">
-          <label for="${radioId}">
-            <strong>${song.title}</strong> – <em>${song.artist || ''}</em>
-          </label>
-        </div>
-      `;
+        li.appendChild(radio);
 
-      list.appendChild(li);
-    });
+        const text = document.createElement('span');
+        text.textContent = `${song.title} ${song.artist ? '– ' + song.artist : ''}`;
+        li.appendChild(text);
 
-    resultsDiv.appendChild(list);
-
-    // Listen for radio selection
-    list.querySelectorAll('input[name="selectedSong"]').forEach(radio => {
-      radio.addEventListener('change', e => {
-        const songId = e.target.value;
-        selectedSong = songs.find(s => s.id == songId) || null;
-        addBtn.disabled = !selectedSong || !categorySelect.value;
+        ul.appendChild(li);
       });
-    });
-  }
 
-  // Handle Search button click
-  searchButton.addEventListener('click', () => {
-    const query = searchInput.value.trim();
-    if (!query) {
-      alert('Please enter a search term.');
-      return;
-    }
-    fetch(`search_songs.php?searchQuery=${encodeURIComponent(query)}&category=all`)
-      .then(res => res.json())
-      .then(songs => renderResults(songs))
-      .catch(err => {
-        console.error(err);
-        alert('Failed to fetch songs.');
+      container.appendChild(ul);
+
+      // Enable Add to Category only when a song is selected
+      const addBtn = document.getElementById('addSongToCategoryBtn');
+      addBtn.disabled = true;
+
+      ul.querySelectorAll('input[name="selectedSong"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          addBtn.disabled = false;
+        });
       });
-  });
+    })
+    .catch(err => {
+      console.error('Search error:', err);
+      alert('Error while searching songs.');
+    });
+});
 
-  // Enable/disable Add button based on selection and category
-  categorySelect.addEventListener('change', () => {
-    addBtn.disabled = !selectedSong || !categorySelect.value;
-  });
+document.getElementById('addSongToCategoryBtn').addEventListener('click', () => {
+  const selectedSongRadio = document.querySelector('input[name="selectedSong"]:checked');
+  if (!selectedSongRadio) return alert('Please select a song.');
 
-  // Add to Category button logs selected song & category
-  addBtn.addEventListener('click', () => {
-    if (!selectedSong) {
-      alert('Select a song first.');
-      return;
-    }
-    if (!categorySelect.value) {
-      alert('Select a category first.');
-      return;
-    }
-    console.log('Adding song:', selectedSong);
-    console.log('To category ID:', categorySelect.value);
-    // You can later send this data to your backend to update the songbook.
-  });
+  const songId = selectedSongRadio.value;
+  const category = document.getElementById('categorySelect').value;
 
-  // Clear modal when hidden
-  const addSongModal = document.getElementById('addSongModal');
-  addSongModal.addEventListener('hidden.bs.modal', () => {
-    searchInput.value = '';
-    categorySelect.selectedIndex = 0;
-    clearResults();
-  });
-})();
+  if (!category) return alert('Please select a category.');
+
+  console.log('Selected Song ID:', songId, 'Category ID:', category);
+
+  // TODO: Replace console.log with AJAX to add song to songbook category in future
+
+  // Optionally, close modal or reset selections
+  // bootstrap.Modal.getInstance(document.getElementById('addSongModal')).hide();
+});
+
 </script>
-
 
 
 <?php 

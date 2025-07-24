@@ -1,17 +1,15 @@
 <?php
 session_start();
-include('php/db.php');
-include('php/functions.php');
+include('../php/db.php');
+include('../php/functions.php');
 
-$searchQuery = $_GET['searchQuery'] ?? '';
-$category = $_GET['category'] ?? 'all';
+$search = $_GET['search'] ?? '';
+$category = $_GET['category'] ?? 'all'; // optional, not needed here but you can extend
 
-// Pagination params (optional, you can customize)
-$perPage = 20;
 $page = 1;
+$perPage = 20;
 
-$result = get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, [], [], null);
+$result = get_all_songs($mysqli, $perPage, $page, $search, $category, [], [], null);
 
 header('Content-Type: application/json');
 echo json_encode($result['songs']);
-exit;
