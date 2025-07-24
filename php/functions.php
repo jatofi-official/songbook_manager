@@ -1567,10 +1567,6 @@ function update_songbook($mysqli, $id, $name, $description, $admins, $categories
     $groupId = $groupId ?? 0;
     $isPublic = $isPublic ? 1 : 0;
 
-    // Debug dump
-    error_log("Songs string: " . $songs);
-    error_log("Updating songbook with SQL values: name=$name, description=$description, admins=$admins, categories=$categories, songs=$songs, groupId=$groupId, isPublic=$isPublic, id=$id");
-
     $sql = "UPDATE songbooks SET 
         name = ?, 
         description = ?, 

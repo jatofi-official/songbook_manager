@@ -413,7 +413,6 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
 
 document.getElementById('saveSongbookBtn').addEventListener('click', () => {
   // Prepare categories array for payload
-  console.log("Save button clicked");
   const categories = songbook.songs_categories.map(cat => ({
     id: cat.id,
     name: cat.name
