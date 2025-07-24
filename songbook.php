@@ -283,6 +283,20 @@ function renderCategories() {
         h5.textContent = category.name;
 
         headerDiv.appendChild(h5);
+
+        // ➕ ADD generate button here if admin
+        if (isCurrentUserAdmin()) {
+            const generateBtn = document.createElement('button');
+            generateBtn.className = 'btn btn-sm btn-outline-success';
+            generateBtn.textContent = '⚙️ Generate Order';
+
+            generateBtn.addEventListener('click', () => {
+                handleGenerateForCategory(category);
+            });
+
+            headerDiv.appendChild(generateBtn);
+        }
+
         catDiv.appendChild(headerDiv);
 
         const ul = document.createElement('ul');
@@ -296,6 +310,7 @@ function renderCategories() {
         catDiv.appendChild(ul);
         container.appendChild(catDiv);
     });
+
  
     // Add the buttons after categories — only for admins
     if (isCurrentUserAdmin()) {
@@ -317,6 +332,8 @@ function renderCategories() {
     buttonsDiv.appendChild(addCategoryBtn);
 
     container.appendChild(buttonsDiv);
+
+    
     }
 
 }
@@ -502,10 +519,37 @@ document.getElementById('saveSongbookBtn').addEventListener('click', () => {
   });
 });
 
+async function fetchSongsByIds(ids) {
+    const res = await fetch('php/get_songs_by_ids_extended.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+    });
+    return res.json();
+}
+
+
+async function handleGenerateForCategory(category) {
+    const songIds = category.songs.map(song => song.id);
+    const songs = await fetchSongsByIds(songIds);
+
+    // console.log("Loaded songs for category:", category.name, songs);
+    // Step 3: group and reorder
+    const orderedSongs = optimizeSongOrder(songs);
+
+    console.log(orderedSongs);
+}
+
+
 
 
 
 </script>
+
+
+<script src="js/song_ordering.js"></script>
+
+
 
 <?php 
 include("php/footer.php");
