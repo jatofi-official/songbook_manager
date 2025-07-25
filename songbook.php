@@ -118,7 +118,9 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         ): ?>
       <!-- Actions Sidebar -->
       <div class="col-lg-3 mt-4 mt-lg-0">
-        <div class="card shadow-sm">
+        
+        <!-- Actions Sidebar -->
+        <div class="card shadow-sm mb-4">
           <div class="card-header bg-light">
             ⚙️ Actions
           </div>
@@ -128,8 +130,25 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             <button class="btn btn-secondary w-100" disabled>📁 Move Selected</button>
           </div>
         </div>
-      </div>
 
+        <!-- Dev Tools Sidebar -->
+        <div class="card shadow-sm">
+          <div class="card-header bg-light">
+            🧰 Dev Tools
+          </div>
+          <div class="card-body">
+            <p class="text-muted small">Tools for development and layout debugging.</p>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="" id="render-debug-checkbox">
+              <label class="form-check-label" for="render-debug-checkbox">
+                🛠️ Render Debug
+              </label>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
         <?php endif; ?>
     </div>
   </div>
@@ -587,7 +606,8 @@ async function handleGenerateForCategory(category) {
 //   console.log(ordered);
 
     const orderedIds = getOrderedIds(ordered);
-    renderA4Preview(songs, orderedIds,true);
+    const debugMode = document.getElementById('render-debug-checkbox').checked;
+    renderA4Preview(songs, orderedIds, { debug: debugMode });
 
 }
 

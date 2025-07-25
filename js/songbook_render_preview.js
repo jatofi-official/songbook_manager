@@ -1,4 +1,6 @@
-function renderA4Preview(songs, orderedIds, debug = false) {
+function renderA4Preview(songs, orderedIds, options = {}) {
+  const debug = options.debug || false;
+  
   const container = document.getElementById('a4-preview-container');
   container.innerHTML = '';
 
