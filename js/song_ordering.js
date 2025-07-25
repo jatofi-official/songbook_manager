@@ -299,32 +299,50 @@ const PAGE_HEIGHT = 1300;
 
 function orderSongs(songs, container) {
   const grouped = groupSongsByArtist(songs);
-  const finalOrderedList = [];
+  const maxPageHeight = 1300;
 
-  grouped.forEach(group => {
-    const measuredSongs = [];
-
-    group.forEach(song => {
+  // Measure and order songs inside each artist group
+  const measuredArtistGroups = grouped.map(group => {
+    const measuredSongs = group.map(song => {
       const splitSong = splitSongIfNeeded(song);
       const pages = splitPageIfNeeded(splitSong, container);
+      const totalHeight = measureSongPages(pages, container);  // your existing function
 
-      const totalHeight = measureSongPages(pages, container);
-
-      measuredSongs.push({
+      return {
         id: song.id,
         artist: song.artist?.trim() || "Unknown",
         height: totalHeight,
         pages: pages.length,
         twoPages: pages.length > 1,
-      });
+        originalSong: song,
+      };
     });
 
     const orderedGroup = orderSongGroup(measuredSongs);
-    finalOrderedList.push(...orderedGroup);
+
+    const firstSongHeight = orderedGroup.length > 0 ? orderedGroup[0].height : 0;
+    const lastSongHeight = orderedGroup.length > 1 ? orderedGroup[orderedGroup.length - 1].height : firstSongHeight;
+
+    return {
+      artist: orderedGroup.length > 0 ? orderedGroup[0].artist : "Unknown",
+      songs: orderedGroup,
+      firstSongHeight,
+      lastSongHeight,
+    };
+  });
+
+  // Order artist groups by edges
+  const orderedArtistGroups = orderArtistsByEdges(measuredArtistGroups, maxPageHeight);
+
+  // Flatten final ordered song list
+  const finalOrderedList = [];
+  orderedArtistGroups.forEach(artistGroup => {
+    finalOrderedList.push(...artistGroup.songs);
   });
 
   return finalOrderedList;
 }
+
 
 function measureSongPages(pages, container) {
   let totalHeight = 0;
