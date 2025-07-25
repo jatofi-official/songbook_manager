@@ -581,14 +581,13 @@ async function handleGenerateForCategory(category) {
   const songs = await fetchSongsByIds(ids);
 
 
-  orderSongs(songs,measurer);
+  const ordered = orderSongs(songs,measurer);
 
+//   console.log("Ordered songs:");
+//   console.log(ordered);
 
-  console.log(songs);
-  
-
-
-  renderA4Preview(songs,ids);
+    const orderedIds = getOrderedIds(ordered);
+    renderA4Preview(songs, orderedIds);
 
 }
 
