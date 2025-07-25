@@ -44,12 +44,13 @@ function splitSongIfNeeded(song) {
   const maxLinePixelWidth = 450;
   const extraTolerance = 50;
 
-  const anyTooLong = lines.some(line => {
-    const width = measureTextWidth(line);
-    return isChordLine(line) && width > maxLinePixelWidth;
-  });
+  const anyTooLong = lines.some(line =>
+    isChordLine(line) && measureTextWidth(line) > maxLinePixelWidth
+  );
 
-  const absurdlyTooLong = lines.some(line => measureTextWidth(line) > maxLinePixelWidth + extraTolerance);
+  const absurdlyTooLong = lines.some(line =>
+    measureTextWidth(line) > maxLinePixelWidth + extraTolerance
+  );
 
   if (anyTooLong || absurdlyTooLong) {
     return {
@@ -60,47 +61,59 @@ function splitSongIfNeeded(song) {
   }
 
   const totalLines = lines.length;
-  const minSplit = Math.floor(totalLines * 0.3);
-  const maxSplit = Math.floor(totalLines * 0.7);
-
-  let bestSplitIndex = null;
-  let bestAdjustedHeight = Infinity;
-
-  let firstChorusIndex = lines.findIndex(line =>
+  const firstChorusIndex = lines.findIndex(line =>
     line.trim().startsWith('®') || line.trim().startsWith('Ruty')
   );
 
   console.log(`--- Analyzing: ${song.title} (${totalLines} lines)`);
 
-  for (let i = minSplit; i <= maxSplit; i++) {
-    const line = lines[i];
-    const isEmpty = line?.trim() === '';
-    const isChorus = line?.trim().startsWith('®') || line?.trim().startsWith('Ruty');
+  function findBestSplit(startRatio, endRatio) {
+    const minSplit = Math.floor(totalLines * startRatio);
+    const maxSplit = Math.floor(totalLines * endRatio);
 
-    if (isEmpty || isChorus) {
-      let leftLen = i;
-      let rightLen = totalLines - i;
-      let height = Math.max(leftLen, rightLen);
+    let bestSplitIndex = null;
+    let bestAdjustedHeight = Infinity;
 
-      // 🎯 Adjust score to prefer chorus on left
-      const chorusGoesRight = firstChorusIndex !== -1 && i <= firstChorusIndex;
-      const adjustmentFactor = chorusGoesRight ? 1.1 : 1.0; // 10% penalty
-      const adjustedHeight = height * adjustmentFactor;
+    for (let i = minSplit; i <= maxSplit; i++) {
+      const line = lines[i];
+      const isEmpty = line?.trim() === '';
+      const isChorus = line?.trim().startsWith('®') || line?.trim().startsWith('Ruty');
 
-      console.log(`  Split at ${i}: L=${leftLen} R=${rightLen} Max=${height} ${chorusGoesRight ? '🚫 Chorus moves right (+10%)' : '✅ Chorus stays left'}`);
+      if (isEmpty || isChorus) {
+        const leftLen = i;
+        const rightLen = totalLines - i;
+        const height = Math.max(leftLen, rightLen);
 
-      if (
-        adjustedHeight < bestAdjustedHeight ||
-        (adjustedHeight === bestAdjustedHeight && (bestSplitIndex === null || i < bestSplitIndex))
-      ) {
-        bestAdjustedHeight = adjustedHeight;
-        bestSplitIndex = i;
+        const chorusGoesRight = firstChorusIndex !== -1 && i <= firstChorusIndex;
+        const adjustmentFactor = chorusGoesRight ? 1.1 : 1.0; // Penalize chorus going right
+        const adjustedHeight = height * adjustmentFactor;
+
+        console.log(`  Split at ${i}: L=${leftLen} R=${rightLen} Max=${height} ${chorusGoesRight ? '🚫 Chorus moves right (+10%)' : '✅ Chorus stays left'}`);
+
+        if (
+          adjustedHeight < bestAdjustedHeight ||
+          (adjustedHeight === bestAdjustedHeight && (bestSplitIndex === null || i < bestSplitIndex))
+        ) {
+          bestAdjustedHeight = adjustedHeight;
+          bestSplitIndex = i;
+        }
       }
     }
+
+    return bestSplitIndex;
   }
 
-  if (bestSplitIndex === null) {
-    console.log(`  No good split found for: ${song.title}`);
+  // Phase 1: Try middle 50–60%
+  let splitIndex = findBestSplit(0.5, 0.6);
+
+  // Phase 2: If nothing found, try wider 30–70%
+  if (splitIndex === null) {
+    console.log(`  No split found between 50–60%, trying 30–70%...`);
+    splitIndex = findBestSplit(0.3, 0.7);
+  }
+
+  if (splitIndex === null) {
+    console.log(`  ❌ No suitable split point found for: ${song.title}`);
     return {
       ...song,
       left_content: lines.join('\n'),
@@ -108,26 +121,27 @@ function splitSongIfNeeded(song) {
     };
   }
 
-  // 🎸 Handle chord line before chorus
+  // Adjust for chord line before chorus
   let offset = 0;
-  const currentLine = lines[bestSplitIndex];
-  const prevLine = lines[bestSplitIndex - 1];
+  const currentLine = lines[splitIndex];
+  const prevLine = lines[splitIndex - 1];
 
   const isChorus = currentLine.trim().startsWith('®') || currentLine.trim().startsWith('Ruty');
   const chordAbove = prevLine && isChordLine(prevLine);
 
   if (isChorus && chordAbove) {
-    console.log(`  🎸 Moving chord line with chorus at split ${bestSplitIndex}`);
+    console.log(`  🎸 Moving chord line with chorus at split ${splitIndex}`);
     offset = -1;
   }
 
-  const finalSplit = bestSplitIndex + offset;
+  const finalSplit = splitIndex + offset;
 
   console.log(`  ✅ Final split at line ${finalSplit} (L=${finalSplit}, R=${totalLines - finalSplit})`);
 
   let leftLines = lines.slice(0, finalSplit);
   let rightLines = lines.slice(finalSplit);
 
+  // Trim blank lines
   while (leftLines.length && leftLines[leftLines.length - 1].trim() === '') leftLines.pop();
   while (rightLines.length && rightLines[0].trim() === '') rightLines.shift();
 
@@ -137,6 +151,7 @@ function splitSongIfNeeded(song) {
     right_content: rightLines.join('\n'),
   };
 }
+
 
 
 
