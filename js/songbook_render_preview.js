@@ -145,20 +145,20 @@ function renderA4Preview(songs, orderedIds) {
 
 function createSongHeader(song, options = {}) {
   const header = document.createElement('div');
-  header.style.display = 'inline-block';
+  header.classList.add('song-header');
   header.style.border = options.border || '1px solid #ccc';
   header.style.padding = options.padding || '6px 10px';
   header.style.borderRadius = options.borderRadius || '6px';
   header.style.backgroundColor = options.backgroundColor || '#f9f9f9';
+  header.style.fontFamily = 'system-ui, sans-serif';
 
-  // Title and optional artist
+  // Title + Artist Line
   const titleLine = document.createElement('div');
   titleLine.style.fontWeight = 'bold';
-  titleLine.style.fontSize = '16px';
+  titleLine.style.fontSize = '1.1rem';
 
   const titleText = document.createElement('span');
   titleText.textContent = song.title;
-
   titleLine.appendChild(titleText);
 
   if (song.artist && song.artist.trim() !== '') {
@@ -169,7 +169,7 @@ function createSongHeader(song, options = {}) {
     const artistText = document.createElement('span');
     artistText.textContent = song.artist;
     artistText.style.fontWeight = 'normal';
-    artistText.style.fontSize = '14px';
+    artistText.style.fontSize = '0.95rem';
     artistText.style.color = '#555';
 
     titleLine.appendChild(separator);
@@ -178,38 +178,40 @@ function createSongHeader(song, options = {}) {
 
   header.appendChild(titleLine);
 
-  // Capo line
-  if (song.capo !== undefined && song.capo !== null && song.capo !== 0) {
+  // Capo Display
+  if ((song.capo && song.capo !== 0) || (song.capo_alt && song.capo_alt !== 0)) {
     const capoLine = document.createElement('div');
-    capoLine.style.marginTop = '4px';
-    capoLine.style.fontSize = '13px';
+    capoLine.style.marginTop = '6px';
+    capoLine.style.fontSize = '0.9rem';
     capoLine.style.color = '#444';
+    capoLine.style.display = 'flex';
+    capoLine.style.alignItems = 'center';
+    capoLine.style.gap = '6px';
 
     const capoLabel = document.createElement('span');
-    capoLabel.textContent = 'Capo: ';
+    capoLabel.textContent = 'Capo:';
+    capoLabel.style.fontWeight = '500';
     capoLine.appendChild(capoLabel);
 
-    const capoCircle = document.createElement('span');
-    capoCircle.textContent = song.capo;
-    capoCircle.style.display = 'inline-block';
-    capoCircle.style.width = '20px';
-    capoCircle.style.height = '20px';
-    capoCircle.style.lineHeight = '20px';
-    capoCircle.style.borderRadius = '50%';
-    capoCircle.style.backgroundColor = '#ddd';
-    capoCircle.style.textAlign = 'center';
-    capoCircle.style.fontWeight = 'bold';
-    capoCircle.style.marginLeft = '4px';
-    capoCircle.style.fontSize = '13px';
+    if (song.capo && song.capo !== 0) {
+      const capoCircle = document.createElement('span');
+      capoCircle.className = 'capo-circle';
+      capoCircle.textContent = song.capo;
+      capoLine.appendChild(capoCircle);
+    }
 
-    capoLine.appendChild(capoCircle);
+    if (song.capo_alt && song.capo_alt !== 0) {
+      const capoAltCircle = document.createElement('span');
+      capoAltCircle.className = 'capo-circle-alt';
+      capoAltCircle.textContent = song.capo_alt;
+      capoLine.appendChild(capoAltCircle);
+    }
+
     header.appendChild(capoLine);
   }
 
-  // Margin bottom (default 10px)
   header.style.marginBottom = options.marginBottom ?? '10px';
 
-  // Fixed height if specified
   if (options.fixedHeight !== undefined) {
     header.style.height = options.fixedHeight;
     header.style.overflow = 'hidden';
@@ -217,6 +219,9 @@ function createSongHeader(song, options = {}) {
 
   return header;
 }
+
+
+
 
 
 
@@ -293,6 +298,14 @@ function createPage(pageNumber = null) {
     pageNumberDiv.style.color = '#555';
     page.appendChild(pageNumberDiv);
   }
-
+  // Add vertical debug line at actual content midpoint
+  const debugLine = document.createElement('div');
+  debugLine.style.position = 'absolute';
+  debugLine.style.top = '0';
+  debugLine.style.bottom = '0';
+  debugLine.style.left = '397px'; // 32px padding + half of 730px usable width
+  debugLine.style.width = '1px';
+  debugLine.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+  debugLine.style.zIndex = '999';
   return page;
 }

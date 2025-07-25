@@ -201,3 +201,30 @@
 }
 
 
+
+/* Song rendering */
+.capo-circle,
+.capo-circle-alt {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.8rem;
+  margin-right: 6px;
+  vertical-align: middle;
+  font-family: 'Fira Mono', 'Courier New', monospace;
+  line-height: 1;
+}
+
+.capo-circle {
+  background-color: #007bff; /* Blue */
+  color: white;
+}
+
+.capo-circle-alt {
+  background-color: #9b7ecd; /* Purple */
+  color: white;
+}
