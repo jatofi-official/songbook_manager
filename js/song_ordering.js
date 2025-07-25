@@ -15,6 +15,12 @@ function measureTextWidth(line) {
   return measurer.getBoundingClientRect().width;
 }
 
+function measureHeight(text) {
+  measurer.textContent = text;
+  return measurer.getBoundingClientRect().height;
+}
+
+
 // Group songs by artist
 function groupSongsByArtist(songs) {
     const map = new Map();
@@ -65,7 +71,7 @@ function splitSongIfNeeded(song) {
     line.trim().startsWith('®') || line.trim().startsWith('Ruty')
   );
 
-  console.log(`--- Analyzing: ${song.title} (${totalLines} lines)`);
+//   console.log(`--- Analyzing: ${song.title} (${totalLines} lines)`);
 
   function findBestSplit(startRatio, endRatio) {
     const minSplit = Math.floor(totalLines * startRatio);
@@ -88,7 +94,7 @@ function splitSongIfNeeded(song) {
         const adjustmentFactor = chorusGoesRight ? 1.1 : 1.0; // Penalize chorus going right
         const adjustedHeight = height * adjustmentFactor;
 
-        console.log(`  Split at ${i}: L=${leftLen} R=${rightLen} Max=${height} ${chorusGoesRight ? '🚫 Chorus moves right (+10%)' : '✅ Chorus stays left'}`);
+        // console.log(`  Split at ${i}: L=${leftLen} R=${rightLen} Max=${height} ${chorusGoesRight ? '🚫 Chorus moves right (+10%)' : '✅ Chorus stays left'}`);
 
         if (
           adjustedHeight < bestAdjustedHeight ||
@@ -108,12 +114,12 @@ function splitSongIfNeeded(song) {
 
   // Phase 2: If nothing found, try wider 30–70%
   if (splitIndex === null) {
-    console.log(`  No split found between 50–60%, trying 30–70%...`);
+    // console.log(`  No split found between 50–60%, trying 30–70%...`);
     splitIndex = findBestSplit(0.3, 0.7);
   }
 
   if (splitIndex === null) {
-    console.log(`  ❌ No suitable split point found for: ${song.title}`);
+    // console.log(`  ❌ No suitable split point found for: ${song.title}`);
     return {
       ...song,
       left_content: lines.join('\n'),
@@ -130,13 +136,13 @@ function splitSongIfNeeded(song) {
   const chordAbove = prevLine && isChordLine(prevLine);
 
   if (isChorus && chordAbove) {
-    console.log(`  🎸 Moving chord line with chorus at split ${splitIndex}`);
+    // console.log(`  🎸 Moving chord line with chorus at split ${splitIndex}`);
     offset = -1;
   }
 
   const finalSplit = splitIndex + offset;
 
-  console.log(`  ✅ Final split at line ${finalSplit} (L=${finalSplit}, R=${totalLines - finalSplit})`);
+//   console.log(`  ✅ Final split at line ${finalSplit} (L=${finalSplit}, R=${totalLines - finalSplit})`);
 
   let leftLines = lines.slice(0, finalSplit);
   let rightLines = lines.slice(finalSplit);
@@ -154,22 +160,7 @@ function splitSongIfNeeded(song) {
 
 
 
-
-
-
-
-
-
-
-
-function measureHeight(text) {
-  // This should use your existing hidden container 'measurer' element
-  measurer.textContent = text;
-  return measurer.getBoundingClientRect().height;
-}
-
-
-function splitPageIfNeeded(song, container, maxHeight) {
+function splitPageIfNeeded(song, container, maxHeight=1300) {
   if (song.right_content) return [song];
 
   const lines = (song.left_content || song.content || '').split('\n').map(line => line.replace(/\s+$/, ''));
@@ -232,93 +223,114 @@ function splitPageIfNeeded(song, container, maxHeight) {
 
 }
 
-
-
-
-
-
-
-const LINES_PER_PAGE = 45; // Adjust as needed
-
-function estimateSongLines(song) {
-  const leftLines = song.left_content?.split('\n').length || 0;
-  const rightLines = song.right_content?.split('\n').length || 0;
-  return {
-    leftLines,
-    rightLines,
-    totalLines: leftLines + rightLines
-  };
+// Creates shared song container
+function createHiddenMeasureContainer() {
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.visibility = 'hidden';
+  container.style.width = '794px';
+  container.style.fontFamily = 'Fira Mono, monospace';
+  container.style.fontSize = '14px';
+  container.style.lineHeight = '22px';
+  container.style.whiteSpace = 'pre-wrap';
+  container.style.padding = '32px';
+  container.style.boxSizing = 'border-box';
+  container.style.zIndex = '-1';
+  return container;
 }
 
-function groupSongsByPages(songs) {
-  const pages = [];
-  let currentPage = [];
-  let currentLines = 0;
 
-  for (const song of songs) {
-    const { leftLines, rightLines } = estimateSongLines(song);
 
-    // Try to fit left part
-    if (currentLines + leftLines > LINES_PER_PAGE) {
-      if (currentPage.length) pages.push(currentPage);
-      currentPage = [];
-      currentLines = 0;
-    }
-    currentPage.push({ ...song, part: "left" });
-    currentLines += leftLines;
 
-    // Try to fit right part (if it exists)
-    if (song.right_content) {
-      if (currentLines + rightLines > LINES_PER_PAGE) {
-        if (currentPage.length) pages.push(currentPage);
-        currentPage = [];
-        currentLines = 0;
-      }
-      currentPage.push({ ...song, part: "right" });
-      currentLines += rightLines;
-    }
-  }
 
-  if (currentPage.length) pages.push(currentPage);
-  return pages.flat(); // Flatten pages back into a list
-}
 
-function optimizeSongOrder(songs) {
+function orderSongs(songs, container) {
   const grouped = groupSongsByArtist(songs);
+  const simplifiedList = [];
 
-  const authorBlocks = grouped.map(group => {
-    const splitSongs = group.map(song => splitSongIfNeeded(song));
-    const filledPages = groupSongsByPages(splitSongs);
+  // Hidden measuring container
+  const tempContainer = createHiddenMeasureContainer();
 
-    return {
-      songs: filledPages,
-      slack: filledPages.reduce((sum, song) => {
-        const lines = estimateSongLines(song);
-        return sum + lines.totalLines;
-      }, 0) % LINES_PER_PAGE
-    };
+  document.body.appendChild(tempContainer);
+
+  const TITLE_HEIGHT_OFFSET = 12; // px
+
+  grouped.forEach(group => {
+    group.forEach(song => {
+      const splitSong = splitSongIfNeeded(song);
+      const pages = splitPageIfNeeded(splitSong, tempContainer);
+
+      // Render and measure each page block
+      let totalHeight = 0;
+
+      pages.forEach((page, index) => {
+        const songDiv = document.createElement('div');
+        songDiv.className = page.right_content ? 'song-block split-song mb-4' : 'song-block mb-4';
+        songDiv.style.border = '1px dashed red';
+        songDiv.style.backgroundColor = '#fdfdfd';
+        songDiv.style.display = 'flex';
+        songDiv.style.flexDirection = 'column';
+
+        // Add title/artist header unless it's a continuation
+        if (!page.continuation) {
+          const header = document.createElement('div');
+          header.innerHTML = `<strong>${page.title}</strong> <em>${page.artist}</em>`;
+          header.style.marginBottom = '10px';
+          songDiv.appendChild(header);
+        }
+
+        if (page.right_content) {
+          const columns = document.createElement('div');
+          columns.className = 'd-flex';
+
+          const leftCol = document.createElement('div');
+          leftCol.className = 'left-column flex-grow-1 pe-3';
+          const leftPre = document.createElement('pre');
+          leftPre.textContent = page.left_content;
+          leftPre.style.margin = 0;
+          leftCol.appendChild(leftPre);
+
+          const rightCol = document.createElement('div');
+          rightCol.className = 'right-column flex-grow-1 ps-3';
+          const rightPre = document.createElement('pre');
+          rightPre.textContent = page.right_content;
+          rightPre.style.margin = 0;
+          rightCol.appendChild(rightPre);
+
+          columns.appendChild(leftCol);
+          columns.appendChild(rightCol);
+          songDiv.appendChild(columns);
+        } else {
+          const pre = document.createElement('pre');
+          pre.textContent = page.left_content || page.content || '';
+          pre.style.margin = 0;
+          songDiv.appendChild(pre);
+        }
+
+        tempContainer.appendChild(songDiv);
+        const height = songDiv.getBoundingClientRect().height;
+        tempContainer.removeChild(songDiv);
+
+        totalHeight += height;
+      });
+
+      simplifiedList.push({
+        id: song.id,
+        artist: song.artist?.trim() || "Unknown",
+        height: totalHeight,
+        pages: pages.length,
+        twoPages: pages.length > 1,
+      });
+    });
   });
 
-  // Sort author blocks: tight fills in middle, slacky fills on edges
-  authorBlocks.sort((a, b) => a.slack - b.slack);
+  document.body.removeChild(tempContainer);
 
-  // Place most efficient (low-slack) authors in the middle
-  const centerOutOrder = [];
-  let left = 0;
-  let right = authorBlocks.length - 1;
-  let toggle = true;
-  while (left <= right) {
-    if (toggle) {
-      centerOutOrder.push(authorBlocks[left++]);
-    } else {
-      centerOutOrder.unshift(authorBlocks[right--]);
-    }
-    toggle = !toggle;
-  }
+  console.log("--- Simplified Song List (Accurate Height) ---");
+  console.table(simplifiedList);
 
-  // Flatten ordered song blocks
-  const ordered = centerOutOrder.flatMap(block => block.songs);
-
-  return ordered;
+  return simplifiedList;
 }
+
+
 

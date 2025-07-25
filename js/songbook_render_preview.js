@@ -6,15 +6,8 @@ function renderA4Preview(songs, orderedIds) {
   let processedSongs = songs.map(song => splitSongIfNeeded(song));
 
   // Create hidden temp container for measuring
-  const tempContainer = document.createElement('div');
-  tempContainer.style.position = 'absolute';
-  tempContainer.style.visibility = 'hidden';
-  tempContainer.style.width = '794px';
-  tempContainer.style.fontFamily = 'Fira Mono, monospace';
-  tempContainer.style.fontSize = '14px';
-  tempContainer.style.lineHeight = '22px';
-  tempContainer.style.whiteSpace = 'pre-wrap';
-  tempContainer.style.padding = '32px';
+  const tempContainer = createHiddenMeasureContainer();
+
   document.body.appendChild(tempContainer);
 
   const maxHeight = 1300;
@@ -289,7 +282,7 @@ function createPage() {
   page.style.backgroundColor = 'white';
   page.style.border = '1px solid #aaa';
   page.style.boxSizing = 'border-box';
-  page.style.overflow = 'hidden';
+  page.style.overflow = 'visible';
   page.style.padding = '32px';
 
   // Add vertical debug line at actual content midpoint
