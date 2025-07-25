@@ -9,6 +9,11 @@ measurer.style.fontSize = '14px';                   // Match preview font size
 measurer.style.lineHeight = '22px';                 // Match preview line height
 document.body.appendChild(measurer);
 
+const PAGE_HEIGHT = 1300;
+
+
+
+
 // Returns pixel width of a line in Fira Mono
 function measureTextWidth(line) {
   measurer.textContent = line.replace(/\s+$/, '');
@@ -160,14 +165,14 @@ function splitSongIfNeeded(song) {
 
 
 
-function splitPageIfNeeded(song, container, maxHeight=1300) {
+function splitPageIfNeeded(song, container) {
   if (song.right_content) return [song];
 
   const lines = (song.left_content || song.content || '').split('\n').map(line => line.replace(/\s+$/, ''));
   if (lines.length === 0) return [song];
 
   const fullHeight = measureHeight(lines.join('\n'), container);
-  if (fullHeight <= maxHeight) return [song];
+  if (fullHeight <= PAGE_HEIGHT) return [song];
 
   // Step 1: Find all empty lines that could be good split points
   let bestSplit = -1;
@@ -178,7 +183,7 @@ function splitPageIfNeeded(song, container, maxHeight=1300) {
     const testLines = lines.slice(0, i + 1); // include the empty line
     const testHeight = measureHeight(testLines.join('\n'), container);
 
-    if (testHeight <= maxHeight) {
+    if (testHeight <= PAGE_HEIGHT) {
       bestSplit = i + 1; // split after the empty line
     } else {
       break; // further lines will only be taller
@@ -192,7 +197,7 @@ function splitPageIfNeeded(song, container, maxHeight=1300) {
     for (let i = Math.floor(lines.length / 2); i < lines.length; i++) {
       const leftLines = lines.slice(0, i);
       const leftHeight = measureHeight(leftLines.join('\n'), container);
-      if (leftHeight > maxHeight) {
+      if (leftHeight > PAGE_HEIGHT) {
         bestSplit = i - 1;
         break;
       }
@@ -295,11 +300,9 @@ function measureSongHeight(pages, container) {
   return totalHeight;
 }
 
-const PAGE_HEIGHT = 1300;
 
 function orderSongs(songs, container) {
   const grouped = groupSongsByArtist(songs);
-  const maxPageHeight = 1300;
 
   // Measure and order songs inside each artist group
   const measuredArtistGroups = grouped.map(group => {
@@ -332,7 +335,7 @@ function orderSongs(songs, container) {
   });
 
   // Order artist groups by edges
-  const orderedArtistGroups = orderArtistsByEdges(measuredArtistGroups, maxPageHeight);
+  const orderedArtistGroups = orderArtistsByEdges(measuredArtistGroups, PAGE_HEIGHT);
 
   // Flatten final ordered song list
   const finalOrderedList = [];
@@ -476,7 +479,7 @@ function getOrderedIds(finalOrderedList) {
 }
 
 
-function orderArtistsByEdges(artists, maxPageHeight) {
+function orderArtistsByEdges(artists, PAGE_HEIGHT) {
   if (artists.length === 0) return [];
 
   const singleSongArtists = artists.filter(group => group.songs.length === 1);
@@ -491,7 +494,7 @@ function orderArtistsByEdges(artists, maxPageHeight) {
     const firstSong = firstArtist.songs[0];
     const usedArtists = new Set([firstArtist.artist]);
 
-    let spaceLeft = maxPageHeight - firstSong.height;
+    let spaceLeft = PAGE_HEIGHT - firstSong.height;
     const packed = [firstArtist];
 
     // Try to fill rest of first page with songs from other single-song artists
@@ -536,12 +539,12 @@ function orderArtistsByEdges(artists, maxPageHeight) {
 
     // Find best next artist that fits well with the previous one
     let bestFitIndex = 0;
-    let bestFitLeftover = maxPageHeight;
+    let bestFitLeftover = PAGE_HEIGHT;
 
     for (let i = 0; i < remaining.length; i++) {
       let candidate = remaining[i];
       let combinedHeight = lastHeight + candidate.firstSongHeight;
-      let leftover = maxPageHeight - (combinedHeight % maxPageHeight);
+      let leftover = PAGE_HEIGHT - (combinedHeight % PAGE_HEIGHT);
 
       if (leftover < bestFitLeftover) {
         bestFitLeftover = leftover;
