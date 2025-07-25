@@ -244,7 +244,7 @@ function createHiddenMeasureContainer() {
   return container;
 }
 
-function measureSongHeight(pages, container) {
+function measureSongHeight(pages, container, headerOptions = {}) {
   let totalHeight = 0;
 
   pages.forEach(page => {
@@ -257,9 +257,7 @@ function measureSongHeight(pages, container) {
 
     // Add title/artist header unless it's a continuation
     if (!page.continuation) {
-      const header = document.createElement('div');
-      header.innerHTML = `<strong>${page.title}</strong> <em>${page.artist}</em>`;
-      header.style.marginBottom = '10px';
+      const header = createSongHeader(page, headerOptions);
       songDiv.appendChild(header);
     }
 

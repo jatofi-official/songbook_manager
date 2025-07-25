@@ -38,9 +38,7 @@ function renderA4Preview(songs, orderedIds) {
       songDiv.style.backgroundColor = '#fdfdfd';
 
       if (!partSong.continuation) {
-        const header = document.createElement('div');
-        header.innerHTML = `<strong>${partSong.title}</strong> <em>${partSong.artist}</em>`;
-        header.style.marginBottom = '10px';
+        const header = createSongHeader(partSong);
         songDiv.appendChild(header);
       }
 
@@ -145,48 +143,83 @@ function renderA4Preview(songs, orderedIds) {
 
 
 
-
-
-
-function renderSingleColumnSong(song, content) {
-  const songDiv = document.createElement('div');
-  songDiv.className = 'song-block mb-4';
-  songDiv.style.border = '1px dashed red';
-  songDiv.style.backgroundColor = '#fdfdfd';
-
+function createSongHeader(song, options = {}) {
   const header = document.createElement('div');
-  header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
-  header.style.marginBottom = '10px';
+  header.style.display = 'inline-block';
+  header.style.border = options.border || '1px solid #ccc';
+  header.style.padding = options.padding || '6px 10px';
+  header.style.borderRadius = options.borderRadius || '6px';
+  header.style.backgroundColor = options.backgroundColor || '#f9f9f9';
 
-  const pre = document.createElement('pre');
-  pre.textContent = content;
-  pre.style.margin = 0;
+  // Title and optional artist
+  const titleLine = document.createElement('div');
+  titleLine.style.fontWeight = 'bold';
+  titleLine.style.fontSize = '16px';
 
-  songDiv.appendChild(header);
-  songDiv.appendChild(pre);
-  return songDiv;
-}
+  const titleText = document.createElement('span');
+  titleText.textContent = song.title;
 
-function renderTwoColumnHalf(song, content, isLeft) {
-  const colDiv = document.createElement('div');
-  colDiv.className = 'song-block mb-4';
-  colDiv.style.border = '1px dashed red';
-  colDiv.style.backgroundColor = '#fdfdfd';
+  titleLine.appendChild(titleText);
 
-  if (isLeft) {
-    const header = document.createElement('div');
-    header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
-    header.style.marginBottom = '10px';
-    colDiv.appendChild(header);
+  if (song.artist && song.artist.trim() !== '') {
+    const separator = document.createElement('span');
+    separator.textContent = ' – ';
+    separator.style.margin = '0 4px';
+
+    const artistText = document.createElement('span');
+    artistText.textContent = song.artist;
+    artistText.style.fontWeight = 'normal';
+    artistText.style.fontSize = '14px';
+    artistText.style.color = '#555';
+
+    titleLine.appendChild(separator);
+    titleLine.appendChild(artistText);
   }
 
-  const pre = document.createElement('pre');
-  pre.textContent = content;
-  pre.style.margin = 0;
-  colDiv.appendChild(pre);
+  header.appendChild(titleLine);
 
-  return colDiv;
+  // Capo line
+  if (song.capo !== undefined && song.capo !== null && song.capo !== 0) {
+    const capoLine = document.createElement('div');
+    capoLine.style.marginTop = '4px';
+    capoLine.style.fontSize = '13px';
+    capoLine.style.color = '#444';
+
+    const capoLabel = document.createElement('span');
+    capoLabel.textContent = 'Capo: ';
+    capoLine.appendChild(capoLabel);
+
+    const capoCircle = document.createElement('span');
+    capoCircle.textContent = song.capo;
+    capoCircle.style.display = 'inline-block';
+    capoCircle.style.width = '20px';
+    capoCircle.style.height = '20px';
+    capoCircle.style.lineHeight = '20px';
+    capoCircle.style.borderRadius = '50%';
+    capoCircle.style.backgroundColor = '#ddd';
+    capoCircle.style.textAlign = 'center';
+    capoCircle.style.fontWeight = 'bold';
+    capoCircle.style.marginLeft = '4px';
+    capoCircle.style.fontSize = '13px';
+
+    capoLine.appendChild(capoCircle);
+    header.appendChild(capoLine);
+  }
+
+  // Margin bottom (default 10px)
+  header.style.marginBottom = options.marginBottom ?? '10px';
+
+  // Fixed height if specified
+  if (options.fixedHeight !== undefined) {
+    header.style.height = options.fixedHeight;
+    header.style.overflow = 'hidden';
+  }
+
+  return header;
 }
+
+
+
 
 function measureBlockHeight(block, tempContainer) {
   tempContainer.appendChild(block);
