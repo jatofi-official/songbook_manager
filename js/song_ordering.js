@@ -239,80 +239,75 @@ function createHiddenMeasureContainer() {
   return container;
 }
 
+function measureSongHeight(pages, container) {
+  let totalHeight = 0;
 
+  pages.forEach(page => {
+    const songDiv = document.createElement('div');
+    songDiv.className = page.right_content ? 'song-block split-song mb-4' : 'song-block mb-4';
+    songDiv.style.border = '1px dashed red';
+    songDiv.style.backgroundColor = '#fdfdfd';
+    songDiv.style.display = 'flex';
+    songDiv.style.flexDirection = 'column';
 
+    // Add title/artist header unless it's a continuation
+    if (!page.continuation) {
+      const header = document.createElement('div');
+      header.innerHTML = `<strong>${page.title}</strong> <em>${page.artist}</em>`;
+      header.style.marginBottom = '10px';
+      songDiv.appendChild(header);
+    }
 
+    if (page.right_content) {
+      const columns = document.createElement('div');
+      columns.className = 'd-flex';
 
+      const leftCol = document.createElement('div');
+      leftCol.className = 'left-column flex-grow-1 pe-3';
+      const leftPre = document.createElement('pre');
+      leftPre.textContent = page.left_content;
+      leftPre.style.margin = 0;
+      leftCol.appendChild(leftPre);
 
-function orderSongs(songs, container) {
+      const rightCol = document.createElement('div');
+      rightCol.className = 'right-column flex-grow-1 ps-3';
+      const rightPre = document.createElement('pre');
+      rightPre.textContent = page.right_content;
+      rightPre.style.margin = 0;
+      rightCol.appendChild(rightPre);
+
+      columns.appendChild(leftCol);
+      columns.appendChild(rightCol);
+      songDiv.appendChild(columns);
+    } else {
+      const pre = document.createElement('pre');
+      pre.textContent = page.left_content || page.content || '';
+      pre.style.margin = 0;
+      songDiv.appendChild(pre);
+    }
+
+    container.appendChild(songDiv);
+    const height = songDiv.getBoundingClientRect().height;
+    container.removeChild(songDiv);
+    totalHeight += height;
+  });
+
+  return totalHeight;
+}
+
+function orderSongs(songs) {
   const grouped = groupSongsByArtist(songs);
   const simplifiedList = [];
 
-  // Hidden measuring container
   const tempContainer = createHiddenMeasureContainer();
-
   document.body.appendChild(tempContainer);
-
-  const TITLE_HEIGHT_OFFSET = 12; // px
 
   grouped.forEach(group => {
     group.forEach(song => {
       const splitSong = splitSongIfNeeded(song);
       const pages = splitPageIfNeeded(splitSong, tempContainer);
 
-      // Render and measure each page block
-      let totalHeight = 0;
-
-      pages.forEach((page, index) => {
-        const songDiv = document.createElement('div');
-        songDiv.className = page.right_content ? 'song-block split-song mb-4' : 'song-block mb-4';
-        songDiv.style.border = '1px dashed red';
-        songDiv.style.backgroundColor = '#fdfdfd';
-        songDiv.style.display = 'flex';
-        songDiv.style.flexDirection = 'column';
-
-        // Add title/artist header unless it's a continuation
-        if (!page.continuation) {
-          const header = document.createElement('div');
-          header.innerHTML = `<strong>${page.title}</strong> <em>${page.artist}</em>`;
-          header.style.marginBottom = '10px';
-          songDiv.appendChild(header);
-        }
-
-        if (page.right_content) {
-          const columns = document.createElement('div');
-          columns.className = 'd-flex';
-
-          const leftCol = document.createElement('div');
-          leftCol.className = 'left-column flex-grow-1 pe-3';
-          const leftPre = document.createElement('pre');
-          leftPre.textContent = page.left_content;
-          leftPre.style.margin = 0;
-          leftCol.appendChild(leftPre);
-
-          const rightCol = document.createElement('div');
-          rightCol.className = 'right-column flex-grow-1 ps-3';
-          const rightPre = document.createElement('pre');
-          rightPre.textContent = page.right_content;
-          rightPre.style.margin = 0;
-          rightCol.appendChild(rightPre);
-
-          columns.appendChild(leftCol);
-          columns.appendChild(rightCol);
-          songDiv.appendChild(columns);
-        } else {
-          const pre = document.createElement('pre');
-          pre.textContent = page.left_content || page.content || '';
-          pre.style.margin = 0;
-          songDiv.appendChild(pre);
-        }
-
-        tempContainer.appendChild(songDiv);
-        const height = songDiv.getBoundingClientRect().height;
-        tempContainer.removeChild(songDiv);
-
-        totalHeight += height;
-      });
+      const totalHeight = measureSongHeight(pages, tempContainer);
 
       simplifiedList.push({
         id: song.id,
@@ -331,6 +326,8 @@ function orderSongs(songs, container) {
 
   return simplifiedList;
 }
+
+
 
 
 
