@@ -404,73 +404,62 @@ function measureSongPages(pages, container) {
 }
 
 function orderSongGroup(songs) {
-  if (songs.length <= 2) return songs;
+  const packed = [];
+  let currentPage = [];
+  let currentHeight = 0;
 
-  // Precompute leftover waste for all songs
-  songs.forEach(song => {
-    const leftover = PAGE_HEIGHT - (song.height % PAGE_HEIGHT || PAGE_HEIGHT);
-    song.wasteScore = leftover + (song.twoPages ? 2000 : 0);  // penalty for multi-page songs
-  });
+  // Sort by height descending to pack largest songs first
+  const remainingSongs = songs.slice().sort((a, b) => b.height - a.height);
 
-  // Limit candidates for first and last to first 3 and last 3 by height ascending (smallest songs)
-  // because smaller songs tend to fit better at edges
-  const candidates = songs.slice().sort((a, b) => a.height - b.height);
+  while (remainingSongs.length > 0) {
+    let placed = false;
 
-  const firstCandidates = candidates.slice(0, Math.min(3, candidates.length));
-  const lastCandidates = candidates.slice(0, Math.min(3, candidates.length));
+    for (let i = 0; i < remainingSongs.length; i++) {
+      const song = remainingSongs[i];
+      
+      if (song.height > PAGE_HEIGHT) {
+        // Song is too big, must be placed alone
+        if (currentPage.length > 0) {
+          packed.push(currentPage);
+          currentPage = [];
+          currentHeight = 0;
+        }
 
-  let bestPair = null;
-  let bestWasteSum = Infinity;
+        packed.push([song]);
+        remainingSongs.splice(i, 1);
+        placed = true;
+        break;
+      }
 
-  // Try all pairs (first, last) distinct
-  for (let firstCandidate of firstCandidates) {
-    for (let lastCandidate of lastCandidates) {
-      if (firstCandidate.id === lastCandidate.id) continue;
+      if (currentHeight + song.height <= PAGE_HEIGHT) {
+        currentPage.push(song);
+        currentHeight += song.height;
+        remainingSongs.splice(i, 1);
+        placed = true;
+        break;
+      }
+    }
 
-      const firstWaste = PAGE_HEIGHT - (firstCandidate.height % PAGE_HEIGHT || PAGE_HEIGHT);
-      const lastWaste = PAGE_HEIGHT - (lastCandidate.height % PAGE_HEIGHT || PAGE_HEIGHT);
-
-      const wasteSum = firstWaste + lastWaste;
-
-      if (wasteSum < bestWasteSum) {
-        bestWasteSum = wasteSum;
-        bestPair = [firstCandidate, lastCandidate];
+    if (!placed) {
+      if (currentPage.length > 0) {
+        packed.push(currentPage);
+        currentPage = [];
+        currentHeight = 0;
+      } else {
+        // Fallback: force a too-big song to be placed alone
+        packed.push([remainingSongs.shift()]);
       }
     }
   }
 
-  if (!bestPair) {
-    // fallback if no pair found (shouldn't happen)
-    bestPair = [songs[0], songs[songs.length - 1]];
+  if (currentPage.length > 0) {
+    packed.push(currentPage);
   }
 
-  // Middle songs = all excluding chosen first and last
-  const middle = songs.filter(s => s.id !== bestPair[0].id && s.id !== bestPair[1].id)
-                      .sort((a, b) => b.height - a.height);
-
-  // Debug logs for insight
-  console.log(`--- Ordering songs for artist: ${songs[0]?.artist || "Unknown"} ---`);
-  console.log(`Chosen first song ID: ${bestPair[0].id}, Height: ${bestPair[0].height}px, Waste: ${PAGE_HEIGHT - (bestPair[0].height % PAGE_HEIGHT || PAGE_HEIGHT)}px`);
-  console.log(`Chosen last song ID: ${bestPair[1].id}, Height: ${bestPair[1].height}px, Waste: ${PAGE_HEIGHT - (bestPair[1].height % PAGE_HEIGHT || PAGE_HEIGHT)}px`);
-  console.log('Packing middle songs:');
-
-  let pageNumber = 1;
-  let spaceLeft = PAGE_HEIGHT;
-
-  middle.forEach(song => {
-    if (song.height > spaceLeft) {
-      console.log(`  -- Page ${pageNumber} full, space left: ${spaceLeft.toFixed(0)}px`);
-      pageNumber++;
-      spaceLeft = PAGE_HEIGHT;
-    }
-    console.log(`  Page ${pageNumber} - Song ID: ${song.id}, Height: ${song.height}px, Space left before placing: ${spaceLeft.toFixed(0)}px`);
-    spaceLeft -= song.height;
-  });
-
-  console.log(`  -- Page ${pageNumber} ends with space left: ${spaceLeft.toFixed(0)}px`);
-
-  return [bestPair[0], ...middle, bestPair[1]];
+  return packed.flat(); // Flatten back into a list of songs
 }
+
+
 
 
 
@@ -479,83 +468,122 @@ function getOrderedIds(finalOrderedList) {
 }
 
 
-function orderArtistsByEdges(artists, PAGE_HEIGHT) {
-  if (artists.length === 0) return [];
+function orderArtistsByEdges(artistGroups, PAGE_HEIGHT) {
+  if (artistGroups.length === 0) return [];
 
-  const singleSongArtists = artists.filter(group => group.songs.length === 1);
-  const multiSongArtists = artists.filter(group => group.songs.length > 1);
+  const { filledGroups, remainingGroups } = fillFirstPage(artistGroups, PAGE_HEIGHT);
+  const ordered = [...filledGroups];
 
-  let bestStartCombo = null;
-  let bestWaste = Infinity;
+  let currentPageHeight = 0;
+  let currentPage = filledGroups.length > 0 ? 2 : 1;  // next page after filled first
 
-  // Try each single-song artist as the first song
-  for (let i = 0; i < singleSongArtists.length; i++) {
-    const firstArtist = singleSongArtists[i];
-    const firstSong = firstArtist.songs[0];
-    const usedArtists = new Set([firstArtist.artist]);
+  let remaining = [...remainingGroups];
 
-    let spaceLeft = PAGE_HEIGHT - firstSong.height;
-    const packed = [firstArtist];
-
-    // Try to fill rest of first page with songs from other single-song artists
-    for (let j = 0; j < singleSongArtists.length; j++) {
-      if (i === j) continue;
-      const candidateArtist = singleSongArtists[j];
-      const candidateSong = candidateArtist.songs[0];
-
-      if (usedArtists.has(candidateArtist.artist)) continue;
-      if (candidateSong.height <= spaceLeft) {
-        packed.push(candidateArtist);
-        spaceLeft -= candidateSong.height;
-        usedArtists.add(candidateArtist.artist);
-      }
-    }
-
-    const waste = spaceLeft;
-
-    if (waste < bestWaste) {
-      bestWaste = waste;
-      bestStartCombo = packed;
-    }
-  }
-
-  let orderedArtists = [];
-  let usedArtistNames = new Set();
-
-  if (bestStartCombo) {
-    orderedArtists.push(...bestStartCombo);
-    bestStartCombo.forEach(ag => usedArtistNames.add(ag.artist));
-  }
-
-  // Add the rest of the artists, ignoring used ones
-  const remainingArtists = artists.filter(ag => !usedArtistNames.has(ag.artist));
-
-  let remaining = [...remainingArtists];
-
-  // If we already placed some artists, continue from last placed
   while (remaining.length > 0) {
-    let lastArtist = orderedArtists[orderedArtists.length - 1];
-    let lastHeight = lastArtist.lastSongHeight;
-
-    // Find best next artist that fits well with the previous one
-    let bestFitIndex = 0;
-    let bestFitLeftover = PAGE_HEIGHT;
+    let bestIndex = -1;
+    let bestWaste = Infinity;
 
     for (let i = 0; i < remaining.length; i++) {
-      let candidate = remaining[i];
-      let combinedHeight = lastHeight + candidate.firstSongHeight;
-      let leftover = PAGE_HEIGHT - (combinedHeight % PAGE_HEIGHT);
+      const group = remaining[i];
+      const firstSong = group.songs[0];
 
-      if (leftover < bestFitLeftover) {
-        bestFitLeftover = leftover;
-        bestFitIndex = i;
+      // If song spans 2 pages, only allow it on even pages
+      const isDoublePage = firstSong.pages > 1;
+      if (isDoublePage && currentPage % 2 !== 0) continue;
+
+      const waste = PAGE_HEIGHT - ((currentPageHeight + firstSong.height) % PAGE_HEIGHT || PAGE_HEIGHT);
+      if (waste < bestWaste) {
+        bestWaste = waste;
+        bestIndex = i;
       }
     }
 
-    orderedArtists.push(remaining.splice(bestFitIndex, 1)[0]);
+    if (bestIndex === -1) {
+      // No fitting artist found for this page (maybe because it's odd and all songs are double-page)
+      currentPage++;
+      currentPageHeight = 0;
+      continue;
+    }
+
+    const bestGroup = remaining.splice(bestIndex, 1)[0];
+    ordered.push(bestGroup);
+
+    // Simulate placing songs and track current page height
+    bestGroup.songs.forEach(song => {
+      const isDoublePage = song.pages > 1;
+
+      // If double-page song and we're on an odd page, skip to next page
+      if (isDoublePage && currentPage % 2 !== 0) {
+        currentPage++;
+        currentPageHeight = 0;
+      }
+
+      if (song.height > PAGE_HEIGHT - currentPageHeight) {
+        currentPage++;
+        currentPageHeight = 0;
+      }
+
+      currentPageHeight += song.height;
+
+      if (currentPageHeight >= PAGE_HEIGHT) {
+        currentPage++;
+        currentPageHeight = 0;
+      }
+    });
   }
 
-  return orderedArtists;
+  return ordered;
+}
+
+
+
+function fillFirstPage(artistGroups, PAGE_HEIGHT) {
+  const filledGroups = [];
+  const remainingGroups = [...artistGroups];
+
+  let usedSpace = 0;
+  let usedArtistNames = new Set();
+
+  // Look for single-page songs that fit on the first page
+  while (remainingGroups.length > 0) {
+    let addedSomething = false;
+
+    for (let i = 0; i < remainingGroups.length; i++) {
+      const group = remainingGroups[i];
+      const song = group.songs[0];
+
+      if (usedArtistNames.has(group.artist)) continue;
+      if (song.pages > 1) continue;
+
+      if (song.height <= PAGE_HEIGHT - usedSpace) {
+        filledGroups.push({
+          artist: group.artist,
+          songs: [song]
+        });
+
+        usedArtistNames.add(group.artist);
+        usedSpace += song.height;
+
+        // Remove the used song from the group
+        group.songs.shift();
+
+        // If group is now empty, remove it entirely
+        if (group.songs.length === 0) {
+          remainingGroups.splice(i, 1);
+        }
+
+        addedSomething = true;
+        break;
+      }
+    }
+
+    if (!addedSomething) break; // no more songs fit
+  }
+
+  return {
+    filledGroups,
+    remainingGroups
+  };
 }
 
 
