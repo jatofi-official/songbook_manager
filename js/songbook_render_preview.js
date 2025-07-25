@@ -45,8 +45,8 @@ function renderA4Preview(songs, orderedIds) {
       if (!partSong.right_content) {
         // single column
         const pre = document.createElement('pre');
-        pre.textContent = partSong.left_content;
         pre.style.margin = 0;
+        pre.innerHTML = renderSong(partSong.left_content); // <-- changed from textContent
         songDiv.appendChild(pre);
       } else {
         // two column - do NOT add header here again!
@@ -60,21 +60,22 @@ function renderA4Preview(songs, orderedIds) {
         const leftCol = document.createElement('div');
         leftCol.className = 'left-column flex-grow-1 pe-3';
         const leftPre = document.createElement('pre');
-        leftPre.textContent = partSong.left_content;
         leftPre.style.margin = 0;
+        leftPre.innerHTML = renderSong(partSong.left_content); // <-- changed here
         leftCol.appendChild(leftPre);
 
         const rightCol = document.createElement('div');
         rightCol.className = 'right-column flex-grow-1 ps-3';
         const rightPre = document.createElement('pre');
-        rightPre.textContent = partSong.right_content;
         rightPre.style.margin = 0;
+        rightPre.innerHTML = renderSong(partSong.right_content); // <-- changed here
         rightCol.appendChild(rightPre);
 
         columns.appendChild(leftCol);
         columns.appendChild(rightCol);
         songDiv.appendChild(columns);
       }
+
 
       tempContainer.appendChild(songDiv);
 
