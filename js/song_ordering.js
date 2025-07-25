@@ -42,8 +42,17 @@ function splitSongIfNeeded(song) {
   }
 
   const maxLinePixelWidth = 450;
-  const anyTooLong = lines.some(line => measureTextWidth(line) > maxLinePixelWidth);
-  if (anyTooLong) {
+  const extraTolerance = 50;
+
+  // Only reject if a CHORD line is too wide (not plain lyrics)
+  const anyTooLong = lines.some(line => {
+    const width = measureTextWidth(line);
+    return isChordLine(line) && width > maxLinePixelWidth;
+  });
+
+  const absurdlyTooLong = lines.some(line => measureTextWidth(line) > maxLinePixelWidth + extraTolerance);
+
+  if (anyTooLong || absurdlyTooLong) {
     return {
       ...song,
       left_content: lines.join('\n'),
@@ -119,6 +128,7 @@ function splitSongIfNeeded(song) {
     right_content: rightLines.join('\n'),
   };
 }
+
 
 
 
