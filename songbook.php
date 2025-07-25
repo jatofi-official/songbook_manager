@@ -587,7 +587,7 @@ async function handleGenerateForCategory(category) {
 //   console.log(ordered);
 
     const orderedIds = getOrderedIds(ordered);
-    renderA4Preview(songs, orderedIds);
+    renderA4Preview(songs, orderedIds,true);
 
 }
 

@@ -1,4 +1,4 @@
-function renderA4Preview(songs, orderedIds) {
+function renderA4Preview(songs, orderedIds, debug = false) {
   const container = document.getElementById('a4-preview-container');
   container.innerHTML = '';
 
@@ -7,17 +7,26 @@ function renderA4Preview(songs, orderedIds) {
   document.body.appendChild(tempContainer);
 
   const maxHeight = 1300;
-
-  // Start rendering from page 1 (no blank page)
   let currentPageNum = 1;
 
-  // Create first page row and append first page
   let pageRow = document.createElement('div');
   pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
   container.appendChild(pageRow);
 
   let currentPage = createPage(currentPageNum);
   pageRow.appendChild(currentPage);
+
+  if (debug) {
+    const line = document.createElement('div');
+    line.style.position = 'absolute';
+    line.style.top = 0;
+    line.style.bottom = 0;
+    line.style.left = '50%';
+    line.style.width = '1px';
+    line.style.backgroundColor = '#007bff';
+    line.style.zIndex = '10';
+    currentPage.appendChild(line);
+  }
 
   let currentHeight = 0;
 
@@ -34,8 +43,10 @@ function renderA4Preview(songs, orderedIds) {
     for (const partSong of songParts) {
       const songDiv = document.createElement('div');
       songDiv.className = 'song-block mb-4';
-      songDiv.style.border = '1px dashed red';
-      songDiv.style.backgroundColor = '#fdfdfd';
+      if (debug) {
+        songDiv.style.border = '1px dashed red';
+        songDiv.style.backgroundColor = '#fdfdfd';
+      }
 
       if (!partSong.continuation) {
         const header = createSongHeader(partSong);
@@ -43,13 +54,11 @@ function renderA4Preview(songs, orderedIds) {
       }
 
       if (!partSong.right_content) {
-        // single column
         const pre = document.createElement('pre');
         pre.style.margin = 0;
-        pre.innerHTML = renderSong(partSong.left_content); // <-- changed from textContent
+        pre.innerHTML = renderSong(partSong.left_content);
         songDiv.appendChild(pre);
       } else {
-        // two column - do NOT add header here again!
         songDiv.classList.add('split-song');
         songDiv.style.display = 'flex';
         songDiv.style.flexDirection = 'column';
@@ -61,14 +70,14 @@ function renderA4Preview(songs, orderedIds) {
         leftCol.className = 'left-column flex-grow-1 pe-3';
         const leftPre = document.createElement('pre');
         leftPre.style.margin = 0;
-        leftPre.innerHTML = renderSong(partSong.left_content); // <-- changed here
+        leftPre.innerHTML = renderSong(partSong.left_content);
         leftCol.appendChild(leftPre);
 
         const rightCol = document.createElement('div');
         rightCol.className = 'right-column flex-grow-1 ps-3';
         const rightPre = document.createElement('pre');
         rightPre.style.margin = 0;
-        rightPre.innerHTML = renderSong(partSong.right_content); // <-- changed here
+        rightPre.innerHTML = renderSong(partSong.right_content);
         rightCol.appendChild(rightPre);
 
         columns.appendChild(leftCol);
@@ -76,39 +85,35 @@ function renderA4Preview(songs, orderedIds) {
         songDiv.appendChild(columns);
       }
 
-
       tempContainer.appendChild(songDiv);
 
-      // Width measurement
       let maxLineWidth = 0;
       const preElements = songDiv.querySelectorAll('pre');
       preElements.forEach(pre => {
         const lines = pre.textContent.split('\n');
         lines.forEach(line => {
-          const trimmedLine = line.replace(/\s+$/, '');
-          const measurer = document.createElement('span');
-          measurer.style.visibility = 'hidden';
-          measurer.style.position = 'absolute';
-          measurer.style.whiteSpace = 'pre';
-          measurer.style.fontFamily = 'Fira Mono, monospace';
-          measurer.style.fontSize = '14px';
-          measurer.textContent = trimmedLine;
-          tempContainer.appendChild(measurer);
-          const lineWidth = measurer.getBoundingClientRect().width;
-          tempContainer.removeChild(measurer);
-          if (lineWidth > maxLineWidth) maxLineWidth = lineWidth;
+          const trimmed = line.replace(/\s+$/, '');
+          const span = document.createElement('span');
+          span.style.visibility = 'hidden';
+          span.style.position = 'absolute';
+          span.style.whiteSpace = 'pre';
+          span.style.fontFamily = 'Fira Mono, monospace';
+          span.style.fontSize = '14px';
+          span.textContent = trimmed;
+          tempContainer.appendChild(span);
+          const w = span.getBoundingClientRect().width;
+          tempContainer.removeChild(span);
+          if (w > maxLineWidth) maxLineWidth = w;
         });
       });
 
       const blockHeight = songDiv.getBoundingClientRect().height;
       tempContainer.removeChild(songDiv);
 
-      // If doesn't fit, create a new page
       if (currentHeight + blockHeight > maxHeight) {
         currentPageNum++;
         currentHeight = 0;
 
-        // If even page number, start a new row (page pairs)
         if (currentPageNum % 2 === 0) {
           pageRow = document.createElement('div');
           pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
@@ -117,30 +122,46 @@ function renderA4Preview(songs, orderedIds) {
 
         currentPage = createPage(currentPageNum);
         pageRow.appendChild(currentPage);
-      }
 
-      // Add debug label
-      const debugLabel = document.createElement('div');
-      debugLabel.style.position = 'absolute';
-      debugLabel.style.right = '-200px';
-      debugLabel.style.bottom = '50px';
-      debugLabel.style.fontSize = '12px';
-      debugLabel.style.color = '#007bff';
-      debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
+        if (debug) {
+          const line = document.createElement('div');
+          line.style.position = 'absolute';
+          line.style.top = 0;
+          line.style.bottom = 0;
+          line.style.left = '50%';
+          line.style.width = '1px';
+          line.style.backgroundColor = '#007bff';
+          line.style.zIndex = '10';
+          currentPage.appendChild(line);
+        }
+      }
 
       const wrapper = document.createElement('div');
       wrapper.style.position = 'relative';
       wrapper.appendChild(songDiv);
-      wrapper.appendChild(debugLabel);
+
+      if (debug) {
+        const debugLabel = document.createElement('div');
+        debugLabel.style.position = 'absolute';
+        debugLabel.style.right = '-200px';
+        debugLabel.style.bottom = '50px';
+        debugLabel.style.fontSize = '12px';
+        debugLabel.style.color = '#007bff';
+        debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
+        wrapper.appendChild(debugLabel);
+      }
 
       currentPage.appendChild(wrapper);
-      currentHeight += blockHeight;
+      currentHeight += wrapper.getBoundingClientRect().height;
     }
   }
 
   document.body.removeChild(tempContainer);
   console.log(`✅ Total pages used: ${currentPageNum}`);
 }
+
+
+
 
 
 
@@ -249,35 +270,6 @@ function wrapWithDebug(div, height) {
   wrapper.appendChild(label);
   return wrapper;
 }
-
-
-// function createPage() {
-//   const page = document.createElement('div');
-//   page.className = 'a4-page p-4';
-//   page.style.position = 'relative';
-//   page.style.minHeight = '1123px';
-//   page.style.maxWidth = '794px'; // A4 width at 96dpi
-//   page.style.margin = '16px auto'; // Center horizontally + add vertical space
-//   page.style.backgroundColor = 'white';
-//   page.style.border = '1px solid #aaa';
-//   page.style.boxSizing = 'border-box';
-//   page.style.overflow = 'visible';
-//   page.style.padding = '32px';
-
-//   // Add vertical debug line at actual content midpoint
-//   const debugLine = document.createElement('div');
-//   debugLine.style.position = 'absolute';
-//   debugLine.style.top = '0';
-//   debugLine.style.bottom = '0';
-//   debugLine.style.left = '397px'; // 32px padding + half of 730px usable width
-//   debugLine.style.width = '1px';
-//   debugLine.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
-//   debugLine.style.zIndex = '999';
-
-//   page.appendChild(debugLine);
-
-//   return page;
-// }
 
 function createPage(pageNumber = null) {
   const page = document.createElement('div');
