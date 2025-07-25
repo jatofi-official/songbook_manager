@@ -41,8 +41,8 @@ function splitSongIfNeeded(song) {
     };
   }
 
-  const maxLinePixelWidth = 450;
-  const extraTolerance = 50;
+  const maxLinePixelWidth = 420;
+  const extraTolerance = 70;
 
   const anyTooLong = lines.some(line =>
     isChordLine(line) && measureTextWidth(line) > maxLinePixelWidth
