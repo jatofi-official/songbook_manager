@@ -18,16 +18,19 @@ function isChordLine(line) {
 
 
 function renderSong(content) {
-    const lines = content.split(/\r?\n/);
-    return lines.map(line => {
-        if (isChordLine(line)) {
-            // whole line bold
-            return `<strong>${line}</strong>`;
-        } else {
-            // only bold the ® symbols in the text
-            return line.replace(/®/g, '<strong>®</strong>');
-        }
-    }).join('\n');
+  const lines = content.split(/\r?\n/);
+  return lines.map(line => {
+    if (isChordLine(line)) {
+      // whole line bold
+      return `<strong>${line}</strong>`;
+    } else {
+      // bold the ® symbols
+      // and bold chords inside {...} but remove the curly braces
+      return line
+        .replace(/®/g, '<strong>®</strong>')
+        .replace(/\{([^}]+)\}/g, (match, chordInside) => `<strong>${chordInside}</strong>`);
+    }
+  }).join('\n');
 }
 
 
