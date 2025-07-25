@@ -17,7 +17,7 @@ function renderA4Preview(songs, orderedIds) {
   tempContainer.style.padding = '32px';
   document.body.appendChild(tempContainer);
 
-  const maxHeight = 1100;
+  const maxHeight = 1300;
   let currentPage = createPage();
   container.appendChild(currentPage);
   let currentHeight = 0;

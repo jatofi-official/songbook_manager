@@ -31,7 +31,7 @@ function groupSongsByArtist(songs) {
 }
 
 function splitSongIfNeeded(song) {
-  // Split into lines and trim trailing spaces on each line
+    console.log("TEST");
   const lines = (song.content?.split('\n') || []).map(line => line.replace(/\s+$/, ''));
 
   if (lines.length <= 8) {
@@ -45,7 +45,6 @@ function splitSongIfNeeded(song) {
   const maxLinePixelWidth = 400;
   const anyTooLong = lines.some(line => measureTextWidth(line) > maxLinePixelWidth);
   if (anyTooLong) {
-    console.log(song.title);
     return {
       ...song,
       left_content: lines.join('\n'),
@@ -54,21 +53,39 @@ function splitSongIfNeeded(song) {
   }
 
   const totalLines = lines.length;
-  let splitIndex = -1;
-
-  // Look for empty line between 30% and 60% of the way through the song
   const minSplit = Math.floor(totalLines * 0.3);
-  const maxSplit = Math.floor(totalLines * 0.6);
+  const maxSplit = Math.floor(totalLines * 0.7);
 
-  for (let i = maxSplit; i >= minSplit; i--) {
-    if (lines[i]?.trim() === '') {
-      splitIndex = i;
-      break;
+  let bestSplitIndex = null;
+  let bestHeight = Infinity;
+
+  console.log(`--- Analyzing: ${song.title} (${totalLines} lines)`);
+
+  for (let i = minSplit; i <= maxSplit; i++) {
+    const line = lines[i];
+
+    const isEmpty = line?.trim() === '';
+    const isChorus = line?.trim().startsWith('®') || line?.trim().startsWith('Ruty');
+
+    if (isEmpty || isChorus) {
+      const leftLen = i;
+      const rightLen = totalLines - i;
+      const height = Math.max(leftLen, rightLen);
+
+      console.log(`  Possible split at line ${i}: left=${leftLen}, right=${rightLen}, max=${height} (${isEmpty ? "empty" : "chorus"})`);
+
+      if (
+        height < bestHeight ||
+        (height === bestHeight && (bestSplitIndex === null || i < bestSplitIndex))
+      ) {
+        bestHeight = height;
+        bestSplitIndex = i;
+      }
     }
   }
 
-  // If no good split point found, don't split
-  if (splitIndex === -1) {
+  if (bestSplitIndex === null) {
+    console.log(`  No good split found for: ${song.title}`);
     return {
       ...song,
       left_content: lines.join('\n'),
@@ -76,20 +93,26 @@ function splitSongIfNeeded(song) {
     };
   }
 
-  // Slice right side lines
-  let rightLines = lines.slice(splitIndex);
+  console.log(`  ✅ Chosen split at line ${bestSplitIndex} (left=${bestSplitIndex}, right=${totalLines - bestSplitIndex})`);
 
-  // Remove leading empty lines from rightLines
-  while (rightLines.length && rightLines[0].trim() === '') {
-    rightLines.shift();
-  }
+  let leftLines = lines.slice(0, bestSplitIndex);
+  let rightLines = lines.slice(bestSplitIndex);
+
+  while (leftLines.length && leftLines[leftLines.length - 1].trim() === '') leftLines.pop();
+  while (rightLines.length && rightLines[0].trim() === '') rightLines.shift();
 
   return {
     ...song,
-    left_content: lines.slice(0, splitIndex).join('\n'),
+    left_content: leftLines.join('\n'),
     right_content: rightLines.join('\n'),
   };
 }
+
+
+
+
+
+
 
 function measureHeight(text) {
   // This should use your existing hidden container 'measurer' element
