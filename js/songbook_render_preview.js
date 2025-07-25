@@ -8,26 +8,18 @@ function renderA4Preview(songs, orderedIds) {
 
   const maxHeight = 1300;
 
-  // Add blank first page (Page 1)
+  // Start rendering from page 1 (no blank page)
+  let currentPageNum = 1;
+
+  // Create first page row and append first page
   let pageRow = document.createElement('div');
   pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
   container.appendChild(pageRow);
 
-  const blankPage = createPage(1);
-  pageRow.appendChild(blankPage);
-
-  // Initialize rendering from page 2
-  let currentPageNum = 2;
   let currentPage = createPage(currentPageNum);
-
-  // Start new page row for pages 2+
-  pageRow = document.createElement('div');
-  pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
-  container.appendChild(pageRow);
   pageRow.appendChild(currentPage);
 
   let currentHeight = 0;
-  let totalPages = 1;
 
   for (const id of orderedIds) {
     let song = processedSongs.find(s => s.id === id);
@@ -86,7 +78,6 @@ function renderA4Preview(songs, orderedIds) {
         songDiv.appendChild(columns);
       }
 
-
       tempContainer.appendChild(songDiv);
 
       // Width measurement
@@ -118,15 +109,14 @@ function renderA4Preview(songs, orderedIds) {
         currentPageNum++;
         currentHeight = 0;
 
-        currentPage = createPage(currentPageNum);
-
-        // If even page number, start a new row
+        // If even page number, start a new row (page pairs)
         if (currentPageNum % 2 === 0) {
           pageRow = document.createElement('div');
           pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
           container.appendChild(pageRow);
         }
 
+        currentPage = createPage(currentPageNum);
         pageRow.appendChild(currentPage);
       }
 
@@ -152,6 +142,7 @@ function renderA4Preview(songs, orderedIds) {
   document.body.removeChild(tempContainer);
   console.log(`✅ Total pages used: ${currentPageNum}`);
 }
+
 
 
 
