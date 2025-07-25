@@ -403,25 +403,56 @@ function measureSongPages(pages, container) {
 function orderSongGroup(songs) {
   if (songs.length <= 2) return songs;
 
+  // Precompute leftover waste for all songs
   songs.forEach(song => {
-    const leftover = PAGE_HEIGHT - (song.height % PAGE_HEIGHT);
-    song.wasteScore = leftover + (song.twoPages ? 2000 : 0);
+    const leftover = PAGE_HEIGHT - (song.height % PAGE_HEIGHT || PAGE_HEIGHT);
+    song.wasteScore = leftover + (song.twoPages ? 2000 : 0);  // penalty for multi-page songs
   });
 
-  const sortedByWaste = [...songs].sort((a, b) => b.wasteScore - a.wasteScore);
+  // Limit candidates for first and last to first 3 and last 3 by height ascending (smallest songs)
+  // because smaller songs tend to fit better at edges
+  const candidates = songs.slice().sort((a, b) => a.height - b.height);
 
-  const first = sortedByWaste[0];
-  const last = sortedByWaste[1];
-  const middle = sortedByWaste.slice(2).sort((a, b) => b.height - a.height);
+  const firstCandidates = candidates.slice(0, Math.min(3, candidates.length));
+  const lastCandidates = candidates.slice(0, Math.min(3, candidates.length));
 
-  // Now log the page packing of the middle songs
+  let bestPair = null;
+  let bestWasteSum = Infinity;
+
+  // Try all pairs (first, last) distinct
+  for (let firstCandidate of firstCandidates) {
+    for (let lastCandidate of lastCandidates) {
+      if (firstCandidate.id === lastCandidate.id) continue;
+
+      const firstWaste = PAGE_HEIGHT - (firstCandidate.height % PAGE_HEIGHT || PAGE_HEIGHT);
+      const lastWaste = PAGE_HEIGHT - (lastCandidate.height % PAGE_HEIGHT || PAGE_HEIGHT);
+
+      const wasteSum = firstWaste + lastWaste;
+
+      if (wasteSum < bestWasteSum) {
+        bestWasteSum = wasteSum;
+        bestPair = [firstCandidate, lastCandidate];
+      }
+    }
+  }
+
+  if (!bestPair) {
+    // fallback if no pair found (shouldn't happen)
+    bestPair = [songs[0], songs[songs.length - 1]];
+  }
+
+  // Middle songs = all excluding chosen first and last
+  const middle = songs.filter(s => s.id !== bestPair[0].id && s.id !== bestPair[1].id)
+                      .sort((a, b) => b.height - a.height);
+
+  // Debug logs for insight
+  console.log(`--- Ordering songs for artist: ${songs[0]?.artist || "Unknown"} ---`);
+  console.log(`Chosen first song ID: ${bestPair[0].id}, Height: ${bestPair[0].height}px, Waste: ${PAGE_HEIGHT - (bestPair[0].height % PAGE_HEIGHT || PAGE_HEIGHT)}px`);
+  console.log(`Chosen last song ID: ${bestPair[1].id}, Height: ${bestPair[1].height}px, Waste: ${PAGE_HEIGHT - (bestPair[1].height % PAGE_HEIGHT || PAGE_HEIGHT)}px`);
+  console.log('Packing middle songs:');
+
   let pageNumber = 1;
   let spaceLeft = PAGE_HEIGHT;
-
-  console.log(`--- Ordering songs for artist: ${songs[0]?.artist || "Unknown"} ---`);
-  console.log(`First (leftover) song ID: ${first.id}, Height: ${first.height}px`);
-  console.log(`Last (leftover) song ID: ${last.id}, Height: ${last.height}px`);
-  console.log('Packing middle songs:');
 
   middle.forEach(song => {
     if (song.height > spaceLeft) {
@@ -435,8 +466,9 @@ function orderSongGroup(songs) {
 
   console.log(`  -- Page ${pageNumber} ends with space left: ${spaceLeft.toFixed(0)}px`);
 
-  return [first, ...middle, last];
+  return [bestPair[0], ...middle, bestPair[1]];
 }
+
 
 
 function getOrderedIds(finalOrderedList) {
@@ -447,14 +479,62 @@ function getOrderedIds(finalOrderedList) {
 function orderArtistsByEdges(artists, maxPageHeight) {
   if (artists.length === 0) return [];
 
-  let remaining = artists.slice();
-  let orderedArtists = [remaining.shift()]; // start with first artist
+  const singleSongArtists = artists.filter(group => group.songs.length === 1);
+  const multiSongArtists = artists.filter(group => group.songs.length > 1);
 
+  let bestStartCombo = null;
+  let bestWaste = Infinity;
+
+  // Try each single-song artist as the first song
+  for (let i = 0; i < singleSongArtists.length; i++) {
+    const firstArtist = singleSongArtists[i];
+    const firstSong = firstArtist.songs[0];
+    const usedArtists = new Set([firstArtist.artist]);
+
+    let spaceLeft = maxPageHeight - firstSong.height;
+    const packed = [firstArtist];
+
+    // Try to fill rest of first page with songs from other single-song artists
+    for (let j = 0; j < singleSongArtists.length; j++) {
+      if (i === j) continue;
+      const candidateArtist = singleSongArtists[j];
+      const candidateSong = candidateArtist.songs[0];
+
+      if (usedArtists.has(candidateArtist.artist)) continue;
+      if (candidateSong.height <= spaceLeft) {
+        packed.push(candidateArtist);
+        spaceLeft -= candidateSong.height;
+        usedArtists.add(candidateArtist.artist);
+      }
+    }
+
+    const waste = spaceLeft;
+
+    if (waste < bestWaste) {
+      bestWaste = waste;
+      bestStartCombo = packed;
+    }
+  }
+
+  let orderedArtists = [];
+  let usedArtistNames = new Set();
+
+  if (bestStartCombo) {
+    orderedArtists.push(...bestStartCombo);
+    bestStartCombo.forEach(ag => usedArtistNames.add(ag.artist));
+  }
+
+  // Add the rest of the artists, ignoring used ones
+  const remainingArtists = artists.filter(ag => !usedArtistNames.has(ag.artist));
+
+  let remaining = [...remainingArtists];
+
+  // If we already placed some artists, continue from last placed
   while (remaining.length > 0) {
     let lastArtist = orderedArtists[orderedArtists.length - 1];
     let lastHeight = lastArtist.lastSongHeight;
 
-    // Find artist that fits best after lastArtist
+    // Find best next artist that fits well with the previous one
     let bestFitIndex = 0;
     let bestFitLeftover = maxPageHeight;
 
@@ -474,6 +554,7 @@ function orderArtistsByEdges(artists, maxPageHeight) {
 
   return orderedArtists;
 }
+
 
 
 

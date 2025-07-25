@@ -2,17 +2,30 @@ function renderA4Preview(songs, orderedIds) {
   const container = document.getElementById('a4-preview-container');
   container.innerHTML = '';
 
-  // Preprocess songs: add left_content and right_content
   let processedSongs = songs.map(song => splitSongIfNeeded(song));
-
-  // Create hidden temp container for measuring
   const tempContainer = createHiddenMeasureContainer();
-
   document.body.appendChild(tempContainer);
 
   const maxHeight = 1300;
-  let currentPage = createPage();
-  container.appendChild(currentPage);
+
+  // Add blank first page (Page 1)
+  let pageRow = document.createElement('div');
+  pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+  container.appendChild(pageRow);
+
+  const blankPage = createPage(1);
+  pageRow.appendChild(blankPage);
+
+  // Initialize rendering from page 2
+  let currentPageNum = 2;
+  let currentPage = createPage(currentPageNum);
+
+  // Start new page row for pages 2+
+  pageRow = document.createElement('div');
+  pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+  container.appendChild(pageRow);
+  pageRow.appendChild(currentPage);
+
   let currentHeight = 0;
   let totalPages = 1;
 
@@ -20,182 +33,126 @@ function renderA4Preview(songs, orderedIds) {
     let song = processedSongs.find(s => s.id === id);
     if (!song) continue;
 
-    // Skip right half standalone songs
     if (song.right_content && song.part === 'right') continue;
 
-    // *** New: for single-column songs, try splitting by page height ***
-    if (!song.right_content) {
-      // Use your existing global splitPageIfNeeded that returns an array (one or two parts)
-      const splitSongs = splitPageIfNeeded(song, tempContainer, maxHeight);
+    const songParts = song.right_content
+      ? [song]
+      : splitPageIfNeeded(song, tempContainer, maxHeight);
 
-      for (const partSong of splitSongs) {
-        // Render each partSong below (same as usual)
+    for (const partSong of songParts) {
+      const songDiv = document.createElement('div');
+      songDiv.className = 'song-block mb-4';
+      songDiv.style.border = '1px dashed red';
+      songDiv.style.backgroundColor = '#fdfdfd';
 
-        let songDiv = document.createElement('div');
-        songDiv.className = 'song-block mb-4';
-        songDiv.style.border = '1px dashed red';
-        songDiv.style.backgroundColor = '#fdfdfd';
+      if (!partSong.continuation) {
+        const header = document.createElement('div');
+        header.innerHTML = `<strong>${partSong.title}</strong> <em>${partSong.artist}</em>`;
+        header.style.marginBottom = '10px';
+        songDiv.appendChild(header);
+      }
 
-        if (!partSong.continuation) {
-          const header = document.createElement('div');
-          header.innerHTML = `<strong>${partSong.title}</strong> <em>${partSong.artist}</em>`;
-          header.style.marginBottom = '10px';
-          songDiv.appendChild(header);
-        }
-
+      if (!partSong.right_content) {
+        // single column
         const pre = document.createElement('pre');
         pre.textContent = partSong.left_content;
         pre.style.margin = 0;
-
         songDiv.appendChild(pre);
+      } else {
+        // two column - do NOT add header here again!
+        songDiv.classList.add('split-song');
+        songDiv.style.display = 'flex';
+        songDiv.style.flexDirection = 'column';
 
-        tempContainer.appendChild(songDiv);
+        const columns = document.createElement('div');
+        columns.className = 'd-flex';
 
-        // Measure widest line width (reuse your existing logic)
-        let maxLineWidth = 0;
-        const preElements = songDiv.querySelectorAll('pre');
-        preElements.forEach(pre => {
-          const lines = pre.textContent.split('\n');
-          lines.forEach(line => {
-            const trimmedLine = line.replace(/\s+$/, '');
-            const measurer = document.createElement('span');
-            measurer.style.visibility = 'hidden';
-            measurer.style.position = 'absolute';
-            measurer.style.whiteSpace = 'pre';
-            measurer.style.fontFamily = 'Fira Mono, monospace';
-            measurer.style.fontSize = '14px';
-            measurer.textContent = trimmedLine;
-            tempContainer.appendChild(measurer);
-            const lineWidth = measurer.getBoundingClientRect().width;
-            tempContainer.removeChild(measurer);
-            if (lineWidth > maxLineWidth) maxLineWidth = lineWidth;
-          });
-        });
+        const leftCol = document.createElement('div');
+        leftCol.className = 'left-column flex-grow-1 pe-3';
+        const leftPre = document.createElement('pre');
+        leftPre.textContent = partSong.left_content;
+        leftPre.style.margin = 0;
+        leftCol.appendChild(leftPre);
 
-        const blockHeight = songDiv.getBoundingClientRect().height;
-        tempContainer.removeChild(songDiv);
+        const rightCol = document.createElement('div');
+        rightCol.className = 'right-column flex-grow-1 ps-3';
+        const rightPre = document.createElement('pre');
+        rightPre.textContent = partSong.right_content;
+        rightPre.style.margin = 0;
+        rightCol.appendChild(rightPre);
 
-        if (currentHeight + blockHeight > maxHeight) {
-          currentPage = createPage();
-          container.appendChild(currentPage);
-          currentHeight = 0;
-          totalPages++;
-        }
-
-        // Add debug label to side
-        const debugLabel = document.createElement('div');
-        debugLabel.style.position = 'absolute';
-        debugLabel.style.right = '-200px';
-        debugLabel.style.bottom = '50px';
-        debugLabel.style.fontSize = '12px';
-        debugLabel.style.color = '#007bff';
-        debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
-
-        const wrapper = document.createElement('div');
-        wrapper.style.position = 'relative';
-        wrapper.appendChild(songDiv);
-        wrapper.appendChild(debugLabel);
-
-        currentPage.appendChild(wrapper);
-        currentHeight += blockHeight;
+        columns.appendChild(leftCol);
+        columns.appendChild(rightCol);
+        songDiv.appendChild(columns);
       }
 
-    } else {
-  // For two-column songs, render with full-width title/author header
 
-  let songDiv = document.createElement('div');
-  songDiv.className = 'song-block split-song mb-4';
-  songDiv.style.border = '1px dashed red';
-  songDiv.style.backgroundColor = '#fdfdfd';
-  songDiv.style.display = 'flex';
-  songDiv.style.flexDirection = 'column';
+      tempContainer.appendChild(songDiv);
 
-  // Full-width title and artist
-  const header = document.createElement('div');
-  header.innerHTML = `<strong>${song.title}</strong> <em>${song.artist}</em>`;
-  header.style.marginBottom = '10px';
-  songDiv.appendChild(header);
+      // Width measurement
+      let maxLineWidth = 0;
+      const preElements = songDiv.querySelectorAll('pre');
+      preElements.forEach(pre => {
+        const lines = pre.textContent.split('\n');
+        lines.forEach(line => {
+          const trimmedLine = line.replace(/\s+$/, '');
+          const measurer = document.createElement('span');
+          measurer.style.visibility = 'hidden';
+          measurer.style.position = 'absolute';
+          measurer.style.whiteSpace = 'pre';
+          measurer.style.fontFamily = 'Fira Mono, monospace';
+          measurer.style.fontSize = '14px';
+          measurer.textContent = trimmedLine;
+          tempContainer.appendChild(measurer);
+          const lineWidth = measurer.getBoundingClientRect().width;
+          tempContainer.removeChild(measurer);
+          if (lineWidth > maxLineWidth) maxLineWidth = lineWidth;
+        });
+      });
 
-  // Columns wrapper
-  const columns = document.createElement('div');
-  columns.className = 'd-flex';
+      const blockHeight = songDiv.getBoundingClientRect().height;
+      tempContainer.removeChild(songDiv);
 
-  const leftCol = document.createElement('div');
-  leftCol.className = 'left-column flex-grow-1 pe-3';
+      // If doesn't fit, create a new page
+      if (currentHeight + blockHeight > maxHeight) {
+        currentPageNum++;
+        currentHeight = 0;
 
-  const leftPre = document.createElement('pre');
-  leftPre.textContent = song.left_content;
-  leftPre.style.margin = 0;
-  leftCol.appendChild(leftPre);
+        currentPage = createPage(currentPageNum);
 
-  const rightCol = document.createElement('div');
-  rightCol.className = 'right-column flex-grow-1 ps-3';
+        // If even page number, start a new row
+        if (currentPageNum % 2 === 0) {
+          pageRow = document.createElement('div');
+          pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+          container.appendChild(pageRow);
+        }
 
-  const rightPre = document.createElement('pre');
-  rightPre.textContent = song.right_content;
-  rightPre.style.margin = 0;
-  rightCol.appendChild(rightPre);
+        pageRow.appendChild(currentPage);
+      }
 
-  columns.appendChild(leftCol);
-  columns.appendChild(rightCol);
-  songDiv.appendChild(columns);
+      // Add debug label
+      const debugLabel = document.createElement('div');
+      debugLabel.style.position = 'absolute';
+      debugLabel.style.right = '-200px';
+      debugLabel.style.bottom = '50px';
+      debugLabel.style.fontSize = '12px';
+      debugLabel.style.color = '#007bff';
+      debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
 
-  tempContainer.appendChild(songDiv);
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'relative';
+      wrapper.appendChild(songDiv);
+      wrapper.appendChild(debugLabel);
 
-  // Measure widest line width
-  let maxLineWidth = 0;
-  const preElements = songDiv.querySelectorAll('pre');
-  preElements.forEach(pre => {
-    const lines = pre.textContent.split('\n');
-    lines.forEach(line => {
-      const trimmedLine = line.replace(/\s+$/, '');
-      const measurer = document.createElement('span');
-      measurer.style.visibility = 'hidden';
-      measurer.style.position = 'absolute';
-      measurer.style.whiteSpace = 'pre';
-      measurer.style.fontFamily = 'Fira Mono, monospace';
-      measurer.style.fontSize = '14px';
-      measurer.textContent = trimmedLine;
-      tempContainer.appendChild(measurer);
-      const lineWidth = measurer.getBoundingClientRect().width;
-      tempContainer.removeChild(measurer);
-      if (lineWidth > maxLineWidth) maxLineWidth = lineWidth;
-    });
-  });
-
-  const blockHeight = songDiv.getBoundingClientRect().height;
-  tempContainer.removeChild(songDiv);
-
-  if (currentHeight + blockHeight > maxHeight) {
-    currentPage = createPage();
-    container.appendChild(currentPage);
-    currentHeight = 0;
-    totalPages++;
-  }
-
-  // Add debug label to side
-  const debugLabel = document.createElement('div');
-  debugLabel.style.position = 'absolute';
-  debugLabel.style.right = '-200px';
-  debugLabel.style.bottom = '50px';
-  debugLabel.style.fontSize = '12px';
-  debugLabel.style.color = '#007bff';
-  debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
-
-  const wrapper = document.createElement('div');
-  wrapper.style.position = 'relative';
-  wrapper.appendChild(songDiv);
-  wrapper.appendChild(debugLabel);
-
-  currentPage.appendChild(wrapper);
-  currentHeight += blockHeight;
-}
-
+      currentPage.appendChild(wrapper);
+      currentHeight += blockHeight;
+    }
   }
 
   document.body.removeChild(tempContainer);
-  console.log(`✅ Total pages used: ${totalPages}`);
+  console.log(`✅ Total pages used: ${currentPageNum}`);
 }
+
 
 
 
@@ -239,6 +196,7 @@ function renderTwoColumnHalf(song, content, isLeft) {
 
   return colDiv;
 }
+
 function measureBlockHeight(block, tempContainer) {
   tempContainer.appendChild(block);
   const height = block.getBoundingClientRect().height;
@@ -261,41 +219,56 @@ function wrapWithDebug(div, height) {
   wrapper.appendChild(label);
   return wrapper;
 }
+
+
 // function createPage() {
 //   const page = document.createElement('div');
 //   page.className = 'a4-page p-4';
+//   page.style.position = 'relative';
 //   page.style.minHeight = '1123px';
-//   page.style.maxWidth = '794px';
-//   page.style.border = '1px solid #aaa';
-//   page.style.margin = '16px auto';
+//   page.style.maxWidth = '794px'; // A4 width at 96dpi
+//   page.style.margin = '16px auto'; // Center horizontally + add vertical space
 //   page.style.backgroundColor = 'white';
+//   page.style.border = '1px solid #aaa';
 //   page.style.boxSizing = 'border-box';
+//   page.style.overflow = 'visible';
+//   page.style.padding = '32px';
+
+//   // Add vertical debug line at actual content midpoint
+//   const debugLine = document.createElement('div');
+//   debugLine.style.position = 'absolute';
+//   debugLine.style.top = '0';
+//   debugLine.style.bottom = '0';
+//   debugLine.style.left = '397px'; // 32px padding + half of 730px usable width
+//   debugLine.style.width = '1px';
+//   debugLine.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+//   debugLine.style.zIndex = '999';
+
+//   page.appendChild(debugLine);
+
 //   return page;
 // }
-function createPage() {
+
+function createPage(pageNumber = null) {
   const page = document.createElement('div');
-  page.className = 'a4-page p-4';
-  page.style.position = 'relative';
-  page.style.minHeight = '1123px';
-  page.style.maxWidth = '794px'; // A4 width at 96dpi
-  page.style.margin = '16px auto'; // Center horizontally + add vertical space
-  page.style.backgroundColor = 'white';
-  page.style.border = '1px solid #aaa';
+  page.className = 'a4-page border border-secondary mb-4 p-4 bg-white position-relative';
+  page.style.width = '794px'; // A4 width in pixels
+  page.style.minHeight = '1123px'; // A4 height in pixels
   page.style.boxSizing = 'border-box';
-  page.style.overflow = 'visible';
-  page.style.padding = '32px';
+  page.style.pageBreakAfter = 'always';
 
-  // Add vertical debug line at actual content midpoint
-  const debugLine = document.createElement('div');
-  debugLine.style.position = 'absolute';
-  debugLine.style.top = '0';
-  debugLine.style.bottom = '0';
-  debugLine.style.left = '397px'; // 32px padding + half of 730px usable width
-  debugLine.style.width = '1px';
-  debugLine.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
-  debugLine.style.zIndex = '999';
-
-  page.appendChild(debugLine);
+  if (pageNumber !== null) {
+    const pageNumberDiv = document.createElement('div');
+    pageNumberDiv.className = 'page-number';
+    pageNumberDiv.textContent = `Page ${pageNumber}`;
+    pageNumberDiv.style.position = 'absolute';
+    pageNumberDiv.style.bottom = '10px';
+    pageNumberDiv.style.left = '50%';
+    pageNumberDiv.style.transform = 'translateX(-50%)';
+    pageNumberDiv.style.fontSize = '12px';
+    pageNumberDiv.style.color = '#555';
+    page.appendChild(pageNumberDiv);
+  }
 
   return page;
 }
