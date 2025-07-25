@@ -175,6 +175,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
 <script src="js/song_ordering.js"></script>
 <script src="js/songbook_render_preview.js"></script>
+<script src="js/song-render.js"></script>
 
 
 <script>

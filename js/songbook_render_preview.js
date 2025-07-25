@@ -268,14 +268,41 @@ function wrapWithDebug(div, height) {
   wrapper.appendChild(label);
   return wrapper;
 }
+// function createPage() {
+//   const page = document.createElement('div');
+//   page.className = 'a4-page p-4';
+//   page.style.minHeight = '1123px';
+//   page.style.maxWidth = '794px';
+//   page.style.border = '1px solid #aaa';
+//   page.style.margin = '16px auto';
+//   page.style.backgroundColor = 'white';
+//   page.style.boxSizing = 'border-box';
+//   return page;
+// }
 function createPage() {
   const page = document.createElement('div');
   page.className = 'a4-page p-4';
+  page.style.position = 'relative';
   page.style.minHeight = '1123px';
-  page.style.maxWidth = '794px';
-  page.style.border = '1px solid #aaa';
-  page.style.margin = '16px auto';
+  page.style.maxWidth = '794px'; // A4 width at 96dpi
+  page.style.margin = '16px auto'; // Center horizontally + add vertical space
   page.style.backgroundColor = 'white';
+  page.style.border = '1px solid #aaa';
   page.style.boxSizing = 'border-box';
+  page.style.overflow = 'hidden';
+  page.style.padding = '32px';
+
+  // Add vertical debug line at actual content midpoint
+  const debugLine = document.createElement('div');
+  debugLine.style.position = 'absolute';
+  debugLine.style.top = '0';
+  debugLine.style.bottom = '0';
+  debugLine.style.left = '397px'; // 32px padding + half of 730px usable width
+  debugLine.style.width = '1px';
+  debugLine.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+  debugLine.style.zIndex = '999';
+
+  page.appendChild(debugLine);
+
   return page;
 }

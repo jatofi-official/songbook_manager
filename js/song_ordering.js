@@ -31,7 +31,6 @@ function groupSongsByArtist(songs) {
 }
 
 function splitSongIfNeeded(song) {
-    console.log("TEST");
   const lines = (song.content?.split('\n') || []).map(line => line.replace(/\s+$/, ''));
 
   if (lines.length <= 8) {
@@ -42,7 +41,7 @@ function splitSongIfNeeded(song) {
     };
   }
 
-  const maxLinePixelWidth = 400;
+  const maxLinePixelWidth = 450;
   const anyTooLong = lines.some(line => measureTextWidth(line) > maxLinePixelWidth);
   if (anyTooLong) {
     return {
@@ -63,7 +62,6 @@ function splitSongIfNeeded(song) {
 
   for (let i = minSplit; i <= maxSplit; i++) {
     const line = lines[i];
-
     const isEmpty = line?.trim() === '';
     const isChorus = line?.trim().startsWith('®') || line?.trim().startsWith('Ruty');
 
@@ -93,10 +91,24 @@ function splitSongIfNeeded(song) {
     };
   }
 
-  console.log(`  ✅ Chosen split at line ${bestSplitIndex} (left=${bestSplitIndex}, right=${totalLines - bestSplitIndex})`);
+  let offset = 0;
+  const currentLine = lines[bestSplitIndex];
+  const prevLine = lines[bestSplitIndex - 1];
 
-  let leftLines = lines.slice(0, bestSplitIndex);
-  let rightLines = lines.slice(bestSplitIndex);
+  const isChorus = currentLine.trim().startsWith('®') || currentLine.trim().startsWith('Ruty');
+  const chordAbove = prevLine && isChordLine(prevLine);
+
+  if (isChorus && chordAbove) {
+    console.log(`  🎸 Moving chord line with chorus at split ${bestSplitIndex}`);
+    offset = -1;
+  }
+
+  const finalSplit = bestSplitIndex + offset;
+
+  console.log(`  ✅ Chosen split at line ${finalSplit} (left=${finalSplit}, right=${totalLines - finalSplit})`);
+
+  let leftLines = lines.slice(0, finalSplit);
+  let rightLines = lines.slice(finalSplit);
 
   while (leftLines.length && leftLines[leftLines.length - 1].trim() === '') leftLines.pop();
   while (rightLines.length && rightLines[0].trim() === '') rightLines.shift();
@@ -107,6 +119,7 @@ function splitSongIfNeeded(song) {
     right_content: rightLines.join('\n'),
   };
 }
+
 
 
 
