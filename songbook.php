@@ -291,6 +291,7 @@ function createSongListItem(song, categoryId) {
   return li;
 }
 
+const categoryExpandedState = {};
 
 
 function renderCategories() {
@@ -304,24 +305,26 @@ function renderCategories() {
         const headerDiv = document.createElement('div');
         headerDiv.className = 'mb-2 d-flex justify-content-between align-items-center';
 
-        // Toggle button (arrow) for collapsing - collapsed by default
+        // Toggle button (arrow) for collapsing
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'btn btn-sm btn-link p-0 me-2';
         toggleBtn.style.userSelect = 'none';
-        toggleBtn.textContent = '▶'; // right arrow for collapsed initially
-        toggleBtn.setAttribute('aria-expanded', 'false');
+
+        const isExpanded = categoryExpandedState[category.id] === true;
+
+        toggleBtn.textContent = isExpanded ? '▼' : '▶';
+        toggleBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
 
         // Category title container
         const h5 = document.createElement('h5');
         h5.className = 'mb-0 d-flex align-items-center';
 
-        // Song count span, shown only when collapsed
         const songCountSpan = document.createElement('span');
         songCountSpan.className = 'text-muted ms-2';
         songCountSpan.textContent = `(${category.songs.length} songs)`;
         songCountSpan.style.fontSize = '0.75em';
         songCountSpan.style.color = '#666';
-
+        songCountSpan.style.display = isExpanded ? 'none' : 'inline';
 
         h5.appendChild(toggleBtn);
         h5.appendChild(document.createTextNode(category.name));
@@ -329,16 +332,13 @@ function renderCategories() {
 
         headerDiv.appendChild(h5);
 
-        // Admin generate button
         if (isCurrentUserAdmin()) {
             const generateBtn = document.createElement('button');
             generateBtn.className = 'btn btn-sm btn-outline-success';
             generateBtn.textContent = '⚙️ Generate Order';
-
             generateBtn.addEventListener('click', () => {
                 handleGenerateForCategory(category);
             });
-
             headerDiv.appendChild(generateBtn);
         }
 
@@ -346,41 +346,35 @@ function renderCategories() {
 
         const ul = document.createElement('ul');
         ul.className = 'list-group';
+        ul.style.display = isExpanded ? 'block' : 'none';
 
         category.songs.forEach(song => {
             const li = createSongListItem(song, category.id);
             ul.appendChild(li);
         });
 
-        // Hide songs list by default (collapsed)
-        ul.style.display = 'none';
-
         catDiv.appendChild(ul);
         container.appendChild(catDiv);
 
         // Collapse/expand logic
         toggleBtn.addEventListener('click', () => {
-            const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
-            if (isExpanded) {
-                // Collapse
+            const currentlyExpanded = categoryExpandedState[category.id] === true;
+            categoryExpandedState[category.id] = !currentlyExpanded;
+
+            if (currentlyExpanded) {
                 ul.style.display = 'none';
-                toggleBtn.textContent = '▶'; // right arrow
+                toggleBtn.textContent = '▶';
                 toggleBtn.setAttribute('aria-expanded', 'false');
-                songCountSpan.style.display = 'inline'; // show count when collapsed
+                songCountSpan.style.display = 'inline';
             } else {
-                // Expand
                 ul.style.display = 'block';
-                toggleBtn.textContent = '▼'; // down arrow
+                toggleBtn.textContent = '▼';
                 toggleBtn.setAttribute('aria-expanded', 'true');
-                songCountSpan.style.display = 'none'; // hide count when expanded
+                songCountSpan.style.display = 'none';
             }
         });
-
-        // Initially show song count (since collapsed)
-        songCountSpan.style.display = 'inline';
     });
 
-    // Add the buttons after categories — only for admins
     if (isCurrentUserAdmin()) {
         const buttonsDiv = document.createElement('div');
         buttonsDiv.className = 'text-end';
@@ -402,6 +396,7 @@ function renderCategories() {
         container.appendChild(buttonsDiv);
     }
 }
+
 
 
 function populateCategorySelect() {
