@@ -306,6 +306,22 @@ function createPage(pageNumber = null) {
 }
 
 async function exportToPDF() {
+  const btn = document.getElementById('export-pdf-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating...';
+
+  try {
+    await doExportLogic();
+  } catch (err) {
+    console.error('❌ Failed to export PDF:', err);
+    alert('Failed to export PDF. See console for details.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📄 Export to PDF';
+  }
+}
+
+async function doExportLogic() {
   const { jsPDF } = window.jspdf;
 
   const container = document.getElementById('a4-preview-container');
@@ -357,6 +373,7 @@ async function exportToPDF() {
 
   pdf.save('songbook.pdf');
 }
+
 
 
 window.exportToPDF = exportToPDF;

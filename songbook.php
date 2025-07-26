@@ -147,9 +147,9 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </label>
             </div>
 
-            <button id="export-pdf-btn" class="btn btn-sm btn-primary mt-3">
-              📄 Export to PDF
-            </button>
+              <button id="export-pdf-btn" class="btn btn-sm btn-primary mt-3" disabled>
+                📄 Export to PDF
+              </button>
 
             
           </div>
@@ -619,16 +619,20 @@ async function handleGenerateForCategory(category) {
   const ids = category.songs.map(s => s.id);
   const songs = await fetchSongsByIds(ids);
 
+  const ordered = orderSongs(songs, measurer);
+  const orderedIds = getOrderedIds(ordered);
 
-  const ordered = orderSongs(songs,measurer);
+  const debugMode = document.getElementById('render-debug-checkbox').checked;
+  renderA4Preview(songs, orderedIds, { debug: debugMode });
 
-//   console.log("Ordered songs:");
-//   console.log(ordered);
+  const container = document.getElementById('a4-preview-container');
+  const exportBtn = document.getElementById('export-pdf-btn');
 
-    const orderedIds = getOrderedIds(ordered);
-    const debugMode = document.getElementById('render-debug-checkbox').checked;
-    renderA4Preview(songs, orderedIds, { debug: debugMode });
-
+  // Slight delay to allow DOM to update before checking
+  setTimeout(() => {
+    const hasPages = container.querySelectorAll('.a4-page').length > 0;
+    exportBtn.disabled = !hasPages;
+  }, 100); // adjust delay if needed
 }
 
 </script>
