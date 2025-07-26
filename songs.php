@@ -15,7 +15,7 @@ $categories = get_all_categories($mysqli);
 <?php include('php/navigation.php');?>
 <?php include("php/categories.php");?>
 
-<script src="js/song-render.js"></script>
+<script src="js/song_render.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
