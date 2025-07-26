@@ -146,6 +146,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 🛠️ Render Debug
               </label>
             </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="render-numbering-checkbox">
+              <label class="form-check-label" for="render-numbering-checkbox">
+                🔢 Render Page Number
+              </label>
+            </div>
+
 
               <button id="export-pdf-btn" class="btn btn-sm btn-primary mt-3" disabled>
                 📄 Export to PDF
@@ -637,11 +644,16 @@ async function handleGenerateForCategory(category) {
   const ordered = orderSongs(songs, measurer);
   const orderedIds = getOrderedIds(ordered);
 
+  // Options for rendering
   const debugMode = document.getElementById('render-debug-checkbox').checked;
-  const roman = toRoman(category.id);
-  const label = `${roman}. ${category.name}`;
 
-  renderA4Preview(songs, orderedIds, { debug: debugMode, category: label });
+  const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
+  const categoryTitle = includeRoman
+    ? `${toRoman(category.id)}. ${category.name}`
+    : category.name;
+
+
+  renderA4Preview(songs, orderedIds, { debug: debugMode, category: categoryTitle });
 
   const container = document.getElementById('a4-preview-container');
   const exportBtn = document.getElementById('export-pdf-btn');
