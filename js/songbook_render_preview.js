@@ -1,5 +1,6 @@
 function renderA4Preview(songs, orderedIds, options = {}) {
   const debug = options.debug || false;
+  const category = options.category;
   
   const container = document.getElementById('a4-preview-container');
   container.innerHTML = '';
@@ -15,7 +16,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
   container.appendChild(pageRow);
 
-  let currentPage = createPage(currentPageNum);
+  let currentPage = createPage(currentPageNum,category);
   pageRow.appendChild(currentPage);
 
   if (debug) {
@@ -122,7 +123,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
           container.appendChild(pageRow);
         }
 
-        currentPage = createPage(currentPageNum);
+        currentPage = createPage(currentPageNum,category);
         pageRow.appendChild(currentPage);
 
         if (debug) {
@@ -273,7 +274,7 @@ function wrapWithDebug(div, height) {
   return wrapper;
 }
 
-function createPage(pageNumber = null) {
+function createPage(pageNumber = null,category="") {
   const page = document.createElement('div');
   page.className = 'a4-page border border-secondary mb-4 p-4 bg-white position-relative';
   page.style.width = '794px'; // A4 width in pixels
@@ -281,14 +282,27 @@ function createPage(pageNumber = null) {
   page.style.boxSizing = 'border-box';
   page.style.pageBreakAfter = 'always';
 
+  const bottomDistance="20px";
+  const sideDistance="30px";
+
   if (pageNumber !== null) {
     const pageNumberDiv = document.createElement('div');
     pageNumberDiv.className = 'page-number';
-    pageNumberDiv.textContent = `Page ${pageNumber}`;
+    pageNumberDiv.textContent = `${category} ${pageNumber}`;
     pageNumberDiv.style.position = 'absolute';
-    pageNumberDiv.style.bottom = '10px';
-    pageNumberDiv.style.left = '50%';
-    pageNumberDiv.style.transform = 'translateX(-50%)';
+    pageNumberDiv.style.bottom = bottomDistance;
+    if (pageNumber % 2 === 0) {
+      // Even: align left
+      pageNumberDiv.style.left = sideDistance;
+      pageNumberDiv.style.right = 'auto';
+      pageNumberDiv.style.textAlign = 'left';
+    } else {
+      // Odd: align right
+      pageNumberDiv.style.right = sideDistance;
+      pageNumberDiv.style.left = 'auto';
+      pageNumberDiv.style.textAlign = 'right';
+    }
+
     pageNumberDiv.style.fontSize = '12px';
     pageNumberDiv.style.color = '#555';
     page.appendChild(pageNumberDiv);

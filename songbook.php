@@ -614,6 +614,21 @@ async function fetchSongsByIds(ids) {
     return res.json();
 }
 
+function toRoman(num) {
+  const romans = [
+    ["M", 1000], ["CM", 900], ["D", 500], ["CD", 400],
+    ["C", 100], ["XC", 90], ["L", 50], ["XL", 40],
+    ["X", 10], ["IX", 9], ["V", 5], ["IV", 4], ["I", 1]
+  ];
+  let result = "";
+  for (const [letter, value] of romans) {
+    while (num >= value) {
+      result += letter;
+      num -= value;
+    }
+  }
+  return result;
+}
 
 async function handleGenerateForCategory(category) {
   const ids = category.songs.map(s => s.id);
@@ -623,17 +638,20 @@ async function handleGenerateForCategory(category) {
   const orderedIds = getOrderedIds(ordered);
 
   const debugMode = document.getElementById('render-debug-checkbox').checked;
-  renderA4Preview(songs, orderedIds, { debug: debugMode });
+  const roman = toRoman(category.id);
+  const label = `${roman}. ${category.name}`;
+
+  renderA4Preview(songs, orderedIds, { debug: debugMode, category: label });
 
   const container = document.getElementById('a4-preview-container');
   const exportBtn = document.getElementById('export-pdf-btn');
 
-  // Slight delay to allow DOM to update before checking
   setTimeout(() => {
     const hasPages = container.querySelectorAll('.a4-page').length > 0;
     exportBtn.disabled = !hasPages;
-  }, 100); // adjust delay if needed
+  }, 100);
 }
+
 
 </script>
 
