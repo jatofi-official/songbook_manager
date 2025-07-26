@@ -362,15 +362,30 @@ function renderCategories() {
 
         headerDiv.appendChild(h5);
 
+        // Ensure headerDiv uses flex layout
+        headerDiv.style.display = 'flex';
+        headerDiv.style.alignItems = 'center';
+
         if (isCurrentUserAdmin()) {
             const generateBtn = document.createElement('button');
             generateBtn.className = 'btn btn-sm btn-outline-success';
-            generateBtn.textContent = '⚙️ Generate Order';
+            generateBtn.textContent = '⚙️ Generate Layout';
             generateBtn.addEventListener('click', () => {
                 handleGenerateForCategory(category);
             });
+
+            const loadBtn = document.createElement('button');
+            loadBtn.className = 'btn btn-sm btn-outline-primary me-2'; // margin-right for spacing
+            loadBtn.textContent = '📥 Load order';
+            loadBtn.addEventListener('click', () => {
+                handleLoadForCategory(category);
+            });
+
+            headerDiv.appendChild(loadBtn);
             headerDiv.appendChild(generateBtn);
         }
+
+
 
         catDiv.appendChild(headerDiv);
 
@@ -686,6 +701,10 @@ async function handleGenerateForCategory(category) {
   orderedIds = getOrderedIds(ordered); // store globally
   currentCategory = category;          // store globally
 
+  beginRender(songs, category);
+}
+
+function beginRender(songs, category) {
   const debugMode = document.getElementById('render-debug-checkbox').checked;
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
   const categoryTitle = includeRoman
@@ -704,6 +723,42 @@ async function handleGenerateForCategory(category) {
     saveLayoutBtn.disabled = !hasPages; // Enable save layout button
   }, 100);
 }
+
+
+async function handleLoadForCategory(category) {
+  try {
+    const songbookId = songbook.id; // from your global context
+    const categoryId = category.id;
+
+    const response = await fetch(`php/load_layout.php?songbook_id=${songbookId}&category_id=${categoryId}`, {
+      method: 'GET',
+      credentials: 'same-origin' // send cookies for session
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      orderedIds = data.ordered_ids; // set global orderedIds
+      currentCategory = category;    // set global currentCategory
+
+      console.log(`Loaded layout for category ${categoryId}:`, orderedIds);
+
+      // Fetch songs by orderedIds to pass to beginRender
+      const songs = await fetchSongsByIds(orderedIds);
+
+      // Now call beginRender with songs and category to update UI
+      beginRender(songs, category);
+
+    } else {
+      console.warn("Load layout failed:", data.message);
+      alert("No saved layout found for this category.");
+    }
+  } catch (error) {
+    console.error("Error loading layout:", error);
+    alert("Error loading layout.");
+  }
+}
+
 
 
 
