@@ -8,7 +8,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const tempContainer = createHiddenMeasureContainer();
   document.body.appendChild(tempContainer);
 
-  const maxHeight = 1300;
+  const maxHeight = 1123;
   let currentPageNum = 1;
 
   let pageRow = document.createElement('div');
@@ -303,4 +303,57 @@ function createPage(pageNumber = null) {
   debugLine.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
   debugLine.style.zIndex = '999';
   return page;
+}
+
+async function exportToPDF() {
+  const { jsPDF } = window.jspdf;
+
+  const container = document.getElementById('a4-preview-container');
+  const pages = container.querySelectorAll('.a4-page');
+
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: 'a4'
+  });
+
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+
+    // Clone and style page for accurate rendering
+    const clone = page.cloneNode(true);
+    clone.style.width = '794px';
+    clone.style.height = '1123px';
+    clone.style.padding = '0';
+    clone.style.margin = '0';
+    clone.style.backgroundColor = 'white';
+
+    const wrapper = document.createElement('div');
+    wrapper.style.width = '794px';
+    wrapper.style.height = '1123px';
+    wrapper.style.position = 'absolute';
+    wrapper.style.top = '-9999px';
+    wrapper.style.left = '-9999px';
+    wrapper.style.backgroundColor = 'white';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    const canvas = await html2canvas(wrapper, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+    document.body.removeChild(wrapper);
+  }
+
+  pdf.save('songbook.pdf');
 }

@@ -9,7 +9,7 @@ measurer.style.fontSize = '14px';                   // Match preview font size
 measurer.style.lineHeight = '22px';                 // Match preview line height
 document.body.appendChild(measurer);
 
-const PAGE_HEIGHT = 1300;
+const PAGE_HEIGHT = 1123;
 
 
 

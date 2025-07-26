@@ -13,6 +13,7 @@ error_reporting(E_ALL);
 
 
 
+
 if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
     $songbook = get_songbook($mysqli, $id);
@@ -138,17 +139,23 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           </div>
           <div class="card-body">
             <p class="text-muted small">Tools for development and layout debugging.</p>
-            <div class="form-check">
+            
+            <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="render-debug-checkbox">
               <label class="form-check-label" for="render-debug-checkbox">
                 🛠️ Render Debug
               </label>
             </div>
 
+            <button class="btn btn-outline-primary btn-sm" onclick="exportToPDF()">
+              📄 Export to PDF
+            </button>
+            
           </div>
         </div>
 
-      </div>
+        
+
         <?php endif; ?>
     </div>
   </div>
@@ -653,3 +660,8 @@ pre {
 <?php 
 include("php/footer.php");
 ?>
+<!-- html2canvas for rendering DOM to image -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- jsPDF core library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
