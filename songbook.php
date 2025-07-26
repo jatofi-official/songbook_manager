@@ -551,57 +551,58 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
       alert('Error adding song.');
     });
 });
+const saveBtn = document.getElementById('saveSongbookBtn');
+if (saveBtn) {
+  document.getElementById('saveSongbookBtn').addEventListener('click', () => {
+    // Prepare categories array for payload
+    const categories = songbook.songs_categories.map(cat => ({
+      id: cat.id,
+      name: cat.name
+    }));
 
-document.getElementById('saveSongbookBtn').addEventListener('click', () => {
-  // Prepare categories array for payload
-  const categories = songbook.songs_categories.map(cat => ({
-    id: cat.id,
-    name: cat.name
-  }));
-
-  // Prepare songs array for payload (flatten songs with their category ids)
-  const songs = [];
-  songbook.songs_categories.forEach(cat => {
-    cat.songs.forEach(song => {
-      songs.push({
-        category_id: cat.id,
-        song_id: song.id
+    // Prepare songs array for payload (flatten songs with their category ids)
+    const songs = [];
+    songbook.songs_categories.forEach(cat => {
+      cat.songs.forEach(song => {
+        songs.push({
+          category_id: cat.id,
+          song_id: song.id
+        });
       });
     });
+
+    const payload = {
+      id: songbook.id,
+      name: songbook.name,
+      description: songbook.description || '',
+      admins: songbook.admins, // ✅ Already an array
+      group_id: songbook.group_id || null,
+      is_public: songbook.is_public ? 1 : 0,
+      categories: categories,
+      songs: songs
+    };
+
+    fetch('php/update_songbook.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(response => {
+      if (response.success) {
+        alert('✅ Songbook saved successfully!');
+      } else {
+        alert('❌ Failed to save songbook: ' + (response.error || response.message));
+      }
+    })
+    .catch(err => {
+      console.error('Save error:', err);
+      alert('❌ Error saving songbook.');
+    });
   });
-
-  const payload = {
-    id: songbook.id,
-    name: songbook.name,
-    description: songbook.description || '',
-    admins: songbook.admins, // ✅ Already an array
-    group_id: songbook.group_id || null,
-    is_public: songbook.is_public ? 1 : 0,
-    categories: categories,
-    songs: songs
-  };
-
-  fetch('php/update_songbook.php', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  })
-  .then(res => res.json())
-  .then(response => {
-    if (response.success) {
-      alert('✅ Songbook saved successfully!');
-    } else {
-      alert('❌ Failed to save songbook: ' + (response.error || response.message));
-    }
-  })
-  .catch(err => {
-    console.error('Save error:', err);
-    alert('❌ Error saving songbook.');
-  });
-});
-
+}
 // Generate button click
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('export-pdf-btn'); // or whatever your button id is
