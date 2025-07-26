@@ -473,7 +473,7 @@ function orderArtistsByEdges(artistGroups, PAGE_HEIGHT) {
   const ordered = [...filledGroups];
 
   let currentPageHeight = 0;
-  let currentPage = filledGroups.length > 0 ? 2 : 1;  // next page after filled first
+  let currentPage = filledGroups.length > 0 ? 2 : 1;  // Start from next page
 
   let remaining = [...remainingGroups];
 
@@ -485,7 +485,6 @@ function orderArtistsByEdges(artistGroups, PAGE_HEIGHT) {
       const group = remaining[i];
       const firstSong = group.songs[0];
 
-      // If song spans 2 pages, only allow it on even pages
       const isDoublePage = firstSong.pages > 1;
       if (isDoublePage && currentPage % 2 !== 0) continue;
 
@@ -497,7 +496,6 @@ function orderArtistsByEdges(artistGroups, PAGE_HEIGHT) {
     }
 
     if (bestIndex === -1) {
-      // No fitting artist found for this page (maybe because it's odd and all songs are double-page)
       currentPage++;
       currentPageHeight = 0;
       continue;
@@ -506,32 +504,46 @@ function orderArtistsByEdges(artistGroups, PAGE_HEIGHT) {
     const bestGroup = remaining.splice(bestIndex, 1)[0];
     ordered.push(bestGroup);
 
-    // Simulate placing songs and track current page height
+    // Simulate layout more accurately
     bestGroup.songs.forEach(song => {
       const isDoublePage = song.pages > 1;
 
-      // If double-page song and we're on an odd page, skip to next page
-      if (isDoublePage && currentPage % 2 !== 0) {
-        currentPage++;
-        currentPageHeight = 0;
-      }
-
+      // If the song can't fit in the remaining space, move to next page
       if (song.height > PAGE_HEIGHT - currentPageHeight) {
         currentPage++;
         currentPageHeight = 0;
       }
 
+      // Save the page number where this song starts
+      song._startPage = currentPage;
+
+      if (isDoublePage) {
+        const isOdd = currentPage % 2 !== 0;
+        console.log(`📄 Multi-page song: "${song.title}" [${song.id}] starts on page ${currentPage} (${isOdd ? '⚠️ ODD' : 'even'})`);
+
+        // Force move to next page if we're starting on odd and this is a multi-pager
+        if (isOdd) {
+          console.log(`↪️ Moving song [${song.id}] to even page...`);
+          currentPage++;
+          currentPageHeight = 0;
+          song._startPage = currentPage; // update page after skip
+        }
+      }
+
       currentPageHeight += song.height;
 
+      // If we overflow, go to next page
       if (currentPageHeight >= PAGE_HEIGHT) {
         currentPage++;
         currentPageHeight = 0;
       }
     });
+
   }
 
   return ordered;
 }
+
 
 
 

@@ -153,7 +153,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 Render Category Number
               </label>
             </div>
-
+            
+            <div id="save-layout-wrapper" style="margin-top: 1rem;">
+              <button id="save-layout-btn" class="btn btn-success" disabled>💾 Save Layout</button>
+            </div>
 
               <button id="export-pdf-btn" class="btn btn-sm btn-primary mt-3" disabled>
                 📄 Export to PDF
@@ -221,6 +224,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
 
 <script>
+
+  let currentCategory = null;
+  let orderedIds = [];
+
   const songbook = {
     songs_categories: <?= json_encode(array_map(function($cat) use ($mysqli) {
       return [
@@ -603,6 +610,38 @@ if (saveBtn) {
       alert('❌ Error saving songbook.');
     });
   });
+
+  document.getElementById("save-layout-btn").addEventListener("click", async () => {
+    if (!currentCategory || !orderedIds.length || !songbook?.id) {
+      alert("Missing songbook, category, or layout info.");
+      return;
+    }
+
+    try {
+      const res = await fetch("php/save_layout.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          songbook_id: songbook.id,
+          category_id: currentCategory.id,
+          ordered_ids: orderedIds
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Layout saved successfully!");
+      } else {
+        alert("Failed to save layout: " + data.message);
+      }
+    } catch (err) {
+      console.error("Error saving layout", err);
+      alert("Error saving layout.");
+    }
+  });
+
 }
 // Generate button click
 document.addEventListener('DOMContentLoaded', () => {
@@ -644,27 +683,28 @@ async function handleGenerateForCategory(category) {
   const songs = await fetchSongsByIds(ids);
 
   const ordered = orderSongs(songs, measurer);
-  const orderedIds = getOrderedIds(ordered);
+  orderedIds = getOrderedIds(ordered); // store globally
+  currentCategory = category;          // store globally
 
-  // Options for rendering
   const debugMode = document.getElementById('render-debug-checkbox').checked;
-
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
     : category.name;
 
-
   renderA4Preview(songs, orderedIds, { debug: debugMode, category: categoryTitle });
 
   const container = document.getElementById('a4-preview-container');
   const exportBtn = document.getElementById('export-pdf-btn');
+  const saveLayoutBtn = document.getElementById('save-layout-btn');
 
   setTimeout(() => {
     const hasPages = container.querySelectorAll('.a4-page').length > 0;
     exportBtn.disabled = !hasPages;
+    saveLayoutBtn.disabled = !hasPages; // Enable save layout button
   }, 100);
 }
+
 
 
 </script>
