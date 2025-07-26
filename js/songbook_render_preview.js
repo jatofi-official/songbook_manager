@@ -357,3 +357,6 @@ async function exportToPDF() {
 
   pdf.save('songbook.pdf');
 }
+
+
+window.exportToPDF = exportToPDF;

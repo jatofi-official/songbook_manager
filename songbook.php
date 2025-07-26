@@ -204,6 +204,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 <script src="js/songbook_render_preview.js"></script>
 <script src="js/song-render.js"></script>
 
+<!-- html2canvas for rendering DOM to image -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- jsPDF core library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+
 
 <script>
   const songbook = {
@@ -671,8 +678,3 @@ pre {
 <?php 
 include("php/footer.php");
 ?>
-<!-- html2canvas for rendering DOM to image -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-<!-- jsPDF core library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
