@@ -147,9 +147,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </label>
             </div>
 
-            <button class="btn btn-outline-primary btn-sm" onclick="exportToPDF()">
+            <button id="export-pdf-btn" class="btn btn-sm btn-primary mt-3">
               📄 Export to PDF
             </button>
+
             
           </div>
         </div>
@@ -586,6 +587,16 @@ document.getElementById('saveSongbookBtn').addEventListener('click', () => {
     alert('❌ Error saving songbook.');
   });
 });
+
+// Generate button click
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('export-pdf-btn'); // or whatever your button id is
+  if (btn) {
+    btn.addEventListener('click', exportToPDF);
+  }
+});
+
+
 
 async function fetchSongsByIds(ids) {
     const res = await fetch('php/get_songs_by_ids_extended.php', {
