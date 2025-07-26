@@ -1,6 +1,7 @@
 <?php
 session_start();
 include('php/db.php');
+include('php/auth.php');
 include('php/data.php');
 $website = "songbooks";
 include('php/functions.php');
