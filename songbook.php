@@ -143,13 +143,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="render-debug-checkbox">
               <label class="form-check-label" for="render-debug-checkbox">
-                🛠️ Render Debug
+                🛠️ Render Debug Lines
               </label>
             </div>
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="render-numbering-checkbox">
               <label class="form-check-label" for="render-numbering-checkbox">
-                🔢 Render Page Number
+                Render Category Number
               </label>
             </div>
 
