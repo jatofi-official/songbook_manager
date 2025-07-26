@@ -1776,41 +1776,6 @@ function get_songbook($mysqli, $id) {
     return $songbook;
 }
 
-function saveSongbookCategoryLayout(mysqli $db, int $songbookId, int $categoryId, array $songIds): bool {
-    session_start();
-
-    if (!isset($_SESSION["user"])) {
-        error_log("User not logged in");
-        return false;
-    }
-
-    $createdBy = intval($_SESSION["user"]);
-    if (empty($songIds)) return false;
-
-    $ordered = implode(',', array_map('intval', $songIds));
-
-    $stmt = $db->prepare("
-        INSERT INTO songbook_category_layouts (songbook_id, category_id, ordered_song_ids, created_by)
-        VALUES (?, ?, ?, ?)
-    ");
-
-    if (!$stmt) {
-        error_log("DB Prepare failed: " . $db->error);
-        return false;
-    }
-
-    $stmt->bind_param("iisi", $songbookId, $categoryId, $ordered, $createdBy);
-    $success = $stmt->execute();
-
-    if (!$success) {
-        error_log("DB Execute failed: " . $stmt->error);
-    }
-
-    $stmt->close();
-    return $success;
-}
-
-
 
 
 
