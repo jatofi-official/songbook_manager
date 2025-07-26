@@ -25,13 +25,14 @@ function renderSong(content) {
       return `<strong>${line}</strong>`;
     } else {
       // bold the ® symbols
-      // and bold chords inside {...} but remove the curly braces
+      // and bold chords inside {...}, replacing braces with a space
       return line
         .replace(/®/g, '<strong>®</strong>')
-        .replace(/\{([^}]+)\}/g, (match, chordInside) => `<strong>${chordInside}</strong>`);
+        .replace(/\{([^}]+)\}/g, (match, chordInside) => ` <strong>${chordInside}</strong> `);
     }
   }).join('\n');
 }
+
 
 
 function enhanceSongView() {
