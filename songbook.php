@@ -500,13 +500,17 @@ function renderCategories() {
             .then(response => response.json())
             .then(data => {
                 if (data.exists) {
-                    // Insert load button before generateBtn to keep spacing correct
+                    category.hasLoadOrderButton = true;  // <--- Set flag here
                     btnContainer.insertBefore(loadBtn, generateBtn);
+                } else {
+                    category.hasLoadOrderButton = false; // optional but explicit
                 }
             })
             .catch(err => {
                 console.error('Failed to check layout existence:', err);
+                category.hasLoadOrderButton = false; // safe fallback
             });
+
 
             headerDiv.appendChild(btnContainer);
         }
