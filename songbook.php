@@ -128,10 +128,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             ⚙️ Actions
           </div>
           <div class="card-body">
-            <p class="text-muted small">Select songs to apply batch actions (e.g. delete or move).</p>
-            <button class="btn btn-danger w-100 mb-2" disabled>🗑️ Delete Selected</button>
-            <button class="btn btn-secondary w-100" disabled>📁 Move Selected</button>
+            <p class="text-muted small">Select categories to apply batch actions</p>
+            
+            <button id="render-categories-btn" class="btn btn-primary w-100 mt-2" disabled>
+              🖨️ Render Categories
+            </button>
           </div>
+
         </div>
 
         <!-- Dev Tools Sidebar -->
@@ -160,6 +163,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 Black and White
               </label>
             </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="allow-manual-ordering-checkbox">
+              <label class="form-check-label" for="allow-manual-ordering-checkbox">
+                Allow manual Ordering
+              </label>
+            </div>
+
 
             
             <div id="save-layout-wrapper" style="margin-top: 1rem;">
@@ -276,6 +286,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
   let orderedIds = [];
   let selectedSongId = null;
   let undoStack = [];
+
+  const selectedCategoryIds = [];
 
 
 
@@ -407,6 +419,26 @@ function renderCategories() {
         // Category title container
         const h5 = document.createElement('h5');
         h5.className = 'mb-0 d-flex align-items-center';
+
+        h5.style.cursor = 'pointer'; // Show pointer on hover
+
+        h5.addEventListener('click', (e) => {
+          // Avoid triggering toggle button clicks (▶/▼)
+          if (e.target === toggleBtn) return;
+
+          const catId = category.id;
+          const index = selectedCategoryIds.indexOf(catId);
+
+          if (index === -1) {
+            selectedCategoryIds.push(catId);
+            catDiv.classList.add('selected-category');
+          } else {
+            selectedCategoryIds.splice(index, 1);
+            catDiv.classList.remove('selected-category');
+          }
+
+          document.getElementById('render-categories-btn').disabled = selectedCategoryIds.length === 0;
+        });
 
         const songCountSpan = document.createElement('span');
         songCountSpan.className = 'text-muted ms-2';
@@ -653,6 +685,7 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
       alert('Error adding song.');
     });
 });
+
 const saveBtn = document.getElementById('saveSongbookBtn');
 if (saveBtn) {
   document.getElementById('saveSongbookBtn').addEventListener('click', () => {
@@ -827,6 +860,16 @@ if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
 });
 
 
+document.getElementById('render-categories-btn').addEventListener('click', () => {
+  renderMultiple(selectedCategoryIds);
+});
+
+
+
+
+
+// FUNCTIONS
+
 
 async function fetchSongsByIds(ids) {
     const res = await fetch('php/get_songs_by_ids_extended.php', {
@@ -869,24 +912,27 @@ async function handleGenerateForCategory(category) {
 
 
 async function beginRender(orderedIds, category) {
+  const container = document.getElementById('a4-preview-container');
+  container.innerHTML = ''; // Clear previous content
+
   const debugMode = document.getElementById('render-debug-checkbox').checked;
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
   const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
+  const allowClicking = document.getElementById('allow-manual-ordering-checkbox')?.checked || false;
 
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
     : category.name;
 
-  // ⬅️ Fetch the actual songs here
   const songs = await fetchSongsByIds(orderedIds);
 
   renderA4Preview(songs, orderedIds, {
     debug: debugMode,
     category: categoryTitle,
-    blackAndWhite: blackAndWhite // <-- new option passed here
+    blackAndWhite: blackAndWhite,
+    allowClicking: allowClicking
   });
 
-  const container = document.getElementById('a4-preview-container');
   const exportBtn = document.getElementById('export-pdf-btn');
   const saveLayoutBtn = document.getElementById('save-layout-btn');
 
@@ -896,6 +942,8 @@ async function beginRender(orderedIds, category) {
     saveLayoutBtn.disabled = !hasPages;
   }, 100);
 }
+
+
 
 
 
@@ -933,6 +981,12 @@ async function handleLoadForCategory(category) {
 
 
 
+
+
+function renderMultiple(categoryIds) {
+  console.log("Rendering categories:", categoryIds);
+  // You can now fetch and render each category's layout
+}
 
 
 </script>

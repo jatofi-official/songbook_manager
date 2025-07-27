@@ -200,6 +200,12 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.03);
 }
 
+/* Category selecting */
+.selected-category {
+  background-color: #cce5ff; /* light blue background */
+  border-left: 5px solid #007bff; /* blue border on left */
+}
+
 
 
 /* Song rendering */
@@ -233,3 +239,4 @@
   outline: 2px solid #007bff;
   background-color: #eef7ff;
 }
+

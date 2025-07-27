@@ -2,9 +2,9 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const debug = options.debug || false;
   const category = options.category;
   const blackAndWhite = options.blackAndWhite || false;
-  
+  const allowClicking = options.allowClicking || false;  // default false
+
   const container = document.getElementById('a4-preview-container');
-  container.innerHTML = '';
 
   let processedSongs = songs.map(song => splitSongIfNeeded(song));
   const tempContainer = createHiddenMeasureContainer();
@@ -17,7 +17,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
   container.appendChild(pageRow);
 
-  let currentPage = createPage(currentPageNum,category);
+  let currentPage = createPage(currentPageNum, category);
   pageRow.appendChild(currentPage);
 
   if (debug) {
@@ -47,59 +47,24 @@ function renderA4Preview(songs, orderedIds, options = {}) {
     for (const partSong of songParts) {
       const songDiv = document.createElement('div');
       songDiv.className = 'song-block mb-4';
-      // Clickable songs
       songDiv.dataset.songId = partSong.id;
 
-      // Left-click = select or swap
-      songDiv.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const clickedId = partSong.id;
+      if (allowClicking) {
+        // Attach click event
+        songDiv.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const clickedId = partSong.id;
 
-        if (selectedSongId !== null && selectedSongId !== clickedId) {
-          const idx1 = orderedIds.indexOf(selectedSongId);
-          const idx2 = orderedIds.indexOf(clickedId);
+          if (selectedSongId !== null && selectedSongId !== clickedId) {
+            const idx1 = orderedIds.indexOf(selectedSongId);
+            const idx2 = orderedIds.indexOf(clickedId);
 
-          if (idx1 !== -1 && idx2 !== -1) {
-            undoStack.push([...orderedIds]);
-            if (undoStack.length > 100) undoStack.shift();
+            if (idx1 !== -1 && idx2 !== -1) {
+              undoStack.push([...orderedIds]);
+              if (undoStack.length > 100) undoStack.shift();
 
-            [orderedIds[idx1], orderedIds[idx2]] = [orderedIds[idx2], orderedIds[idx1]];
-          }
-
-          selectedSongId = null;
-          document.querySelectorAll('.song-block.selected').forEach(el =>
-            el.classList.remove('selected')
-          );
-
-          beginRender(orderedIds, currentCategory);
-        } else {
-          selectedSongId = clickedId;
-
-          document.querySelectorAll('.song-block.selected').forEach(el =>
-            el.classList.remove('selected')
-          );
-          songDiv.classList.add('selected');
-        }
-      });
-
-      // Right-click = move selected song after this one
-      songDiv.addEventListener('contextmenu', (e) => {
-        e.preventDefault(); // prevent context menu
-        e.stopPropagation();
-        const targetId = partSong.id;
-
-        if (selectedSongId !== null && selectedSongId !== targetId) {
-          const fromIndex = orderedIds.indexOf(selectedSongId);
-          const toIndex = orderedIds.indexOf(targetId);
-
-          if (fromIndex !== -1 && toIndex !== -1) {
-            undoStack.push([...orderedIds]);
-            if (undoStack.length > 100) undoStack.shift();
-
-            // Remove and insert
-            const [moved] = orderedIds.splice(fromIndex, 1);
-            const insertIndex = fromIndex < toIndex ? toIndex : toIndex + 1;
-            orderedIds.splice(insertIndex, 0, moved);
+              [orderedIds[idx1], orderedIds[idx2]] = [orderedIds[idx2], orderedIds[idx1]];
+            }
 
             selectedSongId = null;
             document.querySelectorAll('.song-block.selected').forEach(el =>
@@ -107,13 +72,45 @@ function renderA4Preview(songs, orderedIds, options = {}) {
             );
 
             beginRender(orderedIds, currentCategory);
+          } else {
+            selectedSongId = clickedId;
+
+            document.querySelectorAll('.song-block.selected').forEach(el =>
+              el.classList.remove('selected')
+            );
+            songDiv.classList.add('selected');
           }
-        }
-      });
+        });
 
+        // Attach right-click event
+        songDiv.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const targetId = partSong.id;
 
+          if (selectedSongId !== null && selectedSongId !== targetId) {
+            const fromIndex = orderedIds.indexOf(selectedSongId);
+            const toIndex = orderedIds.indexOf(targetId);
 
+            if (fromIndex !== -1 && toIndex !== -1) {
+              undoStack.push([...orderedIds]);
+              if (undoStack.length > 100) undoStack.shift();
 
+              // Remove and insert
+              const [moved] = orderedIds.splice(fromIndex, 1);
+              const insertIndex = fromIndex < toIndex ? toIndex : toIndex + 1;
+              orderedIds.splice(insertIndex, 0, moved);
+
+              selectedSongId = null;
+              document.querySelectorAll('.song-block.selected').forEach(el =>
+                el.classList.remove('selected')
+              );
+
+              beginRender(orderedIds, currentCategory);
+            }
+          }
+        });
+      }
 
       if (debug) {
         songDiv.style.border = '1px dashed red';
@@ -121,7 +118,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       }
 
       if (!partSong.continuation) {
-        const header = createSongHeader(partSong,{blackAndWhite});
+        const header = createSongHeader(partSong, { blackAndWhite });
         songDiv.appendChild(header);
       }
 
@@ -159,6 +156,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
       tempContainer.appendChild(songDiv);
 
+      // Measure max line width
       let maxLineWidth = 0;
       const preElements = songDiv.querySelectorAll('pre');
       preElements.forEach(pre => {
@@ -192,7 +190,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
           container.appendChild(pageRow);
         }
 
-        currentPage = createPage(currentPageNum,category);
+        currentPage = createPage(currentPageNum, category);
         pageRow.appendChild(currentPage);
 
         if (debug) {
@@ -231,6 +229,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   document.body.removeChild(tempContainer);
   console.log(`✅ Total pages used: ${currentPageNum}`);
 }
+
 
 
 
