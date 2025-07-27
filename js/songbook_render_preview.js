@@ -447,6 +447,9 @@ function createPage(pageNumber = null,category="") {
   return page;
 }
 
+
+
+// Exporting
 async function exportToPDF() {
   const btn = document.getElementById('export-pdf-btn');
   btn.disabled = true;
@@ -497,12 +500,16 @@ async function doExportLogic() {
     document.body.appendChild(wrapper);
 
     const canvas = await html2canvas(wrapper, {
-      scale: 2,
+      scale: 1.5,  // try 1.5 or 1
       useCORS: true,
       backgroundColor: '#ffffff',
     });
 
-    const imgData = canvas.toDataURL('image/png');
+
+    // const imgData = canvas.toDataURL('image/png');
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.9); // quality 0.7, adjust from 0.5 to 0.85
+
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
