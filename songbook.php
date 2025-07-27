@@ -438,6 +438,20 @@ function renderCategories() {
           }
 
           document.getElementById('render-categories-btn').disabled = selectedCategoryIds.length === 0;
+
+
+          const renderBtn = document.getElementById('render-categories-btn');
+          const manualCheckbox = document.getElementById('allow-manual-ordering-checkbox');
+
+          renderBtn.disabled = selectedCategoryIds.length === 0;
+
+          if (selectedCategoryIds.length > 1) {
+            manualCheckbox.checked = false;
+            manualCheckbox.disabled = true;
+          } else {
+            manualCheckbox.disabled = false;
+          }
+
         });
 
         const songCountSpan = document.createElement('span');
@@ -910,6 +924,38 @@ async function handleGenerateForCategory(category) {
   beginRender(orderedIds, category);
 }
 
+async function handleLoadForCategory(category) {
+  try {
+    const songbookId = songbook.id;
+    const categoryId = category.id;
+
+    const response = await fetch(`php/load_layout.php?songbook_id=${songbookId}&category_id=${categoryId}`, {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      orderedIds = data.ordered_ids;
+      currentCategory = category;
+
+      // console.log(`Loaded layout for category ${categoryId}:`, orderedIds);
+
+      // ⬇️ Only call with IDs now
+      beginRender(orderedIds, category);
+      undoStack.length = 0;
+
+    } else {
+      console.warn("Load layout failed:", data.message);
+      alert("No saved layout found for this category.");
+    }
+  } catch (error) {
+    console.error("Error loading layout:", error);
+    alert("Error loading layout.");
+  }
+}
+
 
 async function beginRender(orderedIds, category) {
   const container = document.getElementById('a4-preview-container');
@@ -947,37 +993,7 @@ async function beginRender(orderedIds, category) {
 
 
 
-async function handleLoadForCategory(category) {
-  try {
-    const songbookId = songbook.id;
-    const categoryId = category.id;
 
-    const response = await fetch(`php/load_layout.php?songbook_id=${songbookId}&category_id=${categoryId}`, {
-      method: 'GET',
-      credentials: 'same-origin'
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      orderedIds = data.ordered_ids;
-      currentCategory = category;
-
-      // console.log(`Loaded layout for category ${categoryId}:`, orderedIds);
-
-      // ⬇️ Only call with IDs now
-      beginRender(orderedIds, category);
-      undoStack.length = 0;
-
-    } else {
-      console.warn("Load layout failed:", data.message);
-      alert("No saved layout found for this category.");
-    }
-  } catch (error) {
-    console.error("Error loading layout:", error);
-    alert("Error loading layout.");
-  }
-}
 
 
 
