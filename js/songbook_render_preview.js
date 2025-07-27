@@ -1,6 +1,7 @@
 function renderA4Preview(songs, orderedIds, options = {}) {
   const debug = options.debug || false;
   const category = options.category;
+  const blackAndWhite = options.blackAndWhite || false;
   
   const container = document.getElementById('a4-preview-container');
   container.innerHTML = '';
@@ -120,7 +121,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       }
 
       if (!partSong.continuation) {
-        const header = createSongHeader(partSong);
+        const header = createSongHeader(partSong,{blackAndWhite});
         songDiv.appendChild(header);
       }
 
@@ -238,6 +239,9 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
 function createSongHeader(song, options = {}) {
   const header = document.createElement('div');
+  const blackAndWhite = options.blackAndWhite || false;
+
+
   header.classList.add('song-header');
   header.style.border = options.border || '1px solid #ccc';
   header.style.padding = options.padding || '6px 10px';
@@ -290,6 +294,22 @@ function createSongHeader(song, options = {}) {
       const capoCircle = document.createElement('span');
       capoCircle.className = 'capo-circle';
       capoCircle.textContent = song.capo;
+
+    if (blackAndWhite) {
+      // gray background fill for capo
+      capoCircle.style.backgroundColor = '#bbb';
+      capoCircle.style.color = '#222';
+      capoCircle.style.border = '1px solid #888';
+      capoCircle.style.borderRadius = '50%';
+      capoCircle.style.padding = '2px 6px';
+      capoCircle.style.minWidth = '24px';
+      capoCircle.style.height = '24px';              // added for circle shape
+      capoCircle.style.textAlign = 'center';
+      capoCircle.style.display = 'flex';             // changed to flex
+      capoCircle.style.alignItems = 'center';        // vertical center
+      capoCircle.style.justifyContent = 'center';    // horizontal center
+    }
+
       capoLine.appendChild(capoCircle);
     }
 
@@ -297,11 +317,27 @@ function createSongHeader(song, options = {}) {
       const capoAltCircle = document.createElement('span');
       capoAltCircle.className = 'capo-circle-alt';
       capoAltCircle.textContent = song.capo_alt;
+
+    if (blackAndWhite) {
+      // outline only for capo_alt
+      capoAltCircle.style.backgroundColor = 'transparent';
+      capoAltCircle.style.color = '#222';
+      capoAltCircle.style.border = '1px solid #222';
+      capoAltCircle.style.borderRadius = '50%';
+      capoAltCircle.style.padding = '2px 6px';
+      capoAltCircle.style.minWidth = '24px';
+      capoAltCircle.style.height = '24px';            // added for circle shape
+      capoAltCircle.style.textAlign = 'center';
+      capoAltCircle.style.display = 'flex';           // changed to flex
+      capoAltCircle.style.alignItems = 'center';      // vertical center
+      capoAltCircle.style.justifyContent = 'center';  // horizontal center
+    }
+
       capoLine.appendChild(capoAltCircle);
     }
 
-    header.appendChild(capoLine);
-  }
+  header.appendChild(capoLine);
+}
 
   header.style.marginBottom = options.marginBottom ?? '10px';
 

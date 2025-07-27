@@ -144,13 +144,19 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="render-debug-checkbox">
               <label class="form-check-label" for="render-debug-checkbox">
-                🛠️ Render Debug Lines
+                Debug Lines
               </label>
             </div>
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="render-numbering-checkbox" checked>
               <label class="form-check-label" for="render-numbering-checkbox">
-                Render Category Number
+                Category Number
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="render-bw-checkbox">
+              <label class="form-check-label" for="render-bw-checkbox">
+                Black and White
               </label>
             </div>
 
@@ -166,6 +172,45 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             
           </div>
         </div>
+
+        <!-- Reordering Info Sidebar -->
+        <div class="card shadow-sm mt-4">
+          <div class="card-header bg-light">
+            ℹ️ Information
+          </div>
+          <div class="card-body" style="font-size: 0.9em;">
+            <h6>🔁 Swap Two Songs</h6>
+            <ul>
+              <li>Click a song to select it.</li>
+              <li>Click another song to swap their positions.</li>
+            </ul>
+
+            <h6>📌 Insert After</h6>
+            <ul>
+              <li>Click a song to select it.</li>
+              <li><strong>Right-click</strong> another song to insert the first one after it.</li>
+            </ul>
+
+            <h6>⏪ Undo</h6>
+            <ul>
+              <li>Press <kbd>Ctrl</kbd> + <kbd>Z</kbd> to undo the last change.</li>
+            </ul>
+
+            <h6>💾 Saving + Loading</h6>
+            <ul>
+              <li>Click <strong>💾 Save Layout</strong> to persist the current order.</li>
+              <li>If saved, <strong>📥 Load Order</strong> will appear for the category. Clicking on it will load an existing layout</li>
+            </ul>
+
+            <h6>⚙️ Auto Layout</h6>
+            <ul>
+              <li>Groups songs by artist.</li>
+              <li>Keeps author groups on the same page.</li>
+              <li><strong>Remember</strong> to check if multi page songs are ordered correctly</li>
+            </ul>
+          </div>
+        </div>
+
 
         
 
@@ -805,6 +850,8 @@ function toRoman(num) {
 }
 
 async function handleGenerateForCategory(category) {
+  undoStack.length = 0;
+
   const ids = category.songs.map(s => s.id);
   const songs = await fetchSongsByIds(ids);
 
@@ -820,6 +867,8 @@ async function handleGenerateForCategory(category) {
 async function beginRender(orderedIds, category) {
   const debugMode = document.getElementById('render-debug-checkbox').checked;
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
+  const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
+
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
     : category.name;
@@ -829,7 +878,8 @@ async function beginRender(orderedIds, category) {
 
   renderA4Preview(songs, orderedIds, {
     debug: debugMode,
-    category: categoryTitle
+    category: categoryTitle,
+    blackAndWhite: blackAndWhite // <-- new option passed here
   });
 
   const container = document.getElementById('a4-preview-container');
@@ -865,6 +915,8 @@ async function handleLoadForCategory(category) {
 
       // ⬇️ Only call with IDs now
       beginRender(orderedIds, category);
+      undoStack.length = 0;
+
     } else {
       console.warn("Load layout failed:", data.message);
       alert("No saved layout found for this category.");
