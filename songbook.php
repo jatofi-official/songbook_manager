@@ -910,7 +910,7 @@ function toRoman(num) {
   return result;
 }
 
-async function handleGenerateForCategory(category) {
+async function handleGenerateForCategory(category, clearPages = true) {
   undoStack.length = 0;
 
   const ids = category.songs.map(s => s.id);
@@ -920,11 +920,11 @@ async function handleGenerateForCategory(category) {
   orderedIds = getOrderedIds(ordered);
   currentCategory = category;
 
-  // Return page count from beginRender
-  return await beginRender(orderedIds, category);
+  // Pass clearPages argument correctly
+  return await beginRender(orderedIds, category, clearPages);
 }
 
-async function handleLoadForCategory(category) {
+async function handleLoadForCategory(category, clearPages = true) {
   try {
     const songbookId = songbook.id;
     const categoryId = category.id;
@@ -940,8 +940,8 @@ async function handleLoadForCategory(category) {
       orderedIds = data.ordered_ids;
       currentCategory = category;
 
-      // Return page count from beginRender
-      const pageCount = await beginRender(orderedIds, category);
+      // Pass clearPages argument correctly
+      const pageCount = await beginRender(orderedIds, category, clearPages);
       undoStack.length = 0;
       return pageCount;
 
@@ -958,9 +958,13 @@ async function handleLoadForCategory(category) {
 }
 
 
-async function beginRender(orderedIds, category) {
+
+
+async function beginRender(orderedIds, category, clearPages = true) {
   const container = document.getElementById('a4-preview-container');
-  container.innerHTML = ''; // Clear previous content
+  if (clearPages) {
+    container.innerHTML = ''; // Clear previous content if requested
+  }
 
   const debugMode = document.getElementById('render-debug-checkbox').checked;
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
@@ -973,7 +977,7 @@ async function beginRender(orderedIds, category) {
 
   const songs = await fetchSongsByIds(orderedIds);
 
-  // ⬇️ Wait for rendering and get the total page count
+  // Wait for rendering and get the total page count
   const pageCount = await renderA4Preview(songs, orderedIds, {
     debug: debugMode,
     category: categoryTitle,
@@ -1000,16 +1004,39 @@ async function beginRender(orderedIds, category) {
 
 
 
-
-
-
-
-
-
-function renderMultiple(categoryIds) {
-  console.log("Rendering categories:", categoryIds);
-  // You can now fetch and render each category's layout
+function getCategoryById(id) {
+  return songbook.songs_categories.find(cat => cat.id === id);
 }
+
+
+
+async function renderMultiple(categoryIds) {
+  // Clear container once before rendering all categories
+  const container = document.getElementById('a4-preview-container');
+  container.innerHTML = '';
+
+  for (const id of categoryIds) {
+    const category = getCategoryById(id);
+    if (!category) {
+      console.warn(`Category with id ${id} not found.`);
+      continue;
+    }
+    console.log(`Category title: ${category.name}`);
+
+    // Pass clearPages=false to avoid clearing on each iteration
+    if (category.hasLoadOrderButton) {
+      const pages = await handleLoadForCategory(category, false);
+      console.log(`Category "${category.name}" rendered with ${pages} pages.`);
+    } else {
+      const pages = await handleGenerateForCategory(category, false);
+      console.log(`Category "${category.name}" generated with ${pages} pages.`);
+    }
+  }
+}
+
+
+
+
 
 
 </script>
