@@ -329,6 +329,11 @@ function createSongListItem(song, categoryId) {
   const li = document.createElement('li');
   li.className = 'list-group-item d-flex justify-content-between align-items-center';
 
+  if (song.is_fixed === false) {
+    console.log(song);
+    li.style.backgroundColor = 'orange';
+  }
+
   // Left: Title + artist
   const leftDiv = document.createElement('div');
   leftDiv.textContent = song.title + (song.artist ? " – " + song.artist : "");
@@ -351,8 +356,7 @@ function createSongListItem(song, categoryId) {
     rightDiv.appendChild(span);
   }
 
-  // Only show ❌ if user is admin
-    if (isCurrentUserAdmin()) {
+  if (isCurrentUserAdmin()) {
     const removeBtn = document.createElement('button');
     removeBtn.className = 'btn btn-sm btn-outline-danger';
     removeBtn.textContent = '❌';
@@ -371,6 +375,7 @@ function createSongListItem(song, categoryId) {
   return li;
 }
 
+
 const categoryExpandedState = {};
 
 
@@ -381,7 +386,7 @@ function renderCategories() {
     songbook.songs_categories.forEach(category => {
         const catDiv = document.createElement('div');
         catDiv.className = 'mb-5 category-block';
-        catDiv.dataset.categoryId = category.id; // add this line
+        catDiv.dataset.categoryId = category.id; 
 
 
         const headerDiv = document.createElement('div');
@@ -418,48 +423,45 @@ function renderCategories() {
         headerDiv.style.display = 'flex';
         headerDiv.style.alignItems = 'center';
 
-if (isCurrentUserAdmin()) {
-    const btnContainer = document.createElement('div');
-    btnContainer.className = 'd-flex align-items-center';
+        if (isCurrentUserAdmin()) {
+            const btnContainer = document.createElement('div');
+            btnContainer.className = 'd-flex align-items-center';
 
-    // Generate button (always shown)
-    const generateBtn = document.createElement('button');
-    generateBtn.className = 'btn btn-sm btn-outline-success';
-    generateBtn.textContent = '⚙️ Generate Layout';
-    generateBtn.addEventListener('click', () => {
-        handleGenerateForCategory(category);
-    });
+            // Generate button (always shown)
+            const generateBtn = document.createElement('button');
+            generateBtn.className = 'btn btn-sm btn-outline-success';
+            generateBtn.textContent = '⚙️ Generate Layout';
+            generateBtn.addEventListener('click', () => {
+                handleGenerateForCategory(category);
+            });
 
-    btnContainer.appendChild(generateBtn);
+            btnContainer.appendChild(generateBtn);
 
-    // Create load button but don't append yet
-    const loadBtn = document.createElement('button');
-    loadBtn.className = 'btn btn-sm btn-outline-primary me-2';
-    loadBtn.textContent = '📥 Load order';
-    loadBtn.addEventListener('click', () => {
-        handleLoadForCategory(category);
-    });
+            // Create load button but don't append yet
+            const loadBtn = document.createElement('button');
+            loadBtn.className = 'btn btn-sm btn-outline-primary me-2';
+            loadBtn.textContent = '📥 Load order';
+            loadBtn.addEventListener('click', () => {
+                handleLoadForCategory(category);
+            });
 
-    // Check if layout exists for this category before showing loadBtn
-    fetch(`php/check_layout_exists.php?songbook_id=${songbook.id}&category_id=${category.id}`, {
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.exists) {
-            // Insert load button before generateBtn to keep spacing correct
-            btnContainer.insertBefore(loadBtn, generateBtn);
+            // Check if layout exists for this category before showing loadBtn
+            fetch(`php/check_layout_exists.php?songbook_id=${songbook.id}&category_id=${category.id}`, {
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    // Insert load button before generateBtn to keep spacing correct
+                    btnContainer.insertBefore(loadBtn, generateBtn);
+                }
+            })
+            .catch(err => {
+                console.error('Failed to check layout existence:', err);
+            });
+
+            headerDiv.appendChild(btnContainer);
         }
-    })
-    .catch(err => {
-        console.error('Failed to check layout existence:', err);
-    });
-
-    headerDiv.appendChild(btnContainer);
-}
-
-
-
 
 
         catDiv.appendChild(headerDiv);

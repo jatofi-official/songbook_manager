@@ -1508,13 +1508,13 @@ function display_tag_selector($mysqli, $selectedTags = '', $allow_new = True) {
 
 function get_song_title($mysqli, $id) {
     $stmt = $mysqli->prepare("
-        SELECT id, title, artist, capo, capo_alt, owner
+        SELECT id, title, artist, capo, capo_alt, owner, is_fixed
         FROM songs
         WHERE id = ?
     ");
     $stmt->bind_param("i", $id);
     $stmt->execute();
-    $stmt->bind_result($id, $title, $artist, $capo, $capo_alt, $owner);
+    $stmt->bind_result($id, $title, $artist, $capo, $capo_alt, $owner, $is_fixed);
     $stmt->fetch();
     $stmt->close();
 
@@ -1524,9 +1524,11 @@ function get_song_title($mysqli, $id) {
         "artist" => $artist ?? "",
         "capo" => $capo,
         "capo_alt" => $capo_alt,
-        "owner" => $owner
+        "owner" => $owner,
+        "is_fixed" => $is_fixed
     ];
 }
+
 
 
 function get_user_by_username($mysqli, $username) {
