@@ -519,11 +519,11 @@ function orderArtistsByEdges(artistGroups, PAGE_HEIGHT) {
 
       if (isDoublePage) {
         const isOdd = currentPage % 2 !== 0;
-        console.log(`📄 Multi-page song: "${song.title}" [${song.id}] starts on page ${currentPage} (${isOdd ? '⚠️ ODD' : 'even'})`);
+        // console.log(`📄 Multi-page song: "${song.title}" [${song.id}] starts on page ${currentPage} (${isOdd ? '⚠️ ODD' : 'even'})`);
 
         // Force move to next page if we're starting on odd and this is a multi-pager
         if (isOdd) {
-          console.log(`↪️ Moving song [${song.id}] to even page...`);
+          // console.log(`↪️ Moving song [${song.id}] to even page...`);
           currentPage++;
           currentPageHeight = 0;
           song._startPage = currentPage; // update page after skip

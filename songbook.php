@@ -777,7 +777,7 @@ async function handleLoadForCategory(category) {
       orderedIds = data.ordered_ids;
       currentCategory = category;
 
-      console.log(`Loaded layout for category ${categoryId}:`, orderedIds);
+      // console.log(`Loaded layout for category ${categoryId}:`, orderedIds);
 
       // ⬇️ Only call with IDs now
       beginRender(orderedIds, category);
