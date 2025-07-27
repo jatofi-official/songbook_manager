@@ -148,11 +148,12 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </label>
             </div>
             <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" value="" id="render-numbering-checkbox">
+              <input class="form-check-input" type="checkbox" value="" id="render-numbering-checkbox" checked>
               <label class="form-check-label" for="render-numbering-checkbox">
                 Render Category Number
               </label>
             </div>
+
             
             <div id="save-layout-wrapper" style="margin-top: 1rem;">
               <button id="save-layout-btn" class="btn btn-success" disabled>💾 Save Layout</button>
@@ -335,6 +336,8 @@ function renderCategories() {
     songbook.songs_categories.forEach(category => {
         const catDiv = document.createElement('div');
         catDiv.className = 'mb-5 category-block';
+        catDiv.dataset.categoryId = category.id; // add this line
+
 
         const headerDiv = document.createElement('div');
         headerDiv.className = 'mb-2 d-flex justify-content-between align-items-center';
@@ -370,24 +373,47 @@ function renderCategories() {
         headerDiv.style.display = 'flex';
         headerDiv.style.alignItems = 'center';
 
-        if (isCurrentUserAdmin()) {
-            const generateBtn = document.createElement('button');
-            generateBtn.className = 'btn btn-sm btn-outline-success';
-            generateBtn.textContent = '⚙️ Generate Layout';
-            generateBtn.addEventListener('click', () => {
-                handleGenerateForCategory(category);
-            });
+if (isCurrentUserAdmin()) {
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'd-flex align-items-center';
 
-            const loadBtn = document.createElement('button');
-            loadBtn.className = 'btn btn-sm btn-outline-primary me-2'; // margin-right for spacing
-            loadBtn.textContent = '📥 Load order';
-            loadBtn.addEventListener('click', () => {
-                handleLoadForCategory(category);
-            });
+    // Generate button (always shown)
+    const generateBtn = document.createElement('button');
+    generateBtn.className = 'btn btn-sm btn-outline-success';
+    generateBtn.textContent = '⚙️ Generate Layout';
+    generateBtn.addEventListener('click', () => {
+        handleGenerateForCategory(category);
+    });
 
-            headerDiv.appendChild(loadBtn);
-            headerDiv.appendChild(generateBtn);
+    btnContainer.appendChild(generateBtn);
+
+    // Create load button but don't append yet
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'btn btn-sm btn-outline-primary me-2';
+    loadBtn.textContent = '📥 Load order';
+    loadBtn.addEventListener('click', () => {
+        handleLoadForCategory(category);
+    });
+
+    // Check if layout exists for this category before showing loadBtn
+    fetch(`php/check_layout_exists.php?songbook_id=${songbook.id}&category_id=${category.id}`, {
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.exists) {
+            // Insert load button before generateBtn to keep spacing correct
+            btnContainer.insertBefore(loadBtn, generateBtn);
         }
+    })
+    .catch(err => {
+        console.error('Failed to check layout existence:', err);
+    });
+
+    headerDiv.appendChild(btnContainer);
+}
+
+
 
 
 
@@ -652,6 +678,10 @@ if (saveBtn) {
       const data = await res.json();
       if (data.success) {
         alert("Layout saved successfully!");
+
+        // Add Load order button for currentCategory if not already present
+        addLoadOrderButton(currentCategory);
+
       } else {
         alert("Failed to save layout: " + data.message);
       }
@@ -662,6 +692,60 @@ if (saveBtn) {
   });
 
 }
+
+
+// Add load order button
+function addLoadOrderButton(category) {
+  // Find the headerDiv for this category
+  // Assuming each category block has a data attribute or you can find by category name or id
+  const categoryBlocks = document.querySelectorAll('.category-block');
+  let headerDiv = null;
+
+  for (const block of categoryBlocks) {
+    // Example: each category block could have data-category-id attribute
+    if (block.dataset.categoryId == category.id) {
+      headerDiv = block.querySelector('div.d-flex.justify-content-between.align-items-center');
+      break;
+    }
+  }
+
+  if (!headerDiv) {
+    console.warn('Category header not found for category', category);
+    return;
+  }
+
+  // Check if load button already exists inside headerDiv (by text content or class)
+  if (headerDiv.querySelector('button.btn-outline-primary')) {
+    // Load button already exists, nothing to do
+    return;
+  }
+
+  // Create the load button
+  const loadBtn = document.createElement('button');
+  loadBtn.className = 'btn btn-sm btn-outline-primary me-2';
+  loadBtn.textContent = '📥 Load order';
+  loadBtn.addEventListener('click', () => {
+    handleLoadForCategory(category);
+  });
+
+  // Find the container with the generate button (you appended those buttons inside a flex container)
+  const btnContainer = headerDiv.querySelector('div.d-flex.align-items-center');
+  if (btnContainer) {
+    // Insert loadBtn before the generate button (which is last)
+    const generateBtn = btnContainer.querySelector('button.btn-outline-success');
+    if (generateBtn) {
+      btnContainer.insertBefore(loadBtn, generateBtn);
+    } else {
+      btnContainer.appendChild(loadBtn);
+    }
+  } else {
+    // Fallback: just append to headerDiv
+    headerDiv.appendChild(loadBtn);
+  }
+}
+
+
+
 // Generate button click
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('export-pdf-btn'); // or whatever your button id is
