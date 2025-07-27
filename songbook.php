@@ -1025,7 +1025,6 @@ async function renderMultiple(categoryIds) {
       console.warn(`Category with id ${id} not found.`);
       continue;
     }
-    console.log(`Category title: ${category.name}`);
 
     // Pass clearPages=false to avoid clearing on each iteration
     if (category.hasLoadOrderButton) {

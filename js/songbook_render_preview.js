@@ -227,6 +227,30 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   }
 
   document.body.removeChild(tempContainer);
+  
+  // Check if total pages is odd, add blank page if so
+  if (currentPageNum % 2 === 1) {
+    // If last page is odd-numbered, we add a blank page to make total even
+
+    // Check if last pageRow is the correct one
+    // If currentPageNum is odd, next page is even, so we should create a new pageRow (because pageRow groups even pages)
+    if (currentPageNum % 2 === 1) {
+      // Create a new pageRow for the even page
+      pageRow = document.createElement('div');
+      pageRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+      container.appendChild(pageRow);
+    }
+
+    currentPageNum++;
+
+    // Create the blank page with no content
+    const blankPage = createPage(currentPageNum, category);
+    pageRow.appendChild(blankPage);
+  }
+
+
+
+
   return currentPageNum;
 
 }
