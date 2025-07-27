@@ -51,6 +51,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 "id" => $song["id"],
                 "title" => $song["title"],
                 "artist" => $song["artist"],
+                "is_fixed" =>$song["is_fixed"],
                 "owner" => [
                     "id" => $user ? (int)$user["id"] : null,
                     "name" => $user ? $user["name"] : null,
@@ -290,12 +291,14 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             "id" => $song["id"],
             "title" => $song["title"],
             "artist" => $song["artist"],
+            "is_fixed" => isset($song["is_fixed"]) ? (bool)$song["is_fixed"] : false,
             "owner" => [
               "id" => $user ? $user["id"] : null,
               "username" => $song["owner"],
               "name" => $user ? $user["name"] : $song["owner"]
             ]
           ];
+
         }, $cat["songs"])
       ];
     }, $songbook["songs_categories"])) ?>,
@@ -328,9 +331,8 @@ const categorySelectOptions = <?php echo json_encode($jsCategorySelect, JSON_HEX
 function createSongListItem(song, categoryId) {
   const li = document.createElement('li');
   li.className = 'list-group-item d-flex justify-content-between align-items-center';
-
-  if (song.is_fixed === false) {
-    console.log(song);
+  // Apply orange background if is_fixed is not true
+  if (!song.is_fixed) {
     li.style.backgroundColor = 'orange';
   }
 
@@ -366,7 +368,6 @@ function createSongListItem(song, categoryId) {
       if (!category) return;
 
       category.songs = category.songs.filter(s => s.id !== song.id);
-      renderCategories();
     };
     rightDiv.appendChild(removeBtn);
   }
@@ -374,6 +375,7 @@ function createSongListItem(song, categoryId) {
   li.appendChild(rightDiv);
   return li;
 }
+
 
 
 const categoryExpandedState = {};
