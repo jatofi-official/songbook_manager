@@ -404,7 +404,7 @@ function wrapWithDebug(div, height) {
 
 function createPage(pageNumber = null,category="") {
   const page = document.createElement('div');
-  page.className = 'a4-page border border-secondary mb-4 p-4 bg-white position-relative';
+  page.className = 'a4-page mb-4 p-4 bg-white position-relative';
   page.style.width = '794px'; // A4 width in pixels
   page.style.minHeight = '1123px'; // A4 height in pixels
   page.style.boxSizing = 'border-box';
