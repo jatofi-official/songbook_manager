@@ -18,21 +18,29 @@
         padding-right: 0 !important;
     }
 </style>
-    <?php 
-    
-    if($website=="songs"){
-        echo '<link href="styles/songs_styles.css" rel="stylesheet">	';
+
+<?php 
+function cssWithVersion($filepath) {
+    if (file_exists($filepath)) {
+        return $filepath . '?v=' . filemtime($filepath);
     }
-    else if($website=="user"){
-        echo '<link href="styles/user_styles.css" rel="stylesheet">	';
-    }
-    else if($website=="users"){
-        echo '<link href="styles/users_view.css" rel="stylesheet">	';
-    }
-    else if($website=="songbooks"){
-        echo '<link href="styles/songbooks_view.css" rel="stylesheet">	';
-    }
-    ?>
+    return $filepath;
+}
+
+if($website == "songs"){
+    echo '<link href="styles/songs_styles.css?v=' . filemtime('styles/songs_styles.css') . '" rel="stylesheet">';
+}
+else if($website == "user"){
+    echo '<link href="styles/user_styles.css?v=' . filemtime('styles/user_styles.css') . '" rel="stylesheet">';
+}
+else if($website == "users"){
+    echo '<link href="styles/users_view.css?v=' . filemtime('styles/users_view.css') . '" rel="stylesheet">';
+}
+else if($website == "songbooks"){
+    echo '<link href="styles/songbooks_view.css?v=' . filemtime('styles/songbooks_view.css') . '" rel="stylesheet">';
+}
+?>
+
 
 <link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet">
 
