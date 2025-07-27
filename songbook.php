@@ -227,6 +227,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
   let currentCategory = null;
   let orderedIds = [];
+  let selectedSongId = null;
+  let undoStack = [];
+
+
 
   const songbook = {
     songs_categories: <?= json_encode(array_map(function($cat) use ($mysqli) {
@@ -666,6 +670,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Keyboard shortcuts
+
+document.addEventListener('keydown', (e) => {
+  // ESC to clear selection
+  if (e.key === 'Escape' || e.key === 'Esc') {
+    if (selectedSongId !== null) {
+      selectedSongId = null;
+      document.querySelectorAll('.song-block.selected').forEach(el =>
+        el.classList.remove('selected')
+      );
+    }
+  }
+
+// Ctrl + Z to undo last change
+if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+  if (undoStack.length > 0) {
+    orderedIds = undoStack.pop();
+    beginRender(orderedIds, currentCategory); // ✅ pass only IDs
+  }
+}
+
+});
+
 
 
 async function fetchSongsByIds(ids) {
@@ -698,20 +725,28 @@ async function handleGenerateForCategory(category) {
   const songs = await fetchSongsByIds(ids);
 
   const ordered = orderSongs(songs, measurer);
-  orderedIds = getOrderedIds(ordered); // store globally
-  currentCategory = category;          // store globally
+  orderedIds = getOrderedIds(ordered);
+  currentCategory = category;
 
-  beginRender(songs, category);
+  // ⬇️ Just call beginRender with IDs now
+  beginRender(orderedIds, category);
 }
 
-function beginRender(songs, category) {
+
+async function beginRender(orderedIds, category) {
   const debugMode = document.getElementById('render-debug-checkbox').checked;
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
     : category.name;
 
-  renderA4Preview(songs, orderedIds, { debug: debugMode, category: categoryTitle });
+  // ⬅️ Fetch the actual songs here
+  const songs = await fetchSongsByIds(orderedIds);
+
+  renderA4Preview(songs, orderedIds, {
+    debug: debugMode,
+    category: categoryTitle
+  });
 
   const container = document.getElementById('a4-preview-container');
   const exportBtn = document.getElementById('export-pdf-btn');
@@ -720,35 +755,32 @@ function beginRender(songs, category) {
   setTimeout(() => {
     const hasPages = container.querySelectorAll('.a4-page').length > 0;
     exportBtn.disabled = !hasPages;
-    saveLayoutBtn.disabled = !hasPages; // Enable save layout button
+    saveLayoutBtn.disabled = !hasPages;
   }, 100);
 }
 
 
+
 async function handleLoadForCategory(category) {
   try {
-    const songbookId = songbook.id; // from your global context
+    const songbookId = songbook.id;
     const categoryId = category.id;
 
     const response = await fetch(`php/load_layout.php?songbook_id=${songbookId}&category_id=${categoryId}`, {
       method: 'GET',
-      credentials: 'same-origin' // send cookies for session
+      credentials: 'same-origin'
     });
 
     const data = await response.json();
 
     if (data.success) {
-      orderedIds = data.ordered_ids; // set global orderedIds
-      currentCategory = category;    // set global currentCategory
+      orderedIds = data.ordered_ids;
+      currentCategory = category;
 
       console.log(`Loaded layout for category ${categoryId}:`, orderedIds);
 
-      // Fetch songs by orderedIds to pass to beginRender
-      const songs = await fetchSongsByIds(orderedIds);
-
-      // Now call beginRender with songs and category to update UI
-      beginRender(songs, category);
-
+      // ⬇️ Only call with IDs now
+      beginRender(orderedIds, category);
     } else {
       console.warn("Load layout failed:", data.message);
       alert("No saved layout found for this category.");
@@ -758,6 +790,7 @@ async function handleLoadForCategory(category) {
     alert("Error loading layout.");
   }
 }
+
 
 
 

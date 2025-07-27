@@ -46,6 +46,51 @@ function renderA4Preview(songs, orderedIds, options = {}) {
     for (const partSong of songParts) {
       const songDiv = document.createElement('div');
       songDiv.className = 'song-block mb-4';
+      // Clickable songs
+      songDiv.dataset.songId = partSong.id;
+
+      songDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const clickedId = partSong.id;
+
+        // Already selected one?
+        if (selectedSongId !== null && selectedSongId !== clickedId) {
+          const idx1 = orderedIds.indexOf(selectedSongId);
+          const idx2 = orderedIds.indexOf(clickedId);
+
+          if (idx1 !== -1 && idx2 !== -1) {
+            // ✅ Save current state BEFORE changing
+            undoStack.push([...orderedIds]);
+            if (undoStack.length > 100) undoStack.shift(); // optional cap
+
+            // 🔁 Swap
+            [orderedIds[idx1], orderedIds[idx2]] = [orderedIds[idx2], orderedIds[idx1]];
+          }
+
+          selectedSongId = null;
+
+          // 🔵 Remove old highlights
+          document.querySelectorAll('.song-block.selected').forEach(el =>
+            el.classList.remove('selected')
+          );
+
+          // 🔁 Re-render with new order
+          beginRender(orderedIds, currentCategory);
+        } else {
+          // First song selected
+          selectedSongId = clickedId;
+
+          document.querySelectorAll('.song-block.selected').forEach(el =>
+            el.classList.remove('selected')
+          );
+
+          songDiv.classList.add('selected');
+        }
+      });
+
+
+
+
       if (debug) {
         songDiv.style.border = '1px dashed red';
         songDiv.style.backgroundColor = '#fdfdfd';

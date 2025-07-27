@@ -228,3 +228,8 @@
   background-color: #9b7ecd; /* Purple */
   color: white;
 }
+
+.song-block.selected {
+  outline: 2px solid #007bff;
+  background-color: #eef7ff;
+}
