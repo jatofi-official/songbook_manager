@@ -227,7 +227,8 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   }
 
   document.body.removeChild(tempContainer);
-  console.log(`✅ Total pages used: ${currentPageNum}`);
+  return currentPageNum;
+
 }
 
 

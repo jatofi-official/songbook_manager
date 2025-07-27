@@ -920,8 +920,8 @@ async function handleGenerateForCategory(category) {
   orderedIds = getOrderedIds(ordered);
   currentCategory = category;
 
-  // ⬇️ Just call beginRender with IDs now
-  beginRender(orderedIds, category);
+  // Return page count from beginRender
+  return await beginRender(orderedIds, category);
 }
 
 async function handleLoadForCategory(category) {
@@ -940,19 +940,20 @@ async function handleLoadForCategory(category) {
       orderedIds = data.ordered_ids;
       currentCategory = category;
 
-      // console.log(`Loaded layout for category ${categoryId}:`, orderedIds);
-
-      // ⬇️ Only call with IDs now
-      beginRender(orderedIds, category);
+      // Return page count from beginRender
+      const pageCount = await beginRender(orderedIds, category);
       undoStack.length = 0;
+      return pageCount;
 
     } else {
       console.warn("Load layout failed:", data.message);
       alert("No saved layout found for this category.");
+      return 0;  // no pages rendered
     }
   } catch (error) {
     console.error("Error loading layout:", error);
     alert("Error loading layout.");
+    return 0;  // no pages rendered
   }
 }
 
@@ -972,12 +973,15 @@ async function beginRender(orderedIds, category) {
 
   const songs = await fetchSongsByIds(orderedIds);
 
-  renderA4Preview(songs, orderedIds, {
+  // ⬇️ Wait for rendering and get the total page count
+  const pageCount = await renderA4Preview(songs, orderedIds, {
     debug: debugMode,
     category: categoryTitle,
     blackAndWhite: blackAndWhite,
     allowClicking: allowClicking
   });
+
+  console.log(`✅ Rendered ${pageCount} pages.`);
 
   const exportBtn = document.getElementById('export-pdf-btn');
   const saveLayoutBtn = document.getElementById('save-layout-btn');
@@ -987,7 +991,10 @@ async function beginRender(orderedIds, category) {
     exportBtn.disabled = !hasPages;
     saveLayoutBtn.disabled = !hasPages;
   }, 100);
+
+  return pageCount;
 }
+
 
 
 
