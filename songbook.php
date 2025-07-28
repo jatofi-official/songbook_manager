@@ -380,7 +380,9 @@ function createSongListItem(song, categoryId) {
       if (!category) return;
 
       category.songs = category.songs.filter(s => s.id !== song.id);
+      li.remove(); // <- This removes the item from the visible list
     };
+
     rightDiv.appendChild(removeBtn);
   }
 
