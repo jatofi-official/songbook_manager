@@ -27,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         // Ensure the current user is always in admins
         $adminsArray = array_filter(array_map('trim', explode(',', $admins)), 'strlen');
-        if (!in_array($_SESSION['user'], $adminsArray)) {
-            $adminsArray[] = $_SESSION['user'];
+        if (!in_array($_SESSION['id'], $adminsArray)) {
+            $adminsArray[] = $_SESSION['id'];
         }
         $admins = implode(',', $adminsArray);
 
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mysqli,
             $name,
             $description,
-            $_SESSION['user'], // owner
+            $_SESSION['id'], // owner
             $admins,           // string of admin IDs
             $groupId           // group_id
         );

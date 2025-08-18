@@ -1668,25 +1668,42 @@ function delete_songbook($mysqli, $id) {
 
 
 
-function get_all_songbooks($mysqli, $limit = 20, $offset = 0, $search = null, $groupId = null) {
+function get_all_songbooks($mysqli, $limit = 20, $offset = 0, $search = null) {
+    if (!isset($_SESSION["id"])) {
+        return ["songbooks" => [], "total" => 0, "totalPages" => 0];
+    }
+
+    $userId = $_SESSION["id"];
+    $user = get_user($mysqli, $userId);
+    if (!$user) {
+        return ["songbooks" => [], "total" => 0, "totalPages" => 0];
+    }
+    $userGroupId = $user["group_id"];
+
     $params = [];
     $types = "";
-    $conditions = ["s.is_public = 1"]; // Only public songbooks
+    $conditions = [];
 
-    // Search condition
+    // Public and group/admin access rules
+    $conditionsAccess = "(
+        s.is_public = 2
+        OR (s.is_public = 1 AND (s.group_id = ? OR FIND_IN_SET(?, s.admins)))
+        OR (s.is_public = 0 AND FIND_IN_SET(?, s.admins))
+    )";
+    $params[] = $userGroupId; // for is_public=1
+    $params[] = $userId;      // for is_public=1
+    $params[] = $userId;      // for is_public=0
+    $types .= "iii";
+
+    $conditions[] = $conditionsAccess;
+
+    // Search filter
     if (!empty($search)) {
         $conditions[] = "(s.name LIKE ? OR s.description LIKE ?)";
         $searchParam = '%' . $search . '%';
         $params[] = $searchParam;
         $params[] = $searchParam;
         $types .= "ss";
-    }
-
-    // Filter by group
-    if (!empty($groupId)) {
-        $conditions[] = "s.group_id = ?";
-        $params[] = $groupId;
-        $types .= "i";
     }
 
     $whereClause = "";
@@ -1715,6 +1732,7 @@ function get_all_songbooks($mysqli, $limit = 20, $offset = 0, $search = null, $g
             s.description,
             s.owner,
             s.number_of_songs,
+            s.admins,
             g.name AS group_name
         FROM songbooks s
         LEFT JOIN group_list g ON s.group_id = g.id
@@ -1747,6 +1765,7 @@ function get_all_songbooks($mysqli, $limit = 20, $offset = 0, $search = null, $g
         "totalPages" => $totalPages
     ];
 }
+
 
 function get_all_songbooks_alt($mysqli) {
     $sql = "SELECT * FROM songbooks ORDER BY name ASC";
