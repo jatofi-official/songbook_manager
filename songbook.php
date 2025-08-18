@@ -19,56 +19,62 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     $id = (int)$_GET['id'];
     $songbook = get_songbook($mysqli, $id);
 
-    $name = $songbook["name"];
-    $description = $songbook["description"];
+    if (!$songbook) {
+        exit("Songbook not found.");
+    }
+
+    $name = $songbook["name"] ?? '';
+    $description = $songbook["description"] ?? '';
 
     $groupName = null;
     if (!empty($songbook["group_id"])) {
         $stmt = $mysqli->prepare("SELECT name FROM group_list WHERE id = ?");
-        $stmt->bind_param("i", $songbook["group_id"]);
-        $stmt->execute();
-        $stmt->bind_result($groupName);
-        $stmt->fetch();
-        $stmt->close();
+        if ($stmt) {
+            $stmt->bind_param("i", $songbook["group_id"]);
+            $stmt->execute();
+            $stmt->bind_result($groupName);
+            $stmt->fetch();
+            $stmt->close();
+        }
     }
 
     $groupHtml = $groupName !== '' ? "<span class=\"org-badge\">".htmlspecialchars($groupName)."</span>" : '';
 
-    // Prepare songbook data to pass to JS
-    // We'll include categories and songs info, but need to fetch song details as well for JS
     $jsCategories = [];
-    foreach ($songbook["songs_categories"] as $category) {
-        $cat = [
-            "id" => $category["id"] ?? null,
-            "name" => $category["name"],
-            "songs" => []
-        ];
-        foreach ($category["songs"] as $songId) {
-            $song = get_song_title($mysqli, $songId);
-            // fetch user for owner display
-            $user = get_user_by_username($mysqli, $song['owner']);
-            $cat["songs"][] = [
-                "id" => $song["id"],
-                "title" => $song["title"],
-                "artist" => $song["artist"],
-                "is_fixed" =>$song["is_fixed"],
-                "owner" => [
-                    "id" => $user ? (int)$user["id"] : null,
-                    "name" => $user ? $user["name"] : null,
-                    "username" => $song['owner']
-                ]
+    if (!empty($songbook["songs_categories"])) {
+        foreach ($songbook["songs_categories"] as $category) {
+            $cat = [
+                "id" => $category["id"] ?? null,
+                "name" => $category["name"] ?? '',
+                "songs" => []
             ];
+            if (!empty($category["songs"])) {
+                foreach ($category["songs"] as $songId) {
+                    $song = get_song_title($mysqli, $songId);
+                    $user = get_user_by_username($mysqli, $song['owner'] ?? '');
+                    $cat["songs"][] = [
+                        "id" => $song["id"] ?? null,
+                        "title" => $song["title"] ?? '',
+                        "artist" => $song["artist"] ?? '',
+                        "is_fixed" => $song["is_fixed"] ?? 0,
+                        "owner" => [
+                            "id" => $user ? (int)$user["id"] : null,
+                            "name" => $user["name"] ?? null,
+                            "username" => $song['owner'] ?? ''
+                        ]
+                    ];
+                }
+            }
+            $jsCategories[] = $cat;
         }
-        $jsCategories[] = $cat;
     }
 
-
-    // Categories for select (id => name) from $songbook['categories']
-    $jsCategorySelect = $songbook['categories'];
+    $jsCategorySelect = $songbook['categories'] ?? [];
 
 } else {
     exit("Missing or invalid songbook ID.");
 }
+
 ?>
 
 <div class="container-fluid py-4">
