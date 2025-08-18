@@ -1580,8 +1580,10 @@ function get_user_by_username($mysqli, $username) {
 // SONGBOOK FUNCTIONS
 
 
-function create_songbook($mysqli, $name, $description, $owner, $admins, $categories, $songs, $groupId = null, $isPublic = false) {
-    $numberOfSongs = empty(trim($songs)) ? 0 : count(explode(",", $songs));
+function create_songbook($mysqli, $name, $description, $owner, $admins, $groupId = null, $isPublic = false) {
+    $categories = "";
+    $songs = "";
+    $numberOfSongs = 0;
 
     $stmt = $mysqli->prepare("INSERT INTO songbooks (name, description, owner, admins, categories, songs, number_of_songs, group_id, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->bind_param("ssisssiii", $name, $description, $owner, $admins, $categories, $songs, $numberOfSongs, $groupId, $isPublic);

@@ -86,7 +86,7 @@ error_reporting(E_ALL);
 
     <!-- Users List -->
 <div class="users-list mb-4 container pt-4">
-    <h5 class="section-title">All Users</h5>
+    <h5 class="section-title">All Songbooks</h5>
 
     <?php
     $perPage = PER_PAGE;
