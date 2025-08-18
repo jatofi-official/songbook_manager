@@ -118,6 +118,24 @@ function get_song($mysqli, $id){
 	}
 }
 
+function check_is_fixed($data, $category = null) {
+    // Category 8 is always fixed
+    if ($category === 8) {
+        return 1;
+    }
+
+    // Make sure $data is an array
+    if (!is_array($data)) {
+        return 0;
+    }
+
+    // Fallback to tag-based rule
+    return (count($data) >= FIXED_TAGS_COUNT) ? 1 : 0;
+}
+
+
+
+
 function add_song($mysqli, $data) {
     if ($mysqli->connect_errno) {
         return "Error connecting";
@@ -125,8 +143,13 @@ function add_song($mysqli, $data) {
 
     // Normalize and clean tags
     $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
-    $normalizedTags = (implode(",",$tagsArray)!="") ? implode(',', $tagsArray) : null;
-    $is_fixed = (count($tagsArray) >= FIXED_TAGS_COUNT) ? 1 : 0;
+    $normalizedTags = (implode(",", $tagsArray) != "") ? implode(',', $tagsArray) : null;
+
+    // Category
+    $category = (int)$data["category"];
+
+    // Determine is_fixed
+    $is_fixed = check_is_fixed($tagsArray, $category);
 
     // Sanitize and normalize fields
     $category = (int)$data["category"];
@@ -292,7 +315,7 @@ function edit_song($mysqli, $id, $data) {
     $tagsToRemove = array_diff($originalTags, $newTagsArray);
 
 
-    $is_fixed = (count($newTagsArray) >= FIXED_TAGS_COUNT) ? 1 : 0;
+    $is_fixed = check_is_fixed($newTagsArray, (int)$data["category"]);
     $data["is_nsfw"] = isset($data["is_nsfw"]) && $data["is_nsfw"] !== '' ? (int)$data["is_nsfw"] : 0;
 
     // Base fields always updated:
