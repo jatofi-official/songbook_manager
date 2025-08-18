@@ -1585,14 +1585,26 @@ function create_songbook($mysqli, $name, $description, $owner, $admins, $groupId
     $songs = "";
     $numberOfSongs = 0;
 
-    $stmt = $mysqli->prepare("INSERT INTO songbooks (name, description, owner, admins, categories, songs, number_of_songs, group_id, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssisssiii", $name, $description, $owner, $admins, $categories, $songs, $numberOfSongs, $groupId, $isPublic);
+    $stmt = $mysqli->prepare("INSERT INTO songbooks 
+        (name, description, owner, admins, categories, songs, number_of_songs, group_id, is_public) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param(
+        "ssisssiii",
+        $name, $description, $owner, $admins,
+        $categories, $songs, $numberOfSongs,
+        $groupId, $isPublic
+    );
 
-    $result = $stmt->execute();
-    $stmt->close();
-
-    return $result;
+    if ($stmt->execute()) {
+        $newId = $stmt->insert_id;
+        $stmt->close();
+        return $newId; // return the new songbook ID
+    } else {
+        $stmt->close();
+        return false;
+    }
 }
+
 
 
 
