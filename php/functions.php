@@ -129,9 +129,15 @@ function check_is_fixed($data, $category = null) {
         return 0;
     }
 
-    // Fallback to tag-based rule
+    // Special rule for "duchovne"
+    if ($category === "duchovne") {
+        return (count($data) >= 2) ? 1 : 0;
+    }
+
+    // Default rule
     return (count($data) >= FIXED_TAGS_COUNT) ? 1 : 0;
 }
+
 
 
 
