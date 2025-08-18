@@ -22,9 +22,15 @@ error_reporting(E_ALL);
             <div class="col-md-8">
                 <h1 class="display-7 mb-3">Songbooks</h1>
             </div>
+            <div class="col-md-4 text-md-end">
+                <a href="create_songbook.php" class="btn btn-success mt-2 mt-md-0">
+                    <i class="bi bi-plus-lg"></i> Create Songbook
+                </a>
+            </div>
         </div>
     </div>
 </div>
+
 
 <div class="container">
     <!-- Search and Filter -->
