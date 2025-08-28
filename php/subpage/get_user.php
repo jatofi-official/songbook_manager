@@ -108,7 +108,7 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
             <div class="mb-4">
                 <h3 class="section-title">Experience Points</h3>
                 <!-- XP Milestone -->
-                <div class="xp-card bg-primary text-white">
+                <div class="xp-card bg-primary text-white position-relative">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="xp-category text-white">Total XP</div>
@@ -125,9 +125,16 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
                     <div class="mt-2 text-white-50">
                         Next level at <?= number_format($nextLevelAt) ?> XP
                     </div>
+
+                    <!-- Info box -->
+                    <div class="xp-info-box position-absolute top-0 end-0 m-3 p-3 rounded shadow-sm bg-light text-dark small border" 
+                        style="display: none; width: 250px; z-index: 10;">
+                        <strong>XP Explanation:</strong><br>
+                        50 XP for every added song,<br>
+                        10 XP for every song edit,<br>
+                        Additional special XP on special occasions.
+                    </div>
                 </div>
-
-
 
             </div>
             

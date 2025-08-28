@@ -42,6 +42,24 @@ function attachCardHoverListeners() {
         });
     });
 }
+function attachXpHoverListeners() {
+    const xpCards = document.querySelectorAll(".xp-card.position-relative");
+    xpCards.forEach((card, index) => {
+        const infoBox = card.querySelector(".xp-info-box");
+        if (!infoBox) return;
+        if (card.dataset.hoverAttached) return;
+        card.dataset.hoverAttached = "1";
+
+        card.addEventListener("mouseenter", () => {
+            infoBox.style.display = "block";
+            // console.log(`Hover enter on XP card #${index + 1}`, card);
+        });
+        card.addEventListener("mouseleave", () => {
+            infoBox.style.display = "none";
+            // console.log(`Hover leave on XP card #${index + 1}`, card);
+        });
+    });
+}
 </script>
 
 
@@ -56,10 +74,9 @@ function attachCardHoverListeners() {
                 const container = document.getElementById('user-details');
                 container.innerHTML = html;
 
-                // Attach hover listeners to dynamically loaded cards
-                if (typeof attachCardHoverListeners === "function") {
-                    attachCardHoverListeners();
-                }
+                attachCardHoverListeners();
+                attachXpHoverListeners();
+
             })
             .catch(err => {
                 console.error("Failed to load user info via AJAX:", err);
