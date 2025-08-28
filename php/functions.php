@@ -119,18 +119,13 @@ function get_song($mysqli, $id){
 }
 
 function check_is_fixed($data, $category = null) {
-    // Category 8 is always fixed
-    if ($category === 8) {
-        return 1;
-    }
-
     // Make sure $data is an array
     if (!is_array($data)) {
         return 0;
     }
 
     // Special rule for "duchovne"
-    if ($category === "duchovne") {
+    if ($category === 8||$category===9) {
         return (count($data) >= 2) ? 1 : 0;
     }
 
