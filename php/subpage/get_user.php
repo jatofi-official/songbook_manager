@@ -61,7 +61,16 @@ $lastLogin = date("M j, Y, h:i A", strtotime($user['last_login'] ?? 'now'));
 $lastUpdated = date("M j, Y", strtotime($user['updated_at'] ?? '2023-06-05'));
 
 // Activity stats example data
-$songsAdded = get_number_of_songs($mysqli, $user["username"]);
+$songsCounts = get_number_of_songs($mysqli, $user["username"]);
+
+// Total songs
+$songsAdded = $songsCounts['total'];
+
+// Fixed songs
+$fixedSongs = $songsCounts['fixed'];
+
+// Not fixed songs
+$notFixedSongs = $songsCounts['not_fixed'];
 $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
 ?>
 
@@ -137,6 +146,96 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
                     </div>
                 </div>
             </div>
+
+
+<!-- Fixed to unfixed bar -->
+
+
+
+<div class="row mb-4">
+    <div class="col-md-12 mb-3">
+        <div class="card border-0 shadow-sm rounded-3 position-relative">
+            <div class="card-body">
+
+                <h6 class="card-title text-muted mb-3">Songs breakdown:</h6>
+
+                <?php
+                $fixedPercent = $songsAdded > 0 ? round(($fixedSongs / $songsAdded) * 100) : 0;
+                $notFixedPercent = $songsAdded > 0 ? round(($notFixedSongs / $songsAdded) * 100) : 0;
+                ?>
+
+                <!-- Progress bar -->
+                <div class="progress mb-2" style="height: 25px;">
+                    <div class="progress-bar bg-success d-flex align-items-center justify-content-center"
+                        style="width: <?= $fixedPercent ?>%">
+                        <?= $fixedPercent ?>%
+                    </div>
+                    <div class="progress-bar bg-danger d-flex align-items-center justify-content-center"
+                        style="width: <?= $notFixedPercent ?>%">
+                        <?= $notFixedPercent ?>%
+                    </div>
+                </div>
+
+                <!-- Counts -->
+                <div class="d-flex justify-content-between small text-muted">
+                    <span>Fixed: <?= $fixedSongs ?></span>
+                    <span>Unfinished: <?= $notFixedSongs ?></span>
+                </div>
+
+            </div>
+
+            <!-- Info box outside card-body but inside card -->
+            <div class="info-box position-absolute top-0 end-0 m-3 p-3 rounded shadow-sm bg-light border small text-muted" style="display: none; width: 250px; z-index: 10;">
+                <strong>Finished songs:</strong><br>
+                Have at least <b>3 tags</b> and a <b>difficulty</b>.<br><br>
+                <strong>Special categories</strong> (Duchovné, Ľudové):<br>
+                Only need <b>2 tags</b> and a <b>difficulty</b>.
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+const container = document.getElementById('user-details');
+
+container.addEventListener('mouseenter', function(e) {
+    const card = e.target.closest(".card.position-relative");
+    if (!card || !container.contains(card)) return;
+
+    const infoBox = card.querySelector(".info-box");
+    if (!infoBox) return;
+
+    infoBox.style.display = "block";
+    console.log("Hover enter on card:", card);
+
+}, true); // use capture to simulate mouseenter
+
+container.addEventListener('mouseleave', function(e) {
+    const card = e.target.closest(".card.position-relative");
+    if (!card || !container.contains(card)) return;
+
+    const infoBox = card.querySelector(".info-box");
+    if (!infoBox) return;
+
+    infoBox.style.display = "none";
+    console.log("Hover leave on card:", card);
+
+}, true); // use capture to simulate mouseleave
+</script>
+
+
+
+
+
+
+
+
+
+
+
         </div>
         
     <!-- Right Column -->

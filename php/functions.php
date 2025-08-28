@@ -397,23 +397,40 @@ function edit_song($mysqli, $id, $data) {
 
 
 
-function get_number_of_songs(mysqli $mysqli, ?string $username = null): int {
+function get_number_of_songs(mysqli $mysqli, ?string $username = null): array {
     if ($username === null) {
-        // Count all songs
-        $sql = "SELECT COUNT(*) AS total FROM songs";
+        // Count all songs, fixed and not fixed
+        $sql = "
+            SELECT 
+                COUNT(*) AS total,
+                SUM(is_fixed = 1) AS fixed,
+                SUM(is_fixed = 0) AS not_fixed
+            FROM songs
+        ";
         $result = $mysqli->query($sql);
         if (!$result) {
             error_log("MySQL Error: " . $mysqli->error);
-            return 0;
+            return ['total' => 0, 'fixed' => 0, 'not_fixed' => 0];
         }
         $row = $result->fetch_assoc();
-        return (int)$row['total'];
+        return [
+            'total' => (int)$row['total'],
+            'fixed' => (int)$row['fixed'],
+            'not_fixed' => (int)$row['not_fixed'],
+        ];
     } else {
         // Count songs for this username in 'owner' column
-        $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM songs WHERE owner = ?");
+        $stmt = $mysqli->prepare("
+            SELECT 
+                COUNT(*) AS total,
+                SUM(is_fixed = 1) AS fixed,
+                SUM(is_fixed = 0) AS not_fixed
+            FROM songs
+            WHERE owner = ?
+        ");
         if (!$stmt) {
             error_log("MySQL prepare error: " . $mysqli->error);
-            return 0;
+            return ['total' => 0, 'fixed' => 0, 'not_fixed' => 0];
         }
         $stmt->bind_param("s", $username);
         $stmt->execute();
@@ -421,14 +438,19 @@ function get_number_of_songs(mysqli $mysqli, ?string $username = null): int {
         if (!$result) {
             error_log("MySQL execute error: " . $stmt->error);
             $stmt->close();
-            return 0;
+            return ['total' => 0, 'fixed' => 0, 'not_fixed' => 0];
         }
         $row = $result->fetch_assoc();
         $stmt->close();
 
-        return (int)$row['total'];
+        return [
+            'total' => (int)$row['total'],
+            'fixed' => (int)$row['fixed'],
+            'not_fixed' => (int)$row['not_fixed'],
+        ];
     }
 }
+
 
 
 
@@ -991,7 +1013,7 @@ function get_xp(mysqli $mysqli, int $id): ?array {
         return null;
     }
 
-    $xp_add = get_number_of_songs($mysqli,$username)*ADD_XP_AMOUNT;
+    $xp_add = get_number_of_songs($mysqli,$username)["total"]*ADD_XP_AMOUNT;
     $xp_edit = get_activities_user($mysqli, "edit",$username)*EDIT_XP_AMOUNT;
     
 

@@ -31,12 +31,21 @@ error_reporting(E_ALL);
     <!-- Main Part -->
     <div class="container">
 
+    <?php
+    $songsCounts = get_number_of_songs($mysqli);
+
+    // Total songs
+    $totalSongs = $songsCounts['total'];
+
+    // Fixed songs
+    $finishedSongs = $songsCounts['fixed'];
+    ?>
     <!-- Stats Cards -->
     <div class="row mb-4">
         <div class="col-6 col-md-3 mb-3 mb-md-0">
             <a href="songs.php" class="stat-card-link">
                 <div class="stat-card p-3">
-                    <div class="number"><?php echo get_number_of_songs($mysqli); ?></div>
+                    <div class="number"><?php echo $totalSongs ?></div>
                     <div class="label">Total Songs</div>
                 </div>
             </a>
@@ -52,21 +61,6 @@ error_reporting(E_ALL);
         </div>
 
         <?php
-         // Temporary for now
-
-        // Total songs
-        $resultTotal = $mysqli->query("SELECT COUNT(*) AS total FROM songs");
-        $totalRow = $resultTotal->fetch_assoc();
-        $totalSongs = (int)$totalRow['total'];
-
-        // Finished songs (4+ tags)
-        $resultFinished = $mysqli->query("
-            SELECT COUNT(*) AS finished FROM songs
-            WHERE (LENGTH(tags) - LENGTH(REPLACE(tags, ',', '')) + 1) >= 4
-            AND TRIM(tags) != ''
-        ");
-        $finishedRow = $resultFinished->fetch_assoc();
-        $finishedSongs = (int)$finishedRow['finished'];
 
         // Progress percentage
         $progressPercent = ($totalSongs > 0) ? ($finishedSongs / $totalSongs) * 100 : 0;
