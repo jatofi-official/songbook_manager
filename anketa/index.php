@@ -99,7 +99,7 @@ if (!isset($_SESSION['user'])): ?>
                 // Fetch songs
                 $placeholders = implode(',', array_fill(0, count($orderedIds), '?'));
                 $types = str_repeat('i', count($orderedIds));
-                $stmtSongs = $mysqli->prepare("SELECT id, title, artist FROM songs WHERE id IN ($placeholders)");
+                $stmtSongs = $mysqli->prepare("SELECT id, title, artist, youtube_link FROM songs WHERE id IN ($placeholders)");
                 $stmtSongs->bind_param($types, ...$orderedIds);
                 $stmtSongs->execute();
                 $songs = $stmtSongs->get_result()->fetch_all(MYSQLI_ASSOC);
