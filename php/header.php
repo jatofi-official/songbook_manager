@@ -1,3 +1,27 @@
+<?php
+// Detect filesystem root (php folder is inside project root)
+$projectRoot = realpath(__DIR__ . '/..');
+
+// Detect URL root automatically
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+$host = $_SERVER['HTTP_HOST'];
+$scriptDir = dirname($_SERVER['SCRIPT_NAME']);
+$projectUrl = $protocol . "://" . $host . str_replace("/anketa", "", $scriptDir);
+
+// Base paths
+$stylesFs = $projectRoot . '/styles/';   // filesystem path
+$stylesUrl = $projectUrl . '/styles/';  // browser URL
+
+function cssWithVersion($fsPath, $urlPath) {
+    if (file_exists($fsPath)) {
+        return $urlPath . '?v=' . filemtime($fsPath);
+    }
+    return $urlPath;
+}
+?>
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,7 +34,7 @@
 
     
     <!-- Custom styles -->
-    <link href="styles/styles.css" rel="stylesheet">	
+    <link href="<?= cssWithVersion($stylesFs . 'styles.css', $stylesUrl . 'styles.css') ?>" rel="stylesheet">
     <style>
     /* Remove padding from container-fluid to achieve true full width */
     .container-fluid {
@@ -20,25 +44,17 @@
 </style>
 
 <?php 
-function cssWithVersion($filepath) {
-    if (file_exists($filepath)) {
-        return $filepath . '?v=' . filemtime($filepath);
-    }
-    return $filepath;
+
+if ($website == "songs") {
+    echo '<link href="' . cssWithVersion($stylesFs . 'songs_styles.css', $stylesUrl . 'songs_styles.css') . '" rel="stylesheet">';
+} elseif ($website == "user") {
+    echo '<link href="' . cssWithVersion($stylesFs . 'user_styles.css', $stylesUrl . 'user_styles.css') . '" rel="stylesheet">';
+} elseif ($website == "users") {
+    echo '<link href="' . cssWithVersion($stylesFs . 'users_view.css', $stylesUrl . 'users_view.css') . '" rel="stylesheet">';
+} elseif ($website == "songbooks") {
+    echo '<link href="' . cssWithVersion($stylesFs . 'songbooks_view.css', $stylesUrl . 'songbooks_view.css') . '" rel="stylesheet">';
 }
 
-if($website == "songs"){
-    echo '<link href="styles/songs_styles.css?v=' . filemtime('styles/songs_styles.css') . '" rel="stylesheet">';
-}
-else if($website == "user"){
-    echo '<link href="styles/user_styles.css?v=' . filemtime('styles/user_styles.css') . '" rel="stylesheet">';
-}
-else if($website == "users"){
-    echo '<link href="styles/users_view.css?v=' . filemtime('styles/users_view.css') . '" rel="stylesheet">';
-}
-else if($website == "songbooks"){
-    echo '<link href="styles/songbooks_view.css?v=' . filemtime('styles/songbooks_view.css') . '" rel="stylesheet">';
-}
 ?>
 
 
