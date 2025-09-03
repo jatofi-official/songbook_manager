@@ -5,6 +5,7 @@ $phpBase = dirname(__DIR__) . '/php/';
 
 include $phpBase . 'db.php';
 include $phpBase . 'data.php';
+include $phpBase . 'auth.php';
 
 $website = "none";
 
@@ -79,7 +80,7 @@ if (!isset($_SESSION['user'])): ?>
                 <h3>Vitaj v ankete, <?php echo $_SESSION["name"]; ?>!</h3>
                 <p>Tento formulár ti umožní ohodnotiť piesne v jednotlivých kategóriách spevníku Mustangy. Hodnotenie bude prebiehať po kategóriach. Po ohodnotení každej kategórií sa výsledky uložia.</p>
                 <p>Hodnotí sa ako často sa pesnička hrala a ako veľmi sa ti páči</p>
-                <a href="?category_id=1" class="btn btn-primary">Začať</a>
+                <a href="zakladna_otazka.php" class="btn btn-primary">Začať</a>
             </div>
         <?php else: 
             // Load category layout

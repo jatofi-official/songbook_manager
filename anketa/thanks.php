@@ -8,6 +8,8 @@ include $phpBase . 'data.php';
 include $phpBase . 'functions.php';
 include $phpBase . 'header.php';
 include $phpBase . 'navigation.php';
+include $phpBase . 'auth.php';
+
 
 if (isset($_SESSION['user'])) {
     $username = $_SESSION['user'];
@@ -24,7 +26,7 @@ if (isset($_SESSION['user'])) {
     $stmtCheck->fetch();
     $stmtCheck->close();
 
-    if ($answeredCount === 13) {
+    if ($answeredCount === 14) {
         // Full survey completed
         // Add activity if it doesn't exist at all
         $activityDescription =  $_SESSION["name"] ." vyplnil anketu!";
