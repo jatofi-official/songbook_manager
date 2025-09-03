@@ -237,6 +237,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <script>
 const currentCategoryId = <?= $categoryId ?? 1 ?>;
 const categoryOrder = <?= json_encode($allCategoryIds ?? [1]) ?>; // array of all category IDs in order
+const username = "<?= $_SESSION['user'] ?>"; // current logged in user
 
 document.getElementById('next-btn').addEventListener('click', () => {
     const results = [];
@@ -260,30 +261,48 @@ document.getElementById('next-btn').addEventListener('click', () => {
     });
 
     const resultString = results.join(',');
-    console.log(resultString);
 
-    // Determine next step
-    const currentIndex = categoryOrder.indexOf(currentCategoryId);
-    const isLastCategory = currentIndex === categoryOrder.length - 1;
+    // AJAX POST to save answers
+    fetch("<?= $projectUrl ?>/php/subpage/save_category_answers.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            username: username,
+            category_id: currentCategoryId,
+            answers: resultString
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            console.log("Saved successfully:", resultString);
 
-    if (isLastCategory) {
-        // Redirect to thank-you page
-        window.location.href = "<?= $projectUrl ?>/anketa/thanks.php";
-    } else {
-        // Redirect to next category
-        const nextCategoryId = categoryOrder[currentIndex + 1];
-        window.location.href = `?category_id=${nextCategoryId}`;
-    }
+            // Determine next step
+            const currentIndex = categoryOrder.indexOf(currentCategoryId);
+            const isLastCategory = currentIndex === categoryOrder.length - 1;
+
+            if (isLastCategory) {
+                window.location.href = "<?= $projectUrl ?>/anketa/thanks.php";
+            } else {
+                const nextCategoryId = categoryOrder[currentIndex + 1];
+                window.location.href = `?category_id=${nextCategoryId}`;
+            }
+        } else {
+            alert("Chyba pri ukladaní výsledkov!");
+            console.error(data.error);
+        }
+    })
+    .catch(err => {
+        alert("Chyba pri ukladaní výsledkov!");
+        console.error(err);
+    });
 });
 
 // Update button label if last category
 const currentIndex = categoryOrder.indexOf(currentCategoryId);
-if (currentIndex === categoryOrder.length - 1) {
-    document.getElementById('next-btn').textContent = "Ukončiť";
-} else {
-    document.getElementById('next-btn').textContent = "Ďalej";
-}
+document.getElementById('next-btn').textContent = currentIndex === categoryOrder.length - 1 ? "Ukončiť" : "Ďalej";
 </script>
+
 
 
 <style>
