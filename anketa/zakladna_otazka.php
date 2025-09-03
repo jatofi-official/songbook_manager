@@ -64,7 +64,7 @@ if (!isset($_SESSION['user'])): ?>
 
         const answers = `${otazka1}&${otazka2}`;
 
-        fetch("<?= $projectUrl ?>/php/subpage/save_category_answers.php", {
+        fetch("../php/subpage/save_category_answers.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
