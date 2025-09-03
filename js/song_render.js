@@ -45,3 +45,52 @@ function enhanceSongView() {
     const raw = el.textContent;
     el.innerHTML = renderSong(raw);
 }
+
+function enhanceSongDiv(el) {
+    if (!el) return;
+
+    const raw = el.textContent;
+    el.innerHTML = renderSong(raw);
+}
+
+
+function adjustFontSizeToFitWidth(el) {
+    if (!el) return;
+
+    const style = window.getComputedStyle(el);
+    let fontSize = parseInt(style.fontSize);
+    const minFontSize = 8;
+
+    // Enable overflow so lines can wrap naturally
+    el.style.overflow = "visible";
+
+    // Measure the longest line
+    const lines = el.textContent.split(/\r?\n/);
+
+    // Temporary span for measurement
+    const temp = document.createElement('span');
+    temp.style.position = 'absolute';
+    temp.style.visibility = 'hidden';
+    temp.style.whiteSpace = 'nowrap';
+    temp.style.fontFamily = style.fontFamily;
+    temp.style.fontWeight = style.fontWeight;
+    document.body.appendChild(temp);
+
+    let fits = false;
+
+    while (fontSize >= minFontSize && !fits) {
+        temp.style.fontSize = fontSize + 'px';
+        fits = true;
+
+        lines.forEach(line => {
+            temp.textContent = line;
+            if (temp.offsetWidth > el.clientWidth) fits = false;
+        });
+
+        if (!fits) fontSize--;
+    }
+
+    el.style.fontSize = fontSize + 'px';
+    document.body.removeChild(temp);
+}
+

@@ -150,6 +150,10 @@ document.querySelectorAll('.rating-circle').forEach(circle => {
 });
 </script>
 
+
+<!-- Include song_render.js -->
+<script src="<?= $projectUrl ?>/js/song_render.js"></script>
+
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll('.btn-text').forEach(btn => {
@@ -157,7 +161,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const songId = btn.dataset.songId;
             const div = document.getElementById(`song-text-${songId}`);
 
-            // Close other opened song texts
+            // Close all other song text divs
             document.querySelectorAll('.song-text').forEach(d => {
                 if (d !== div) {
                     d.classList.add('d-none');
@@ -173,7 +177,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     .then(content => {
                         div.innerHTML = content;
                         div.classList.remove('d-none');
-                        enhanceSongView(); // apply bold chords
+                        enhanceSongDiv(div); // enhanced rendering for this div only
+                        adjustFontSizeToFitWidth(div); // shrink to fit width
+
                     })
                     .catch(err => {
                         div.innerHTML = "<p>Error loading song text.</p>";
@@ -191,8 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-<!-- Include song_render.js -->
-<script src="<?= $projectUrl ?>/js/song_render.js"></script>
+
 
 
 <style>
