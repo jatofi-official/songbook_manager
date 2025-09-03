@@ -73,15 +73,22 @@ if (!isset($_SESSION['user'])): ?>
 
 
 
-
         if (!$categoryId): ?>
-            <!-- Introduction page -->
-            <div class="card mx-auto my-3 p-3" style="max-width: 600px;">
-                <h3>Vitaj v ankete, <?php echo $_SESSION["name"]; ?>!</h3>
-                <p>Tento formulár ti umožní ohodnotiť piesne v jednotlivých kategóriách spevníku Mustangy. Hodnotenie bude prebiehať po kategóriach. Po ohodnotení každej kategórií sa výsledky uložia.</p>
-                <p>Hodnotí sa ako často sa pesnička hrala a ako veľmi sa ti páči</p>
-                <a href="zakladna_otazka.php" class="btn btn-primary">Začať</a>
-            </div>
+        <!-- Introduction page -->
+        <div class="card mx-auto my-3 p-3" style="max-width: 600px;">
+            <h3>Vitaj v ankete, <?php echo htmlspecialchars($_SESSION["name"]); ?>!</h3>
+            <p>Tento formulár ti umožní ohodnotiť piesne v jednotlivých kategóriách spevníku Mustangy. Hodnotenie bude prebiehať po kategóriách. Po ohodnotení každej kategórií sa výsledky uložia.</p>
+            <p>Hodnotí sa ako často sa pesnička hrala a ako veľmi sa ti páči</p>
+            <a href="zakladna_otazka.php" class="btn btn-primary btn-lg">Začať</a>
+
+
+        </div>
+        <div>
+            <?php if (isset($_SESSION['admin_view']) && $_SESSION['admin_view'] === true): ?>
+                <a href="vysledky.php" class="btn btn-secondary btn-lg ms-2">Zobraziť výsledky</a>
+            <?php endif; ?>
+        </div>
+
         <?php else: 
             // Load category layout
             $stmt = $mysqli->prepare("SELECT * FROM songbook_category_layouts WHERE category_id = ? LIMIT 1");
