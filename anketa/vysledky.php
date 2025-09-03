@@ -71,11 +71,16 @@ if (isset($_SESSION['admin_view']) && $_SESSION["admin_view"] == true) {
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const detailPanel = document.getElementById("detailPanel");
+    const userList = document.getElementById("userList");
 
-    // When clicking on user
+    // When clicking on a user
     document.querySelectorAll(".user-item").forEach(btn => {
         btn.addEventListener("click", function() {
             let username = this.dataset.username;
+
+            // === Highlight selected user ===
+            userList.querySelectorAll(".user-item").forEach(b => b.classList.remove("active"));
+            this.classList.add("active");
 
             // Load "Základ" first
             fetch("../php/subpage/load_answers.php?username=" + username + "&category=-1")
@@ -117,10 +122,10 @@ document.addEventListener("DOMContentLoaded", function() {
                         });
                     });
             });
-
         });
     });
 });
+
 </script>
 
 <!-- Sorting -->
@@ -240,6 +245,32 @@ document.getElementById("detailPanel").addEventListener("click", function(e) {
 #categoryButtons .category-btn:last-child {
     margin-right: 0;
 }
+
+/* Highlight selected user in the list */
+.user-item.active {
+    background-color: #d6d8db; /* soft light gray */
+    color: #000;
+    border-color: #d6d8db;
+}
+.user-item.active .fw-bold,
+.user-item.active small {
+    color: #000;
+}
+
+/* Softer but more visible frequency badge colors */
+.bg-danger-light { background-color: #f5c6cb; }   /* soft red */
+.bg-warning-light { background-color: #ffe08a; }  /* soft yellow */
+.bg-success-light { background-color: #c7f0c1; }  /* light green */
+.bg-success-mid { background-color: #84d884; }    /* green */
+.bg-success-dark { background-color: #198754; color: #fff; } /* dark green for strong rating */
+
+/* Optional: consistent badge sizing */
+.badge {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+
 
 </style>
 

@@ -73,7 +73,13 @@ if ($category == -1) {
 
         // map badges (unchanged)
         $freqLabels = [0=>"Ani raz",1=>"Jeden krát",2=>"Niekoľko krát",3=>"Často",4=>"Skoro stále"];
-        $freqColors = [0=>"bg-danger text-white",1=>"bg-warning text-dark",2=>"bg-info text-dark",3=>"bg-success text-white",4=>"bg-dark text-white"];
+        $freqColors = [
+            0 => "bg-danger-light text-dark",   // Ani raz
+            1 => "bg-warning-light text-dark",  // Jeden krát
+            2 => "bg-success-light text-dark",  // Niekoľko krát
+            3 => "bg-success-mid text-dark",    // Často
+            4 => "bg-success-dark text-white"   // Skoro stále
+        ];
 
         if ($often === "" || $often === null) {
             $oftenBadge = "-";
