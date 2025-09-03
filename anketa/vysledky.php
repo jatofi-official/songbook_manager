@@ -79,60 +79,141 @@ document.addEventListener("DOMContentLoaded", function() {
 
             // Load "Základ" first
             fetch("../php/subpage/load_answers.php?username=" + username + "&category=-1")
-                .then(res => res.text())
-                .then(html => {
-                    detailPanel.innerHTML = `
-                        <div class="card-header">
-                            <div class="row g-2">
-                                <div class="col">
-                                    <button class="btn btn-outline-primary w-100 cat-btn active" data-cat="-1">Základ</button>
-                                </div>
-                                ${Array.from({length: 13}, (_, i) => `
-                                    <div class="col">
-                                        <button class="btn btn-outline-primary w-100 cat-btn" data-cat="${i+1}">${i+1}</button>
-                                    </div>`).join("")}
-                            </div>
-                        </div>
-                        <div class="card-body" id="answersContent">${html}</div>
-                    `;
+            .then(res => res.text())
+            .then(html => {
+                // Build category buttons
+                detailPanel.innerHTML = `
+                    <div class="card-header">
+                        <div class="btn-group mb-3" role="group" id="categoryButtons"></div>
+                    </div>
+                    <div class="card-body" id="answersContent">${html}</div>
+                `;
 
-                    // Attach events to category buttons
-                    detailPanel.querySelectorAll(".cat-btn").forEach(catBtn => {
-                        catBtn.addEventListener("click", function() {
-                            let cat = this.dataset.cat;
-                            detailPanel.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
-                            this.classList.add("active");
+                // Now fetch which categories user has answered
+                fetch("../php/subpage/user_categories.php?username=" + username)
+                    .then(r => r.json())
+                    .then(cats => {
+                        let btnGroup = document.getElementById("categoryButtons");
+                        // always include základ
+                        btnGroup.innerHTML = `<button class="btn btn-outline-primary category-btn active" data-cat="-1">Základ</button>`;
+                        for (let i = 1; i <= 13; i++) {
+                            let has = cats.includes(i);
+                            btnGroup.innerHTML += `<button class="btn btn-outline-primary category-btn ${has?'':'disabled'}" data-cat="${i}">${i}</button>`;
+                        }
 
-                            fetch("../php/subpage/load_answers.php?username=" + username + "&category=" + cat)
-                                .then(res => res.text())
-                                .then(data => {
-                                    document.getElementById("answersContent").innerHTML = data;
-                                });
+                        // attach handlers
+                        btnGroup.querySelectorAll(".category-btn").forEach(catBtn => {
+                            catBtn.addEventListener("click", function() {
+                                if (this.classList.contains("disabled")) return;
+                                btnGroup.querySelectorAll(".category-btn").forEach(b => b.classList.remove("active"));
+                                this.classList.add("active");
+                                let cat = this.dataset.cat;
+                                fetch("../php/subpage/load_answers.php?username=" + username + "&category=" + cat)
+                                    .then(res => res.text())
+                                    .then(data => {
+                                        document.getElementById("answersContent").innerHTML = data;
+                                    });
+                            });
                         });
                     });
-                });
+            });
+
         });
     });
 });
 </script>
 
+<!-- Sorting -->
+
+<script>
+document.addEventListener("click", function(e) {
+    if (!e.target.classList.contains("sortable")) return;
+
+    const sortField = e.target.dataset.sort;
+    const rowsContainer = document.getElementById("answerRows");
+    const rows = Array.from(rowsContainer.querySelectorAll(".answer-row"));
+
+    // cycle sort mode
+    const current = e.target.dataset.order || "default";
+    let next = "asc";
+    if (current === "asc") next = "desc";
+    else if (current === "desc") next = "default";
+
+    // reset all headers
+    document.querySelectorAll(".sortable").forEach(el => el.dataset.order = "default");
+    e.target.dataset.order = next;
+
+    if (next === "default") {
+        // reload category to restore original order
+        const activeBtn = document.querySelector(".category-btn.active");
+        if (activeBtn) activeBtn.click();
+        return;
+    }
+
+    rows.sort((a, b) => {
+        let va = a.dataset[sortField] || "";
+        let vb = b.dataset[sortField] || "";
+        va = va === "" ? -999 : parseInt(va);
+        vb = vb === "" ? -999 : parseInt(vb);
+        return next === "asc" ? va - vb : vb - va;
+    });
+
+    rowsContainer.innerHTML = "";
+    rows.forEach(r => rowsContainer.appendChild(r));
+});
+</script>
+
+
 
 <style>
-.rating-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  line-height: 32px;
-  text-align: center;
-  font-weight: bold;
-  color: #fff;
-  margin: auto;
-}
-.rating-circle[data-value="1"] { background-color: #FF0000; }
+.rating-circle[data-value="1"] { background-color: #FF0000; color: #fff; }
 .rating-circle[data-value="2"] { background-color: #FF6666; }
 .rating-circle[data-value="3"] { background-color: #808080; color: #fff; }
 .rating-circle[data-value="4"] { background-color: #66CC66; }
-.rating-circle[data-value="5"] { background-color: #008000; }
+.rating-circle[data-value="5"] { background-color: #008000; color: #fff; }
+
+.rating-circle {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-weight: bold;
+}
+
+
+/* Table header background lighter and rounded */
+.table-header {
+    background-color: #f0f0f0; /* very light gray */
+    color: #333;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Sortable buttons smaller and rounded */
+.sortable.btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+    border-radius: 0.375rem;
+    line-height: 1.2;
+    min-width: auto;
+}
+
+/* Equal height rows */
+.answer-row > .d-flex {
+    min-height: 60px; /* adjust as needed */
+}
+
+/* Rounded, separated category buttons */
+#categoryButtons .category-btn {
+    border-radius: 0.375rem;
+    margin-right: 0.25rem;
+}
+#categoryButtons .category-btn:last-child {
+    margin-right: 0;
+}
 
 </style>
 

@@ -32,57 +32,83 @@ if ($category == -1) {
     }
 
 } elseif ($category >= 1 && $category <= 13) {
-    // Category with songs
     $query = "SELECT answers FROM vysledky_ankety_25 
               WHERE username='$username' AND category_id=$category";
     $result = $mysqli->query($query);
 
-    echo "<h5>" . htmlspecialchars($categories[$category] ?? '') . "</h5>";
+    // Category title row (lighter background)
+    echo "<div class='p-2 mb-3 text-dark rounded'>
+            <h4 class='m-0'>" . htmlspecialchars($categories[$category] ?? '') . "</h4>
+        </div>";
+
 
     if ($row = $result->fetch_assoc()) {
         $entries = explode(",", $row['answers']);
 
-        // header row
-        echo "<div class='d-flex fw-bold mb-2'>
-                <div class='flex-grow-1'>Pieseň</div>
-                <div class='text-center' style='width:120px'>Frekvencia</div>
-                <div class='text-center' style='width:120px'>Hodnotenie</div>
-              </div>";
+    // header row with nicer, rounded, smaller buttons
+    echo "<div class='d-flex fw-bold mb-2 table-header align-items-center'>
+            <div class='flex-grow-1'>Pieseň</div>
+            <div class='text-center' style='width:150px'>
+                <button class='sortable btn btn-outline-secondary btn-sm' data-sort='frekvencia'>Frekvencia</button>
+            </div>
+            <div class='text-center' style='width:120px'>
+                <button class='sortable btn btn-outline-secondary btn-sm' data-sort='hodnotenie'>Hodnotenie</button>
+            </div>
+        </div>";
 
-        echo "<div class='row row-cols-1 gy-3'>";
-        foreach ($entries as $entry) {
-            if (trim($entry) === "") continue;
 
-            list($songId, $ansString) = explode("-", $entry, 2);
-            list($often, $like) = explode("&", $ansString);
+    echo "<div id='answerRows' class='row row-cols-1 gy-3'>";
+    foreach ($entries as $entry) {
+        if (trim($entry) === "") continue;
 
-            $songId = intval($songId);
-            $songRes = $mysqli->query("SELECT title, artist FROM songs WHERE id=$songId");
-            $song = $songRes->fetch_assoc();
+        list($songId, $ansString) = explode("-", $entry, 2);
+        list($often, $like) = explode("&", $ansString);
 
-            // First rating (1–4) as simple colored badge
-            $oftenBadge = $often !== "" ? "<span class='badge bg-" . (
-                $often == 1 ? "danger" :
-                ($often == 2 ? "warning" :
-                ($often == 3 ? "info" : "success"))
-            ) . "'>$often</span>" : "-";
+        $songId = intval($songId);
+        $songRes = $mysqli->query("SELECT title, artist FROM songs WHERE id=$songId");
+        $song = $songRes->fetch_assoc();
 
-            // Second rating (1–5) as custom circle
-            $likeCircle = $like !== "" 
-                ? "<div class='rating-circle' data-value='".intval($like)."'>$like</div>" 
-                : "-";
+        // Frequency mapping
+        $freqLabels = [
+            0 => "Ani raz",
+            1 => "Jeden krát",
+            2 => "Niekoľko krát",
+            3 => "Často",
+            4 => "Skoro stále"
+        ];
+        $freqColors = [
+            0 => "bg-danger text-white",
+            1 => "bg-warning text-dark",
+            2 => "bg-info text-dark",
+            3 => "bg-success text-white",
+            4 => "bg-dark text-white"
+        ];
 
-            echo "<div class='col'>
-                    <div class='d-flex align-items-center border rounded p-3 h-100'>
-                        <div class='flex-grow-1'>
-                            <div class='fw-bold'>" . htmlspecialchars($song['title']) . " — " . htmlspecialchars($song['artist']) . "</div>
-                        </div>
-                        <div class='text-center' style='width:120px'>$oftenBadge</div>
-                        <div class='text-center' style='width:120px'>$likeCircle</div>
-                    </div>
-                  </div>";
+        if ($often === "" || $often === null) {
+            $oftenBadge = "-";
+        } else {
+            $freqValue = $freqLabels[(int)$often] ?? "-";
+            $freqClass = $freqColors[(int)$often] ?? "bg-secondary text-white";
+            $oftenBadge = "<span class='badge $freqClass px-3 py-2'>$freqValue</span>";
         }
-        echo "</div>";
+
+        $likeCircle = $like !== "" 
+            ? "<div class='rating-circle' data-value='".intval($like)."'>$like</div>" 
+            : "-";
+
+        echo "<div class='col answer-row'>
+                <div class='d-flex align-items-center border rounded p-3 h-100'>
+                    <div class='flex-grow-1 d-flex align-items-baseline'>
+                        <div class='fw-bold text-dark me-2'>" . htmlspecialchars($song['title']) . "</div>
+                        <div class='small text-muted'>" . htmlspecialchars($song['artist']) . "</div>
+                    </div>
+                    <div class='text-center' style='width:150px'>$oftenBadge</div>
+                    <div class='text-center' style='width:120px'>$likeCircle</div>
+                </div>
+            </div>";
+    }
+    echo "</div>";
+
     } else {
         echo "<p>Žiadne odpovede.</p>";
     }
