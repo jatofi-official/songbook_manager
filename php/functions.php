@@ -1010,7 +1010,7 @@ function get_xp(mysqli $mysqli, int $id): ?array {
 
     $xp_add = get_number_of_songs($mysqli,$username)["total"]*ADD_XP_AMOUNT;
     $xp_edit = get_activities_user($mysqli, "edit",$username)*EDIT_XP_AMOUNT;
-    
+    $xp_special += get_activities_user($mysqli,"Anketa",$username)*250;
 
 
 
