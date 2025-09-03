@@ -126,42 +126,68 @@ document.addEventListener("DOMContentLoaded", function() {
 <!-- Sorting -->
 
 <script>
-document.addEventListener("click", function(e) {
-    if (!e.target.classList.contains("sortable")) return;
+document.getElementById("detailPanel").addEventListener("click", function(e) {
+    const btn = e.target.closest("button.sortable");
+    if (!btn) return;
 
-    const sortField = e.target.dataset.sort;
     const rowsContainer = document.getElementById("answerRows");
+    if (!rowsContainer) return;
+
+    const sortField = btn.dataset.sort; // 'frekvencia' | 'hodnotenie'
     const rows = Array.from(rowsContainer.querySelectorAll(".answer-row"));
 
-    // cycle sort mode
-    const current = e.target.dataset.order || "default";
-    let next = "asc";
-    if (current === "asc") next = "desc";
-    else if (current === "desc") next = "default";
+    // cycle order: default -> asc -> desc -> default
+    const current = btn.dataset.order || "default";
+    let next = (current === "default") ? "asc" : (current === "asc" ? "desc" : "default");
 
-    // reset all headers
-    document.querySelectorAll(".sortable").forEach(el => el.dataset.order = "default");
-    e.target.dataset.order = next;
+    // reset labels/arrows for all sortable buttons in THIS header
+    const header = btn.closest(".table-header");
+    if (header) {
+        header.querySelectorAll("button.sortable").forEach(b => {
+            b.dataset.order = "default";
+            b.textContent = b.dataset.label || b.textContent.replace(/[▲▼]/g, "").trim();
+        });
+    }
+
+    // update this button
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent.replace(/[▲▼]/g, "").trim();
+    btn.dataset.order = next;
+    if (next === "asc")       btn.textContent = btn.dataset.label + " ▲";
+    else if (next === "desc") btn.textContent = btn.dataset.label + " ▼";
+    else                      btn.textContent = btn.dataset.label;
 
     if (next === "default") {
-        // reload category to restore original order
-        const activeBtn = document.querySelector(".category-btn.active");
-        if (activeBtn) activeBtn.click();
+        // restore original order by reloading current category
+        const activeCat = document.querySelector(".category-btn.active");
+        if (activeCat) activeCat.click();
         return;
     }
 
+    // helper to coerce value: empty -> -999 so empties sink to bottom
+    const val = (el) => {
+        const raw = el.dataset[sortField];
+        if (raw === "" || raw === undefined) return -999;
+        const n = parseInt(raw, 10);
+        return Number.isNaN(n) ? -999 : n;
+    };
+
+    // stable sort: tie-break by original data-index
     rows.sort((a, b) => {
-        let va = a.dataset[sortField] || "";
-        let vb = b.dataset[sortField] || "";
-        va = va === "" ? -999 : parseInt(va);
-        vb = vb === "" ? -999 : parseInt(vb);
-        return next === "asc" ? va - vb : vb - va;
+        const va = val(a);
+        const vb = val(b);
+        if (va === vb) {
+            return parseInt(a.dataset.index, 10) - parseInt(b.dataset.index, 10);
+        }
+        return next === "asc" ? (va - vb) : (vb - va);
     });
 
-    rowsContainer.innerHTML = "";
+    // re-attach in sorted order
     rows.forEach(r => rowsContainer.appendChild(r));
 });
 </script>
+
+
+
 
 
 

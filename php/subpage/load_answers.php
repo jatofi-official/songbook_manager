@@ -57,6 +57,9 @@ if ($category == -1) {
         </div>";
 
 
+    // ...above your foreach
+    $idx = 0;
+
     echo "<div id='answerRows' class='row row-cols-1 gy-3'>";
     foreach ($entries as $entry) {
         if (trim($entry) === "") continue;
@@ -68,21 +71,9 @@ if ($category == -1) {
         $songRes = $mysqli->query("SELECT title, artist FROM songs WHERE id=$songId");
         $song = $songRes->fetch_assoc();
 
-        // Frequency mapping
-        $freqLabels = [
-            0 => "Ani raz",
-            1 => "Jeden krát",
-            2 => "Niekoľko krát",
-            3 => "Často",
-            4 => "Skoro stále"
-        ];
-        $freqColors = [
-            0 => "bg-danger text-white",
-            1 => "bg-warning text-dark",
-            2 => "bg-info text-dark",
-            3 => "bg-success text-white",
-            4 => "bg-dark text-white"
-        ];
+        // map badges (unchanged)
+        $freqLabels = [0=>"Ani raz",1=>"Jeden krát",2=>"Niekoľko krát",3=>"Často",4=>"Skoro stále"];
+        $freqColors = [0=>"bg-danger text-white",1=>"bg-warning text-dark",2=>"bg-info text-dark",3=>"bg-success text-white",4=>"bg-dark text-white"];
 
         if ($often === "" || $often === null) {
             $oftenBadge = "-";
@@ -96,7 +87,14 @@ if ($category == -1) {
             ? "<div class='rating-circle' data-value='".intval($like)."'>$like</div>" 
             : "-";
 
-        echo "<div class='col answer-row'>
+        // numeric (or empty) values for data-*
+        $oftenVal = ($often !== "" && is_numeric($often)) ? (int)$often : "";
+        $likeVal  = ($like  !== "" && is_numeric($like))  ? (int)$like  : "";
+
+        echo "<div class='col answer-row'
+                    data-index='{$idx}'
+                    data-frekvencia='{$oftenVal}'
+                    data-hodnotenie='{$likeVal}'>
                 <div class='d-flex align-items-center border rounded p-3 h-100'>
                     <div class='flex-grow-1 d-flex align-items-baseline'>
                         <div class='fw-bold text-dark me-2'>" . htmlspecialchars($song['title']) . "</div>
@@ -106,8 +104,10 @@ if ($category == -1) {
                     <div class='text-center' style='width:120px'>$likeCircle</div>
                 </div>
             </div>";
+        $idx++;
     }
     echo "</div>";
+
 
     } else {
         echo "<p>Žiadne odpovede.</p>";
