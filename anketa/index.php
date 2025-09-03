@@ -76,7 +76,7 @@ if (!isset($_SESSION['user'])): ?>
         if (!$categoryId): ?>
             <!-- Introduction page -->
             <div class="card mx-auto my-3 p-3" style="max-width: 600px;">
-                <h3>Vitajte v ankete!</h3>
+                <h3>Vitaj v ankete, <?php echo $_SESSION["name"]; ?>!</h3>
                 <p>Tento formulár ti umožní ohodnotiť piesne v jednotlivých kategóriách spevníku Mustangy. Hodnotenie bude prebiehať po kategóriach. Po ohodnotení každej kategórií sa výsledky uložia.</p>
                 <p>Hodnotí sa ako často sa pesnička hrala a ako veľmi sa ti páči</p>
                 <a href="?category_id=1" class="btn btn-primary">Začať</a>

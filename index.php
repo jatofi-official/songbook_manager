@@ -159,6 +159,24 @@ error_reporting(E_ALL);
 
     </div>
 
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="<?= $projectUrl ?>/anketa/index.php" class="text-decoration-none">
+            <div class="card text-white bg-primary shadow-lg hover-scale rounded-4 p-4 d-flex justify-content-center align-items-center text-center" style="transition: transform 0.2s;">
+                <div class="fs-3 fw-bold mb-2"><i class="bi bi-list-check"></i> Vyplniť anketu 2025</div>
+                <div class="fs-6">Klikni sem a začni vyplňovať tohoročnú anketu spevníku Mustangy</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<style>
+.hover-scale:hover {
+    transform: scale(1.03);
+}
+</style>
+
+
 <?php
 include('php/footer.php');
 ?>
