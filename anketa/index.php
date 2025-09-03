@@ -359,11 +359,11 @@ document.getElementById('next-btn').textContent = currentIndex === categoryOrder
     color: white;
 }
 
-.rating-circle[data-value="1"] { background-color: #dc3545; }
-.rating-circle[data-value="2"] { background-color: #f28b82; }
-.rating-circle[data-value="3"] { background-color: #6c757d; color: #fff; }
-.rating-circle[data-value="4"] { background-color: #90ee90; color: #212529; }
-.rating-circle[data-value="5"] { background-color: #28a745; }
+.rating-circle[data-value="1"] { background-color: #FF0000; }
+.rating-circle[data-value="2"] { background-color: #FF6666; }
+.rating-circle[data-value="3"] { background-color: #808080; color: #fff; }
+.rating-circle[data-value="4"] { background-color: #66CC66;  }
+.rating-circle[data-value="5"] { background-color: #008000; }
 
 .rating-circle.selected {
     box-shadow: 0 0 0 3px #00000033;
