@@ -26,8 +26,8 @@ error_reporting(E_ALL);
 <?php 
 if (!isset($_SESSION['user'])): ?>
     <p class="mb-3">Musíš byť prihlásený</p>
-    <a href="<?= $projectUrl ?>/user_settings.php" class="btn btn-primary me-2">Log in</a>
-    <a href="<?= $projectUrl ?>/register_user.php" class="btn btn-success">Register</a>
+    <a href="../user_settings.php" class="btn btn-primary me-2">Log in</a>
+    <a href="../register_user.php" class="btn btn-success">Register</a>
 <?php else: 
     $userId = $_SESSION['id'];
     $group = get_user_group($mysqli, $userId);
@@ -220,7 +220,7 @@ document.querySelectorAll('.rating-circle').forEach(circle => {
 
 
 <!-- Include song_render.js -->
-<script src="<?= $projectUrl ?>/js/song_render.js"></script>
+<script src="../js/song_render.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -240,7 +240,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // Toggle this div
             if (div.classList.contains('d-none')) {
                 // Fetch content via AJAX
-                fetch(`<?= $projectUrl ?>/php/subpage/get_song_content.php?id=${songId}`)
+                fetch(`../php/subpage/get_song_content.php?id=${songId}`)
                     .then(res => res.text())
                     .then(content => {
                         div.innerHTML = content;
@@ -294,7 +294,7 @@ document.getElementById('next-btn').addEventListener('click', () => {
     const resultString = results.join(',');
 
     // AJAX POST to save answers
-    fetch("<?= $projectUrl ?>/php/subpage/save_category_answers.php", {
+    fetch("../php/subpage/save_category_answers.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -313,7 +313,7 @@ document.getElementById('next-btn').addEventListener('click', () => {
             const isLastCategory = currentIndex === categoryOrder.length - 1;
 
             if (isLastCategory) {
-                window.location.href = "<?= $projectUrl ?>/anketa/thanks.php";
+                window.location.href = "../anketa/thanks.php";
             } else {
                 const nextCategoryId = categoryOrder[currentIndex + 1];
                 window.location.href = `?category_id=${nextCategoryId}`;
