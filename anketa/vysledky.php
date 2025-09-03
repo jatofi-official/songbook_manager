@@ -260,8 +260,9 @@ document.getElementById("detailPanel").addEventListener("click", function(e) {
 /* Softer but more visible frequency badge colors */
 .bg-danger-light { background-color: #f5c6cb; }   /* soft red */
 .bg-warning-light { background-color: #ffe08a; }  /* soft yellow */
-.bg-success-light { background-color:rgb(112, 187, 101); }  /* light green */
-.bg-success-dark { background-color:rgb(32, 190, 119); color: #fff; } /* dark green for strong rating */
+.bg-success-light { background-color: #c8f2c0; }  /* lighter pastel green */
+.bg-success-dark { background-color: #28a745; color: #fff; } /* vivid green */
+
 
 /* Optional: consistent badge sizing */
 .badge {
