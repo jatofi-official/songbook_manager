@@ -171,7 +171,7 @@ if (!isset($_SESSION['user'])): ?>
 
                         <!-- Feedback questions (dropdown + rating) -->
                         <div class="mb-3">
-                            <label class="form-label"><strong>Ako často sa hral?</strong></label>
+                            <label class="form-label"><strong>Ako často sa hrala?</strong></label>
                             <select class="form-select">
                                 <option value="">-- Vyber --</option>
                                 <option value="0" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '0') ? 'selected' : '' ?>>Ani raz</option>
