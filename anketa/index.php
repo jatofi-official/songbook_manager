@@ -16,12 +16,6 @@ include $phpBase . 'navigation.php';
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-
-
-
-echo __DIR__;
-
 ?>
 
-
- <?php include("../php/footer.php"); ?>
+<?php include $phpBase . 'footer.php'; ?>
