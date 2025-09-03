@@ -84,7 +84,7 @@ if (!isset($_SESSION['user'])): ?>
 
         </div>
         <div>
-            <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] === true): ?>
+            <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] == true): ?>
                 <a href="vysledky.php" class="btn btn-secondary btn-lg ms-2">Zobraziť výsledky</a>
             <?php endif; ?>
         </div>
