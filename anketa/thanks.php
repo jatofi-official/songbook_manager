@@ -66,7 +66,7 @@ if (isset($_SESSION['user'])) {
         echo '<div class="card mx-auto my-3 p-3" style="max-width: 600px;">
                 <h3>Ďakujeme za čiastočné vyplnenie ankety!</h3>
                 <p>Výsledky sa dozvieš čoskoro. Zvyšné kategórie môžeš dokončiť neskôr.</p>
-                <a href="' . $projectUrl . '/anketa/index.php" class="btn btn-primary">Späť na ankety</a>
+                <a href="index.php" class="btn btn-primary">Späť na ankety</a>
             </div>';
     }
 }
