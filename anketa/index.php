@@ -60,7 +60,7 @@ if (!isset($_SESSION['user'])): ?>
                 // Fetch songs
                 $placeholders = implode(',', array_fill(0, count($orderedIds), '?'));
                 $types = str_repeat('i', count($orderedIds));
-                $stmtSongs = $mysqli->prepare("SELECT * FROM songs WHERE id IN ($placeholders)");
+                $stmtSongs = $mysqli->prepare("SELECT id, title, artist FROM songs WHERE id IN ($placeholders)");
                 $stmtSongs->bind_param($types, ...$orderedIds);
                 $stmtSongs->execute();
                 $songs = $stmtSongs->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -86,13 +86,11 @@ if (!isset($_SESSION['user'])): ?>
                                 <?php if (!empty($song['artist'])): ?>
                                     <small class="text-muted"><?= htmlspecialchars($song['artist']) ?></small>
                                 <?php else: ?>
-                                    <small class="text-muted fst-italic">Neznámy autor</small>
+                                    <small class="text-muted fst-italic"></small>
                                 <?php endif; ?>
                             </div>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-outline-primary btn-sm" type="button" onclick="document.getElementById('song-text-<?= $song['id'] ?>').classList.toggle('d-none')">
-                                    Text
-                                </button>
+                                <button class="btn btn-outline-primary btn-sm btn-text" data-song-id="<?= $song['id'] ?>">Text</button>
                                 <?php if (!empty($song['youtube_link'])): ?>
                                     <a href="<?= htmlspecialchars($song['youtube_link']) ?>" target="_blank" class="btn btn-outline-danger btn-sm">
                                         <i class="bi bi-youtube"></i>
@@ -100,19 +98,11 @@ if (!isset($_SESSION['user'])): ?>
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <div id="song-content-js" 
-                            class="mb-3 song-text" 
+
+                        <!-- Container for song content (empty initially) -->
+                        <div id="song-text-<?= $song['id'] ?>" class="mb-3 song-text d-none"
                             style="white-space: pre-wrap; background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: 'Fira Mono', monospace; text-align: left;">
-                            <?= htmlspecialchars($song['content']) ?>
                         </div>
-
-
-                        <script>
-                        document.addEventListener("DOMContentLoaded", function () {
-                            enhanceSongView();
-                        });
-                        </script>
-
 
                         <!-- Feedback questions (dropdown + rating) -->
                         <div class="mb-3">
@@ -159,6 +149,47 @@ document.querySelectorAll('.rating-circle').forEach(circle => {
     });
 });
 </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll('.btn-text').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const songId = btn.dataset.songId;
+            const div = document.getElementById(`song-text-${songId}`);
+
+            // Close other opened song texts
+            document.querySelectorAll('.song-text').forEach(d => {
+                if (d !== div) {
+                    d.classList.add('d-none');
+                    d.innerHTML = '';
+                }
+            });
+
+            // Toggle this div
+            if (div.classList.contains('d-none')) {
+                // Fetch content via AJAX
+                fetch(`<?= $projectUrl ?>/php/subpage/get_song_content.php?id=${songId}`)
+                    .then(res => res.text())
+                    .then(content => {
+                        div.innerHTML = content;
+                        div.classList.remove('d-none');
+                        enhanceSongView(); // apply bold chords
+                    })
+                    .catch(err => {
+                        div.innerHTML = "<p>Error loading song text.</p>";
+                        div.classList.remove('d-none');
+                        console.error(err);
+                    });
+            } else {
+                div.classList.add('d-none');
+                div.innerHTML = '';
+            }
+        });
+    });
+});
+</script>
+
+
 
 <!-- Include song_render.js -->
 <script src="<?= $projectUrl ?>/js/song_render.js"></script>
