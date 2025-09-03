@@ -36,14 +36,50 @@ if (!isset($_SESSION['user'])): ?>
     <?php else: 
         // User is authorized
         $categoryId = isset($_GET['category_id']) ? intval($_GET['category_id']) : null;
+        
+        // Fetch all latest layouts per category
+        $stmt = $mysqli->prepare("
+            SELECT t1.*
+            FROM songbook_category_layouts t1
+            INNER JOIN (
+                SELECT category_id, MAX(id) AS max_id
+                FROM songbook_category_layouts
+                GROUP BY category_id
+            ) t2 ON t1.id = t2.max_id
+        ");
+        $stmt->execute();
+        $layouts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        // Extract category IDs
+        $allCategoryIds = array_column($layouts, 'category_id');
+
+        // Fetch category names from songbook id 3
+        $stmtSB = $mysqli->prepare("SELECT categories FROM songbooks WHERE id = 3");
+        $stmtSB->execute();
+        $songbook = $stmtSB->get_result()->fetch_assoc();
+
+        // Parse categories string into array: id => name
+        $categoryNames = [];
+        if ($songbook && !empty($songbook['categories'])) {
+            $cats = explode(',', $songbook['categories']);
+            foreach ($cats as $cat) {
+                $parts = explode('-', $cat, 2);
+                if (count($parts) === 2) {
+                    $categoryNames[intval($parts[0])] = trim($parts[1]);
+                }
+            }
+        }
+
+
+
 
         if (!$categoryId): ?>
             <!-- Introduction page -->
             <div class="card mx-auto my-3 p-3" style="max-width: 600px;">
                 <h3>Vitajte v ankete!</h3>
-                <p>Tento formulár vám umožní ohodnotiť piesne v jednotlivých kategóriách vášho songbooku.</p>
-                <p>Po odoslaní hodnotenia jednej kategórie budete presmerovaní na ďalšiu.</p>
-                <a href="?category_id=1" class="btn btn-primary">Začať ankety</a>
+                <p>Tento formulár ti umožní ohodnotiť piesne v jednotlivých kategóriách spevníku Mustangy. Hodnotenie bude prebiehať po kategóriach. Po ohodnotení každej kategórií sa výsledky uložia.</p>
+                <p>Hodnotí sa ako často sa pesnička hrala a ako veľmi sa ti páči</p>
+                <a href="?category_id=1" class="btn btn-primary">Začať</a>
             </div>
         <?php else: 
             // Load category layout
@@ -55,6 +91,8 @@ if (!isset($_SESSION['user'])): ?>
             if (!$layout):
                 echo "<p>Kategória nenájdená.</p>";
             else:
+                ?><h2><?= htmlspecialchars($categoryNames[$categoryId] ?? 'Kategória') ?></h2> <?php
+
                 $orderedIds = explode(',', $layout['ordered_ids']);
 
                 // Fetch songs
@@ -132,11 +170,10 @@ if (!isset($_SESSION['user'])): ?>
                             </div>
                         </div>
                     </div>
-                <?php endforeach;
-            endif;
-        endif;
-    endif;
-endif; ?>
+                <?php endforeach;?>
+
+<div class="d-grid gap-2 mt-3" style="max-width: 500px; margin: auto;">
+    <button id="next-btn" class="btn btn-success">Ďalej</button>
 </div>
 
 <script>
@@ -197,7 +234,56 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
+<script>
+const currentCategoryId = <?= $categoryId ?? 1 ?>;
+const categoryOrder = <?= json_encode($allCategoryIds ?? [1]) ?>; // array of all category IDs in order
 
+document.getElementById('next-btn').addEventListener('click', () => {
+    const results = [];
+
+    document.querySelectorAll('.card').forEach(card => {
+        const songIdAttr = card.querySelector('.song-text');
+        if (!songIdAttr) return;
+
+        const songIdMatch = songIdAttr.id.match(/song-text-(\d+)/);
+        if (!songIdMatch) return;
+
+        const songId = songIdMatch[1];
+
+        const freqSelect = card.querySelector('select');
+        const freqValue = freqSelect ? freqSelect.value : '';
+
+        const ratingInput = card.querySelector('.rating-value');
+        const ratingValue = ratingInput ? ratingInput.value : '';
+
+        results.push(`${songId}-${freqValue}&${ratingValue}`);
+    });
+
+    const resultString = results.join(',');
+    console.log(resultString);
+
+    // Determine next step
+    const currentIndex = categoryOrder.indexOf(currentCategoryId);
+    const isLastCategory = currentIndex === categoryOrder.length - 1;
+
+    if (isLastCategory) {
+        // Redirect to thank-you page
+        window.location.href = "<?= $projectUrl ?>/anketa/thanks.php";
+    } else {
+        // Redirect to next category
+        const nextCategoryId = categoryOrder[currentIndex + 1];
+        window.location.href = `?category_id=${nextCategoryId}`;
+    }
+});
+
+// Update button label if last category
+const currentIndex = categoryOrder.indexOf(currentCategoryId);
+if (currentIndex === categoryOrder.length - 1) {
+    document.getElementById('next-btn').textContent = "Ukončiť";
+} else {
+    document.getElementById('next-btn').textContent = "Ďalej";
+}
+</script>
 
 
 <style>
@@ -233,7 +319,18 @@ document.addEventListener("DOMContentLoaded", function () {
     transform: scale(1.2);
 }
 </style>
+            <?php endif;
+        endif;
+    
+    ?>
 
+
+
+    <?php
+    
+    endif;
+endif; ?>
+</div>
 
 
 
