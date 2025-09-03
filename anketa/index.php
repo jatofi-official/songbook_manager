@@ -115,6 +115,32 @@ if (!isset($_SESSION['user'])): ?>
                     }
                 }
 
+                // Fetch existing answers for this user + category
+                $existingAnswers = [];
+                if (isset($_SESSION['id'])) {
+                    $username = $_SESSION['user'];
+                    $stmt = $mysqli->prepare("SELECT answers FROM vysledky_ankety_25 WHERE username = ? AND category_id = ?");
+                    $stmt->bind_param("si", $username, $categoryId);
+                    $stmt->execute();
+                    $res = $stmt->get_result()->fetch_assoc();
+                    if ($res) {
+                        // answers format: songId-freq&rating, comma-separated
+                        $pairs = explode(',', $res['answers']);
+                        foreach ($pairs as $pair) {
+                            if (preg_match('/^(\d+)-(\d*)&(\d*)$/', $pair, $matches)) {
+                                $songId = $matches[1];
+                                $freq = $matches[2];
+                                $rating = $matches[3];
+                                $existingAnswers[$songId] = [
+                                    'freq' => $freq,
+                                    'rating' => $rating
+                                ];
+                            }
+                        }
+                    }
+                }
+
+
                 // Render survey cards
                 foreach ($songsOrdered as $song): ?>
                     <div class="card mx-auto my-3 p-3" style="max-width: 500px;">
@@ -147,19 +173,23 @@ if (!isset($_SESSION['user'])): ?>
                             <label class="form-label"><strong>Ako často sa hral?</strong></label>
                             <select class="form-select">
                                 <option value="">-- Vyber --</option>
-                                <option value="0">Ani raz</option>
-                                <option value="1">Jeden krát</option>
-                                <option value="2">Viackrát</option>
-                                <option value="3">Skoro stále</option>
+                                <option value="0" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '0') ? 'selected' : '' ?>>Ani raz</option>
+                                <option value="1" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '1') ? 'selected' : '' ?>>Jeden krát</option>
+                                <option value="2" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '2') ? 'selected' : '' ?>>Viackrát</option>
+                                <option value="3" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '3') ? 'selected' : '' ?>>Skoro stále</option>
                             </select>
+
                         </div>
                         <div class="mb-3">
                             <label class="form-label"><strong>Ako veľmi sa ti páči?</strong></label>
+                            <?php $userRating = $existingAnswers[$song['id']]['rating'] ?? ''; ?>
                             <div class="d-flex justify-content-between mt-2">
-                                <?php for ($i=1;$i<=5;$i++): ?>
-                                    <div class="rating-circle" data-value="<?= $i ?>"><?= $i ?></div>
+                                <?php for ($i=1; $i<=5; $i++): ?>
+                                    <div class="rating-circle <?= $userRating == $i ? 'selected' : '' ?>" data-value="<?= $i ?>"><?= $i ?></div>
                                 <?php endfor; ?>
                             </div>
+                            <input type="hidden" class="rating-value" name="rating-<?= $song['id'] ?>" value="<?= $userRating ?>">
+
                             <input type="hidden" class="rating-value" name="rating-<?= $song['id'] ?>" value="">
                             <div class="d-flex justify-content-between mt-1 text-muted" style="font-size: 0.85rem;">
                                 <span>vôbec</span>
