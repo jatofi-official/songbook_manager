@@ -80,32 +80,39 @@ if (!isset($_SESSION['user'])): ?>
                 // Render survey cards
                 foreach ($songsOrdered as $song): ?>
                     <div class="card mx-auto my-3 p-3" style="max-width: 500px;">
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2">
-        <h4 class="mb-0"><?= htmlspecialchars($song['title']) ?></h4>
-        <?php if (!empty($song['artist'])): ?>
-            <small class="text-muted"><?= htmlspecialchars($song['artist']) ?></small>
-        <?php else: ?>
-            <small class="text-muted fst-italic">Neznámy autor</small>
-        <?php endif; ?>
-    </div>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-primary btn-sm" type="button" onclick="document.getElementById('song-text-<?= $song['id'] ?>').classList.toggle('d-none')">
-            Text
-        </button>
-        <?php if (!empty($song['youtube_link'])): ?>
-            <a href="<?= htmlspecialchars($song['youtube_link']) ?>" target="_blank" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-youtube"></i>
-            </a>
-        <?php endif; ?>
-    </div>
-</div>
-<div id="song-text-<?= $song['id'] ?>" 
-    class="mb-3 d-none song-text" 
-    style="white-space: pre-wrap; background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: 'Fira Mono', monospace; text-align: left;"
-    data-raw="<?= htmlspecialchars($song['content']) ?>">
-    <?= htmlspecialchars($song['content']) ?>
-</div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2">
+                                <h4 class="mb-0"><?= htmlspecialchars($song['title']) ?></h4>
+                                <?php if (!empty($song['artist'])): ?>
+                                    <small class="text-muted"><?= htmlspecialchars($song['artist']) ?></small>
+                                <?php else: ?>
+                                    <small class="text-muted fst-italic">Neznámy autor</small>
+                                <?php endif; ?>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-primary btn-sm" type="button" onclick="document.getElementById('song-text-<?= $song['id'] ?>').classList.toggle('d-none')">
+                                    Text
+                                </button>
+                                <?php if (!empty($song['youtube_link'])): ?>
+                                    <a href="<?= htmlspecialchars($song['youtube_link']) ?>" target="_blank" class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-youtube"></i>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div id="song-content-js" 
+                            class="mb-3 song-text" 
+                            style="white-space: pre-wrap; background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: 'Fira Mono', monospace; text-align: left;">
+                            <?= htmlspecialchars($song['content']) ?>
+                        </div>
+
+
+                        <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            enhanceSongView();
+                        });
+                        </script>
+
 
                         <!-- Feedback questions (dropdown + rating) -->
                         <div class="mb-3">
@@ -153,6 +160,7 @@ document.querySelectorAll('.rating-circle').forEach(circle => {
 });
 </script>
 
+<!-- Include song_render.js -->
 <script src="<?= $projectUrl ?>/js/song_render.js"></script>
 
 
