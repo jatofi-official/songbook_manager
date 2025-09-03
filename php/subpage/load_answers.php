@@ -1,5 +1,12 @@
 <?php
+session_start(); // make sure session is started
 include "../db.php";
+
+// Only allow admins
+if (!isset($_SESSION['admin']) || $_SESSION['admin'] !== true) {
+    http_response_code(403);
+    exit("Access denied");
+}
 
 if (!isset($_GET['username'])) {
     exit("No user provided");

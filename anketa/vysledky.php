@@ -13,7 +13,7 @@ include $phpBase . 'auth.php';
 
 
 <?php
-if (isset($_SESSION['admin_view']) && $_SESSION["admin_view"] == true) {
+if (isset($_SESSION['admin']) && $_SESSION["admin"] == true) {
 
     $query = "
         SELECT v.username, COUNT(*) as total_entries, MAX(v.timestamp) as last_entry, u.name
