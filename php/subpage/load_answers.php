@@ -72,13 +72,12 @@ if ($category == -1) {
         $song = $songRes->fetch_assoc();
 
         // map badges (unchanged)
-        $freqLabels = [0=>"Ani raz",1=>"Jeden krát",2=>"Niekoľko krát",3=>"Často",4=>"Skoro stále"];
+        $freqLabels = [0=>"Ani raz",1=>"Jeden krát",2=>"Niekoľko krát",3=>"Často"];
         $freqColors = [
             0 => "bg-danger-light text-dark",   // Ani raz
             1 => "bg-warning-light text-dark",  // Jeden krát
             2 => "bg-success-light text-dark",  // Niekoľko krát
-            3 => "bg-success-mid text-dark",    // Často
-            4 => "bg-success-dark text-white"   // Skoro stále
+            3 => "bg-success-dark text-dark",    // Často
         ];
 
         if ($often === "" || $often === null) {

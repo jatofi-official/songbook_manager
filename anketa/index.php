@@ -178,7 +178,6 @@ if (!isset($_SESSION['user'])): ?>
                                 <option value="1" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '1') ? 'selected' : '' ?>>Jeden krát</option>
                                 <option value="2" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '2') ? 'selected' : '' ?>>Niekoľko krát</option>
                                 <option value="3" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '2') ? 'selected' : '' ?>>Často</option>
-                                <option value="4" <?= (isset($existingAnswers[$song['id']]) && $existingAnswers[$song['id']]['freq'] === '3') ? 'selected' : '' ?>>Skoro stále</option>
                             </select>
 
                         </div>
