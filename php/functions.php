@@ -1858,6 +1858,23 @@ function get_songbook($mysqli, $id) {
 }
 
 
+// Get user group
+function get_user_group($mysqli, $userId) {
+    // Prepare statement to avoid SQL injection
+    $stmt = $mysqli->prepare("SELECT `group_id` FROM `users` WHERE `id` = ?");
+    if (!$stmt) {
+        // Optional: log or handle error
+        return null;
+    }
+
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $stmt->bind_result($groupId);
+    $stmt->fetch();
+    $stmt->close();
+
+    return $groupId; // returns null if no user found
+}
 
 
 
