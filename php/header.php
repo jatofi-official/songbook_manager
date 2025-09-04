@@ -51,6 +51,7 @@ if ($website == "songs") {
     echo '<link href="' . cssWithVersion($stylesFs . 'user_styles.css', $stylesUrl . 'user_styles.css') . '" rel="stylesheet">';
 } elseif ($website == "users") {
     echo '<link href="' . cssWithVersion($stylesFs . 'users_view.css', $stylesUrl . 'users_view.css') . '" rel="stylesheet">';
+    echo '<link href="' . cssWithVersion($stylesFs . 'user_styles.css', $stylesUrl . 'user_styles.css') . '" rel="stylesheet">';
 } elseif ($website == "songbooks") {
     echo '<link href="' . cssWithVersion($stylesFs . 'songbooks_view.css', $stylesUrl . 'songbooks_view.css') . '" rel="stylesheet">';
 }
