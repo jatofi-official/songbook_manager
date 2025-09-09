@@ -58,16 +58,14 @@ function adjustFontSizeToFitWidth(el) {
     if (!el) return;
 
     const style = window.getComputedStyle(el);
-    let fontSize = parseInt(style.fontSize);
+    let fontSize = parseInt(style.fontSize, 10);
     const minFontSize = 8;
 
-    // Enable overflow so lines can wrap naturally
     el.style.overflow = "visible";
 
-    // Measure the longest line
-    const lines = el.textContent.split(/\r?\n/);
+    const lines = el.innerText.split(/\r?\n/);
 
-    // Temporary span for measurement
+    // Temp span for measurement
     const temp = document.createElement('span');
     temp.style.position = 'absolute';
     temp.style.visibility = 'hidden';
@@ -76,21 +74,28 @@ function adjustFontSizeToFitWidth(el) {
     temp.style.fontWeight = style.fontWeight;
     document.body.appendChild(temp);
 
-    let fits = false;
-
-    while (fontSize >= minFontSize && !fits) {
+    while (fontSize >= minFontSize) {
         temp.style.fontSize = fontSize + 'px';
-        fits = true;
+        let fits = true;
 
-        lines.forEach(line => {
+        for (const line of lines) {
             temp.textContent = line;
-            if (temp.offsetWidth > el.clientWidth) fits = false;
-        });
+            if (temp.offsetWidth > el.clientWidth) {
+                fits = false;
+                break;
+            }
+        }
 
-        if (!fits) fontSize--;
+        if (fits) {
+            break; // found the first size that actually fits
+        }
+
+        fontSize--; // keep shrinking until it does fit
     }
 
     el.style.fontSize = fontSize + 'px';
     document.body.removeChild(temp);
 }
+
+
 

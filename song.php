@@ -466,8 +466,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .then(html => {
                 document.getElementById("song-display").innerHTML = html;
 
-
                 enhanceSongView();
+                const songEl = document.getElementById("song-content-js");
+                adjustFontSizeToFitWidth(songEl); // shrink to fit width
             })
             .catch(err => {
                 document.getElementById("song-display").innerHTML = "<p>Error loading song.</p>";
@@ -475,6 +476,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
     });
     </script>
+
 
 <?php endif; ?>
 
