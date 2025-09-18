@@ -9,18 +9,15 @@ include $phpBase . 'header.php';
 include $phpBase . 'navigation.php';
 include $phpBase . 'auth.php';
 
-// Detect protocol and host
+$projectRoot = dirname(__DIR__);
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
 $host = $_SERVER['HTTP_HOST'];
+$projectFolder = basename($projectRoot);
+$projectUrl = $protocol . "://" . $host . "/" . $projectFolder;
 
-// Base path for testing only
-$basePath = '';
-if (strpos($host, 'localhost') !== false) {
-    $basePath = '/songbook_manager';
-}
+$pdfUrl = '../pdf/skautskemesto.pdf';
 
-// Correct PDF URL for both testing and production
-$pdfUrl = $protocol . '://' . $host . $basePath . '/pdf/skautskemesto.pdf';
+echo $pdfUrl;
 ?>
 
 <div class="container my-4">
