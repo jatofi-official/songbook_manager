@@ -17,7 +17,6 @@ $projectUrl = $protocol . "://" . $host . "/" . $projectFolder;
 
 $pdfUrl = '../pdf/skautskemesto.pdf';
 
-echo $pdfUrl;
 ?>
 
 <div class="container my-4">
