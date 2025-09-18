@@ -1,24 +1,29 @@
 <?php
-// Detect filesystem root (php folder is inside project root)
+// Filesystem path to project root
 $projectRoot = dirname(__DIR__);
 
-// Detect URL root (always points to the project root)
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+// Protocol and host
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-$projectFolder = basename($projectRoot);
-$projectUrl = $protocol . "://" . $host . "/" . $projectFolder;
+
+// Base project URL
+$projectUrl = $protocol . '://' . $host;
+
+// Add /songbook_manager for local testing
+if (strpos($host, 'localhost') !== false) {
+    $projectUrl .= '/songbook_manager';
+}
 
 // Base paths
 $stylesFs = $projectRoot . '/styles/';
-$stylesUrl = $projectUrl . '/styles/';
+$stylesUrl = rtrim($projectUrl, '/') . '/styles/';
 
+// Helper function for versioned CSS
 function cssWithVersion($fsPath, $urlPath) {
-    if (file_exists($fsPath)) {
-        return $urlPath . '?v=' . filemtime($fsPath);
-    }
-    return $urlPath;
+    return file_exists($fsPath) ? $urlPath . '?v=' . filemtime($fsPath) : $urlPath;
 }
 ?>
+
 
 
 
