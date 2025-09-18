@@ -1,16 +1,16 @@
 <?php
 // Detect filesystem root (php folder is inside project root)
-$projectRoot = realpath(__DIR__ . '/..');
+$projectRoot = dirname(__DIR__);
 
-// Detect URL root automatically
+// Detect URL root (always points to the project root)
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
 $host = $_SERVER['HTTP_HOST'];
-$scriptDir = dirname($_SERVER['SCRIPT_NAME']);
-$projectUrl = $protocol . "://" . $host . str_replace("/anketa", "", $scriptDir);
+$projectFolder = basename($projectRoot);
+$projectUrl = $protocol . "://" . $host . "/" . $projectFolder;
 
 // Base paths
-$stylesFs = $projectRoot . '/styles/';   // filesystem path
-$stylesUrl = $projectUrl . '/styles/';  // browser URL
+$stylesFs = $projectRoot . '/styles/';
+$stylesUrl = $projectUrl . '/styles/';
 
 function cssWithVersion($fsPath, $urlPath) {
     if (file_exists($fsPath)) {
@@ -19,6 +19,7 @@ function cssWithVersion($fsPath, $urlPath) {
     return $urlPath;
 }
 ?>
+
 
 
 
