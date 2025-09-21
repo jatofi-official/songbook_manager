@@ -35,8 +35,11 @@ include $phpBase . 'auth.php';
       <li>Zobrazenie akordov</li>
       <li>Jednoduché vytváranie spevníkov</li>
       <li>Zbieranie <strong>xp</strong> za kontribúciu</li>
+      
     </ul>
-
+  <a href="/plan/" class="roadmap-link">
+    📝 Roadmapa – čo plánujeme pridať ďalej
+  </a>
     <h2>Komunita</h2>
     <p>
       Projekt vznikol pre 24. skautský zbor <strong>Mustangy</strong>,
@@ -50,7 +53,25 @@ include $phpBase . 'auth.php';
     </p>
   </section>
 </main>
+<style>
+.roadmap-link {
+    display: inline-block;
+    padding: 8px 14px;
+    background-color: #f0f4f8; /* jemný svetlý box */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #333; /* tmavá neutrálná farba */
+    font-weight: 500;
+    transition: background 0.2s, transform 0.2s;
+}
 
+.roadmap-link:hover {
+    background-color: #e2e8f0; /* jemné ztmavenie pri hover */
+    transform: translateY(-2px);
+    color: #0077cc; /* jemné zvýraznenie textu pri hover */
+}
+</style>
 
 <style>
   .about-container {
