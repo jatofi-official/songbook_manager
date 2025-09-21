@@ -20,7 +20,7 @@ error_reporting(E_ALL);
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
             <h1 class="h3 mb-0">Dashboard</h1>
-            <p class="text-muted mb-0">Manage your songs and songbooks</p>
+            <p class="text-muted mb-0">Manage songs and songbooks</p>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center w-100 w-md-auto">
 
