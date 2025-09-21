@@ -36,13 +36,19 @@ $lastEdited = date("d-m-Y H:i", filemtime($planFile));
 
 
   </div>
-    <?php 
-    if(isset($_SESSION["admin"])&&$_SESSION["admin"]==1){
-    ?>
-    <div class="markdown-help">
+
+  <?php 
+if(isset($_SESSION["admin"])&&$_SESSION["admin"]==1){
+?>
+<div class="markdown-help" style="display:flex; align-items:center; gap:10px; max-width:800px; margin:20px auto;">
+    <!-- Cheatsheet toggle -->
     <button class="toggle-btn" onclick="toggleHelp()">Markdown Cheatsheet</button>
-    <div class= "plan-container" id="cheatsheet" style="display:none;">
-        <pre>
+    <!-- Admin edit button -->
+    <button id="editBtn" class="edit-btn">✏️ Editovať plán</button>
+</div>
+
+<div class="plan-container" id="cheatsheet" style="display:none;">
+    <pre>
 # Markdown Cheatsheet
 
 **Headings**
@@ -70,60 +76,24 @@ Inline `code`
 
 **Quotes**
 > This is a blockquote
-        </pre>
+    </pre>
+</div>
+
+<!-- Admin Edit Form -->
+<form id="editForm" method="POST" style="display:none; margin-top:15px;">
+    <textarea name="plan_content" id="planTextarea"><?php echo htmlspecialchars($markdown); ?></textarea>
+    <div style="margin-top:8px;">
+        <button type="submit" class="save-btn">Uložiť</button>
+        <button type="button" id="cancelBtn" class="cancel-btn">Zrušiť</button>
     </div>
-    </div>
-
-    <script>
-    function toggleHelp() {
-        const el = document.getElementById("cheatsheet");
-        el.style.display = el.style.display === "none" ? "block" : "none";
-    }
-    </script>
-
-    <style>
-    .markdown-help {
-        max-width: 800px;
-        margin: 20px auto;
-        text-align: left;
-    }
-    .toggle-btn {
-        background: #eee;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        padding: 6px 12px;
-        cursor: pointer;
-    }
-    .markdown-help pre {
-        padding: 12px;
-        border-radius: 6px;
-        margin-top: 10px;
-        overflow-x: auto;
-        font-size: 0.9em;
-    }
-    </style>
-
-
-<!-- Admin Edit Button -->
-<button id="editBtn" style="margin-top: 10px;">✏️ Editovať plán</button>
-<form id="editForm" method="POST" style="display:none; margin-top:10px;">
-    <textarea name="plan_content" id="planTextarea" style="width:100%; height:400px;"><?php echo htmlspecialchars($markdown); ?></textarea>
-    <br>
-    <button type="submit">Uložiť</button>
-    <button type="button" id="cancelBtn">Zrušiť</button>
 </form>
 
-<?php
-// Handle saving the file
-if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION["admin"]) && $_SESSION["admin"]==1){
-    $newContent = $_POST['plan_content'] ?? '';
-    file_put_contents($planFile, $newContent);
-    header("Location: ".$_SERVER['PHP_SELF']); // reload page after save
-    exit;
-}
-?>
-
 <script>
+function toggleHelp() {
+    const el = document.getElementById("cheatsheet");
+    el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
 const editBtn = document.getElementById('editBtn');
 const editForm = document.getElementById('editForm');
 const cancelBtn = document.getElementById('cancelBtn');
@@ -132,19 +102,96 @@ const contentDiv = document.getElementById('content');
 editBtn.addEventListener('click', () => {
     editForm.style.display = 'block';
     contentDiv.style.display = 'none';
-    editBtn.style.display = 'none';
 });
 
 cancelBtn.addEventListener('click', () => {
     editForm.style.display = 'none';
     contentDiv.style.display = 'block';
-    editBtn.style.display = 'inline-block';
 });
 </script>
 
-    <?php
-        }
+<style>
+/* Buttons side by side */
+.toggle-btn, .edit-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    font-weight: 500;
+    transition: background 0.2s, transform 0.2s;
+}
+
+/* Cheatsheet button */
+.toggle-btn {
+    background: #eee;
+    color: #333;
+}
+.toggle-btn:hover {
+    background: #ddd;
+}
+
+/* Edit button (blue) */
+.edit-btn {
+    background: #0077cc;
+    color: #fff;
+}
+.edit-btn:hover {
+    background: #005fa3;
+}
+
+/* Edit textarea */
+#planTextarea {
+    width: 100%;
+    height: 400px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: monospace;
+    font-size: 0.95em;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    resize: vertical;
+}
+
+/* Save / Cancel buttons */
+.save-btn, .cancel-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    margin-right: 6px;
+    transition: background 0.2s;
+}
+
+.save-btn {
+    background: #28a745;
+    color: #fff;
+}
+.save-btn:hover {
+    background: #218838;
+}
+
+.cancel-btn {
+    background: #dc3545;
+    color: #fff;
+}
+.cancel-btn:hover {
+    background: #c82333;
+}
+
+/* Cheatsheet container */
+#cheatsheet pre {
+    background: #f4f4f4;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    overflow-x: auto;
+}
+</style>
+<?php
+}
 ?>
+
 
 
   <!-- Load a Markdown parser from CDN -->
