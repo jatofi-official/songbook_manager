@@ -9,16 +9,26 @@ include $phpBase . 'header.php';
 include $phpBase . 'navigation.php';
 include $phpBase . 'auth.php';
 
-// Read the markdown file
 $planFile = "plan.md";
+
+// HANDLE SAVE FIRST — BEFORE ANY HTML OUTPUT
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION["admin"]) && $_SESSION["admin"]==1){
+    $newContent = $_POST['plan_content'] ?? '';
+    file_put_contents($planFile, $newContent);
+    header("Location: ".$_SERVER['PHP_SELF']); // reload page after save
+    exit; // important to stop further rendering
+}
+
+// Read the markdown file
 $markdown = file_get_contents($planFile);
 
-// Escape to safely pass to JS (json_encode handles quotes/newlines properly)
+// Escape to safely pass to JS
 $escapedMarkdown = json_encode($markdown);
 
 // Last modified time
 $lastEdited = date("d-m-Y H:i", filemtime($planFile));
 ?>
+
 
   <div class="plan-container">
     <p class="last-edited">Upravené: <?php echo $lastEdited; ?></p>
@@ -92,6 +102,46 @@ Inline `code`
         font-size: 0.9em;
     }
     </style>
+
+
+<!-- Admin Edit Button -->
+<button id="editBtn" style="margin-top: 10px;">✏️ Editovať plán</button>
+<form id="editForm" method="POST" style="display:none; margin-top:10px;">
+    <textarea name="plan_content" id="planTextarea" style="width:100%; height:400px;"><?php echo htmlspecialchars($markdown); ?></textarea>
+    <br>
+    <button type="submit">Uložiť</button>
+    <button type="button" id="cancelBtn">Zrušiť</button>
+</form>
+
+<?php
+// Handle saving the file
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION["admin"]) && $_SESSION["admin"]==1){
+    $newContent = $_POST['plan_content'] ?? '';
+    file_put_contents($planFile, $newContent);
+    header("Location: ".$_SERVER['PHP_SELF']); // reload page after save
+    exit;
+}
+?>
+
+<script>
+const editBtn = document.getElementById('editBtn');
+const editForm = document.getElementById('editForm');
+const cancelBtn = document.getElementById('cancelBtn');
+const contentDiv = document.getElementById('content');
+
+editBtn.addEventListener('click', () => {
+    editForm.style.display = 'block';
+    contentDiv.style.display = 'none';
+    editBtn.style.display = 'none';
+});
+
+cancelBtn.addEventListener('click', () => {
+    editForm.style.display = 'none';
+    contentDiv.style.display = 'block';
+    editBtn.style.display = 'inline-block';
+});
+</script>
+
     <?php
         }
 ?>

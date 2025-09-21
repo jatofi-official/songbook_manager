@@ -11,3 +11,4 @@ Tieto zmeny nevyžadujú veľké úsilie, resp prerábanie existujúceho systém
 
 
 
+sdf
