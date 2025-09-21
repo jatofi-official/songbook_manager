@@ -17,13 +17,85 @@ $markdown = file_get_contents($planFile);
 $escapedMarkdown = json_encode($markdown);
 
 // Last modified time
-$lastEdited = date("Y-m-d H:i:s", filemtime($planFile));
+$lastEdited = date("d-m-Y H:i", filemtime($planFile));
 ?>
 
   <div class="plan-container">
-    <p class="last-edited">Last edited: <?php echo $lastEdited; ?></p>
+    <p class="last-edited">Upravené: <?php echo $lastEdited; ?></p>
     <div id="content">Loading...</div>
+
+
   </div>
+    <?php 
+    if(isset($_SESSION["admin"])&&$_SESSION["admin"]==1){
+    ?>
+    <div class="markdown-help">
+    <button class="toggle-btn" onclick="toggleHelp()">Markdown Cheatsheet</button>
+    <div class= "plan-container" id="cheatsheet" style="display:none;">
+        <pre>
+# Markdown Cheatsheet
+
+**Headings**
+# H1
+## H2
+### H3
+
+**bold**
+*italic*
+~strikethrough~
+
+**Lists**
+- Item 1
+- Item 2
+- Nested item
+1. Numbered
+2. List
+
+**Links & Images**
+[OpenAI](https://openai.com)
+![Alt text](image.png)
+
+**Code**
+Inline `code`
+
+**Quotes**
+> This is a blockquote
+        </pre>
+    </div>
+    </div>
+
+    <script>
+    function toggleHelp() {
+        const el = document.getElementById("cheatsheet");
+        el.style.display = el.style.display === "none" ? "block" : "none";
+    }
+    </script>
+
+    <style>
+    .markdown-help {
+        max-width: 800px;
+        margin: 20px auto;
+        text-align: left;
+    }
+    .toggle-btn {
+        background: #eee;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        padding: 6px 12px;
+        cursor: pointer;
+    }
+    .markdown-help pre {
+        padding: 12px;
+        border-radius: 6px;
+        margin-top: 10px;
+        overflow-x: auto;
+        font-size: 0.9em;
+    }
+    </style>
+    <?php
+        }
+?>
+
 
   <!-- Load a Markdown parser from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -52,7 +124,7 @@ $lastEdited = date("Y-m-d H:i:s", filemtime($planFile));
       font-size: 0.85rem;
       color: #777;
       margin-bottom: 1em;
-      text-align: right;
+      text-align: left;
     }
     #content {
       font-family: system-ui, sans-serif;
