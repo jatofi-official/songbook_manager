@@ -1,5 +1,6 @@
 <?php
 session_start();
+$title = "O projekte";
 $phpBase = 'php/';
 include $phpBase . 'db.php';
 include $phpBase . 'data.php';

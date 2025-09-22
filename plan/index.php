@@ -1,5 +1,6 @@
 <?php
 session_start();
+$title = "Plán spevníku";
 $phpBase = dirname(__DIR__) . '/php/';
 
 include $phpBase . 'db.php';

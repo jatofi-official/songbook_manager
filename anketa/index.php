@@ -1,5 +1,6 @@
 <?php
 session_start();
+$title = "Feedback spevník mustangy";
 // Universal include path (works no matter where the project root is placed)
 $phpBase = dirname(__DIR__) . '/php/';
 

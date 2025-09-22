@@ -1,5 +1,6 @@
 <?php
 session_start();
+$title = "Feedback spevník mustangy";
 $phpBase = dirname(__DIR__) . '/php/';
 
 include $phpBase . 'db.php';

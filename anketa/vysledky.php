@@ -1,5 +1,6 @@
 <?php
 session_start();
+$title = "Výsledky feedbacku";
 // Universal include path
 $phpBase = dirname(__DIR__) . '/php/';
 

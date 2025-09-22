@@ -22,6 +22,11 @@ $stylesUrl = rtrim($projectUrl, '/') . '/styles/';
 function cssWithVersion($fsPath, $urlPath) {
     return file_exists($fsPath) ? $urlPath . '?v=' . filemtime($fsPath) : $urlPath;
 }
+
+if (empty($title)) {
+    $title = "Songbook manager";
+}
+
 ?>
 
 
@@ -33,7 +38,7 @@ function cssWithVersion($fsPath, $urlPath) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Songbook Manager</title>
+    <title><?php echo $title; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
