@@ -197,6 +197,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <div class="container mt-4">
+<?php
+// Set dynamic title if viewing a song
+if (!empty($song['title'])) {
+    $pageTitle = htmlspecialchars($song['title']);
+    if (!empty($song['artist'])) {
+        $pageTitle .= " - " . htmlspecialchars($song['artist']);
+    }
+    echo "<script>document.title = " . json_encode($pageTitle) . ";</script>";
+}
+?>
 
     <?php if ($successMessage): ?>
         <div class="alert alert-success"><?= htmlspecialchars($successMessage) ?></div>

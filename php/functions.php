@@ -1,8 +1,3 @@
-<script>
-function setPageTitle(newTitle) {
-    document.title = newTitle || "Songbook manager";
-}
-</script>
 <?php
 date_default_timezone_set('Europe/Bratislava');
 include_once("data.php");
