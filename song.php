@@ -449,9 +449,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <?php else: ?>
 
-    <a href="songs.php" class="btn btn-outline-primary mb-3">
-        ← Back to All Songs
-    </a>
+<button type="button" 
+        class="btn btn-outline-primary mb-3" 
+        onclick="goBackToSongs()">
+    ← Back to All Songs
+</button>
+
+<script>
+function goBackToSongs() {
+    const ref = document.referrer || "";
+
+    if (ref.includes("songs.php") && window.history.length > 1) {
+        // Came from songs.php in the same tab → go back
+        window.history.back();
+    } else if (ref.includes("songs.php")) {
+        // Opened from songs.php in a new tab → go directly there
+        window.location.href = ref;
+    } else {
+        // No songs.php in referrer → default
+        window.location.href = "songs.php";
+    }
+}
+</script>
+
+
     <div id="song-display">
         <p>Loading song...</p>
     </div>
