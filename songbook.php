@@ -270,6 +270,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     </div>
   </div>
 </div>
+
 <!-- Add Category Modal -->
 <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -615,7 +616,7 @@ populateCategorySelect();
 
 // Your existing event listeners for search and add song:
 
-document.getElementById('searchBtn').addEventListener('click', () => {
+function performSearch() {
   const query = document.getElementById('searchInput').value.trim();
   if (!query) return alert('Please enter a search term');
 
@@ -630,17 +631,15 @@ document.getElementById('searchBtn').addEventListener('click', () => {
         return;
       }
 
-      // Create a list of results with radio buttons for selection
       const ul = document.createElement('ul');
       ul.classList.add('list-group');
 
-        songs.forEach(song => {
+      songs.forEach(song => {
         const li = document.createElement('li');
         li.className = 'list-group-item d-flex align-items-center';
 
         const radioId = `songRadio_${song.id}`;
 
-        // Create radio input
         const radio = document.createElement('input');
         radio.type = 'radio';
         radio.name = 'selectedSong';
@@ -648,10 +647,9 @@ document.getElementById('searchBtn').addEventListener('click', () => {
         radio.id = radioId;
         radio.classList.add('me-2');
 
-        // Create label wrapping the radio and song text
         const label = document.createElement('label');
         label.setAttribute('for', radioId);
-        label.classList.add('mb-0', 'd-flex', 'align-items-center', 'w-100', 'cursor-pointer'); // full width + pointer cursor
+        label.classList.add('mb-0', 'd-flex', 'align-items-center', 'w-100', 'cursor-pointer');
 
         label.appendChild(radio);
 
@@ -662,12 +660,10 @@ document.getElementById('searchBtn').addEventListener('click', () => {
         li.appendChild(label);
 
         ul.appendChild(li);
-        });
-
+      });
 
       container.appendChild(ul);
 
-      // Enable Add to Category only when a song is selected
       const addBtn = document.getElementById('addSongToCategoryBtn');
       addBtn.disabled = true;
 
@@ -681,7 +677,20 @@ document.getElementById('searchBtn').addEventListener('click', () => {
       console.error('Search error:', err);
       alert('Error while searching songs.');
     });
+}
+
+// Search button
+document.getElementById('searchBtn').addEventListener('click', performSearch);
+
+// Enter key
+document.getElementById('searchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault(); // prevents accidental form submit
+    performSearch();
+  }
 });
+
+
 
 // Adding song to category
 document.getElementById('addSongToCategoryBtn').addEventListener('click', () => {
