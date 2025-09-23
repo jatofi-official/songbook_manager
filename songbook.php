@@ -237,7 +237,6 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 </div>
 
 <!-- Add Song Modal -->
-<!-- Modal -->
 <div class="modal fade" id="addSongModal" tabindex="-1" aria-labelledby="addSongModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -267,6 +266,24 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           <button id="addSongToCategoryBtn" class="btn btn-success me-2" disabled>Add to Category</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addCategoryModalLabel">Add New Category</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="newCategoryName" class="form-control" placeholder="Category name" required>
+      </div>
+      <div class="modal-footer">
+        <button id="createCategoryBtn" class="btn btn-success">Create</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
       </div>
     </div>
   </div>
@@ -568,7 +585,7 @@ function renderCategories() {
         addSongBtn.textContent = '➕ Add Song';
 
         const addCategoryBtn = document.createElement('button');
-        addCategoryBtn.id = 'add-category-btn';
+        addCategoryBtn.id = 'addCategoryBtn';
         addCategoryBtn.className = 'btn btn-outline-primary';
         addCategoryBtn.textContent = '➕ Add Category';
 
@@ -666,6 +683,7 @@ document.getElementById('searchBtn').addEventListener('click', () => {
     });
 });
 
+// Adding song to category
 document.getElementById('addSongToCategoryBtn').addEventListener('click', () => {
   const selectedSongRadio = document.querySelector('input[name="selectedSong"]:checked');
   const categoryId = document.getElementById('categorySelect').value;
@@ -711,6 +729,50 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
       alert('Error adding song.');
     });
 });
+
+
+document.getElementById("addCategoryBtn").addEventListener("click", () => {
+  const modal = new bootstrap.Modal(document.getElementById("addCategoryModal"));
+  modal.show();
+});
+
+document.getElementById("createCategoryBtn").addEventListener("click", () => {
+  const name = document.getElementById("newCategoryName").value.trim();
+  if (!name) {
+    alert("Please enter a category name.");
+    return;
+  }
+
+  // Compute next ID (max existing id + 1)
+  let nextId = 1;
+  if (songbook.songs_categories.length > 0) {
+    const maxId = Math.max(...songbook.songs_categories.map(c => parseInt(c.id)));
+    nextId = maxId + 1;
+  }
+
+  // Push new category into in-memory structure
+  const newCat = {
+    id: nextId,
+    name: name,
+    songs: []
+  };
+  songbook.songs_categories.push(newCat);
+
+  // Re-render categories
+  renderCategories();
+
+  // Add new option to category select (for Add Song modal)
+  const select = document.getElementById("categorySelect");
+  const opt = document.createElement("option");
+  opt.value = newCat.id;
+  opt.textContent = newCat.name;
+  select.appendChild(opt);
+
+  // Close modal + clear input
+  bootstrap.Modal.getInstance(document.getElementById("addCategoryModal")).hide();
+  document.getElementById("newCategoryName").value = "";
+});
+
 
 const saveBtn = document.getElementById('saveSongbookBtn');
 if (saveBtn) {
