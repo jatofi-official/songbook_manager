@@ -20,9 +20,11 @@ if (!isset($projectUrl)) {
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
+                <?php if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){ ?>
                 <li class="nav-item">
-                    <a class="nav-link <?php if($website=="index") echo "active"?>" href="<?= $projectUrl ?>/index.php">Dashboard</a>
+                    <a class="nav-link <?php if($website=="index") echo "active"?>" href="<?= $projectUrl ?>/admin/index.php">Admin</a>
                 </li>
+                <?php } ?>
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="songs") echo "active"?>" href="<?= $projectUrl ?>/songs.php">Songs</a>
                 </li>
