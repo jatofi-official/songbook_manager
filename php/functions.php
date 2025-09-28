@@ -1865,6 +1865,28 @@ function get_songbook($mysqli, $id) {
     return $songbook;
 }
 
+function get_number_of_songbooks($mysqli, $only_public = 0) {
+    if ($only_public) {
+        // Count only public songbooks
+        $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM songbooks WHERE is_public = ?");
+        $stmt->bind_param("i", $only_public);
+    } else {
+        // Count all songbooks
+        $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM songbooks");
+    }
+
+    if (!$stmt->execute()) {
+        error_log("MySQL Error in get_number_of_songbooks: " . $mysqli->error);
+        return 0;
+    }
+
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    return (int)($row["total"] ?? 0);
+}
+
 
 // Get user group
 function get_user_group($mysqli, $userId) {

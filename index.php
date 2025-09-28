@@ -38,8 +38,6 @@ include_once('php/navigation.php');
     // Total songs
     $totalSongs = $songsCounts['total'];
 
-    // Fixed songs
-    $finishedSongs = $songsCounts['fixed'];
     ?>
     <!-- Stats Cards -->
     <div class="row mb-4">
@@ -47,7 +45,7 @@ include_once('php/navigation.php');
             <a href="songs.php" class="stat-card-link">
                 <div class="stat-card p-3">
                     <div class="number"><?php echo $totalSongs ?></div>
-                    <div class="label">Total Songs</div>
+                    <div class="label">Songs</div>
                 </div>
             </a>
         </div>
@@ -61,42 +59,21 @@ include_once('php/navigation.php');
             </a>
         </div>
 
-        <?php
-
-        // Progress percentage
-        $progressPercent = ($totalSongs > 0) ? ($finishedSongs / $totalSongs) * 100 : 0;
-
-        // Example: Adjust the session variable name if different
-        $isAdmin = isset($_SESSION['admin']) && $_SESSION['admin'] == true;
-        $hrefLink = $isAdmin ? "songs.php?finished=0" : "songs.php?finished=1";
-        ?>
-
         <div class="col-6 col-md-3 mb-3 mb-md-0">
-        <a href="<?= htmlspecialchars($hrefLink) ?>" class="stat-card-link" style="text-decoration: none;">
-            <div class="stat-card p-3 d-flex flex-column justify-content-between" style="height: 100%;">
-            <div class="d-flex justify-content-center align-items-baseline mb-2">
-                <div class="text-muted small"><?= $finishedSongs ?> / <?= $totalSongs ?></div>
-            </div>
-
-            <div class="progress mb-2" style="height: 20px;">
-                <div class="progress-bar bg-success" role="progressbar"
-                style="width: <?= round($progressPercent) ?>%;"
-                aria-valuenow="<?= round($progressPercent) ?>"
-                aria-valuemin="0" aria-valuemax="100">
-                <?= round($progressPercent) ?>%
+            <a href="songbooks.php" class="stat-card-link">
+                <div class="stat-card p-3">
+                    <div class="number"><?php echo get_number_of_songbooks($mysqli); ?></div>
+                    <div class="label">Public Songbooks</div>
                 </div>
-            </div>
-
-            <div class="label text-center">Finished Songs</div>
-            </div>
-        </a>
-        </div>
+            </a>
+        </div>        
+        
 
         <div class="col-6 col-md-3">
             <a href="users.php" class="stat-card-link">
                 <div class="stat-card p-3">
                     <div class="number"><?php echo get_total_users($mysqli); ?></div>
-                    <div class="label">Total users</div>
+                    <div class="label">Users</div>
                 </div>
             </a>
         </div>
