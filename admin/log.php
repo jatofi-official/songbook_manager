@@ -71,144 +71,148 @@ while ($row = $typeRes->fetch_assoc()) {
             <th><button class="sortable btn btn-outline-secondary btn-sm" data-column="description" data-order="none">Description</button></th>
         </tr>
     </thead>
-    <tbody id="activityBody">
-        <?php foreach ($activities as $act): ?>
-            <tr data-id="<?= intval($act['id']) ?>" data-is_public="<?= intval($act['is_public']) ?>">
-                <td><?= htmlspecialchars($act['username']) ?></td>
-                <td><?= htmlspecialchars($act['type']) ?></td>
-                <td class="<?= $act['is_public'] ? 'text-success' : 'text-danger' ?>">
-                    <?= $act['is_public'] ? 'Public' : 'Private' ?>
-                </td>
-                <td><?= htmlspecialchars($act['time']) ?></td>
-                <td><?= htmlspecialchars($act['description']) ?></td>
-            </tr>
-        <?php endforeach; ?>
-    </tbody>
+    <tbody id="activityBody"></tbody>
+
 
 </table>
+<!-- Pagination -->
+<nav>
+    <ul class="pagination justify-content-center" id="pagination">
+        <!-- Dynamically filled by JS -->
+    </ul>
+</nav>
 
 <script>
-const rowsPerPage = 25;
-let currentPage = 1;
-const tbody = document.getElementById("activityBody");
-const allRowsMaster = Array.from(tbody.rows);
-
-// Default sort: by data-id descending
-function sortDefault() {
-    const rows = [...allRowsMaster];
-    rows.sort((a, b) => parseInt(b.dataset.id) - parseInt(a.dataset.id));
-    rows.forEach(r => tbody.appendChild(r));
-    renderPage(1);
-}
-
-// Filter function
-function filterTable() {
-    const userVal = document.getElementById("searchUser").value.toLowerCase();
-    const typeVal = document.getElementById("filterType").value.toLowerCase();
-    const pubVal = document.getElementById("filterPublic").value;
-
-    allRowsMaster.forEach(row => {
-        const username = row.cells[0].textContent.toLowerCase();
-        const type = row.cells[1].textContent.toLowerCase();
-        const isPublic = row.dataset.is_public; // 0 or 1
-
-        row.style.display = ((userVal === "" || username.includes(userVal)) &&
-                             (typeVal === "" || type.includes(typeVal)) &&
-                             (pubVal === "" || isPublic === pubVal))
-                             ? "" : "none";
-    });
-
-    renderPage(1);
-}
-
-
-// Pagination function
-function renderPage(page = 1) {
-    currentPage = page;
-    const visibleRows = allRowsMaster.filter(row => row.style.display !== "none");
-    const start = (page - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-
-    visibleRows.forEach((row, idx) => {
-        row.style.display = (idx >= start && idx < end) ? "" : "none";
-    });
-
-    const totalPages = Math.ceil(visibleRows.length / rowsPerPage);
+document.addEventListener("DOMContentLoaded", () => {
+    const tableBody = document.getElementById("activityBody");
     const pagination = document.getElementById("pagination");
-    pagination.innerHTML = "";
-    for (let i = 1; i <= totalPages; i++) {
-        const li = document.createElement("li");
-        li.className = "page-item " + (i === page ? "active" : "");
-        li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-        li.addEventListener("click", e => { e.preventDefault(); renderPage(i); });
-        pagination.appendChild(li);
+    const userInput = document.getElementById("searchUser");
+    const typeSelect = document.getElementById("filterType");
+    const publicSelect = document.getElementById("filterPublic");
+    const rowsPerPage = 25;
+
+    let currentPage = 1;
+    let currentSortColumn = 'id';
+    let currentSortOrder = 'desc';
+
+    async function loadActivity() {
+        const username = userInput.value.trim();
+        const type = typeSelect.value;
+        const isPublic = publicSelect.value; // "all" | "1" | "0"
+
+        const params = new URLSearchParams({
+            page: currentPage,
+            limit: rowsPerPage,
+            sort_column: currentSortColumn,
+            sort_order: currentSortOrder,
+            username: username,
+            type: type,
+            is_public: isPublic
+        });
+
+        const res = await fetch(`../php/subpage/fetch_activity.php?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // Clear table
+        tableBody.innerHTML = '';
+
+        data.activities.forEach(act => {
+            const tr = document.createElement('tr');
+
+            const usernameTd = document.createElement('td');
+            usernameTd.textContent = act.username;
+            tr.appendChild(usernameTd);
+
+            const typeTd = document.createElement('td');
+            typeTd.textContent = act.type;
+            tr.appendChild(typeTd);
+
+            const timeTd = document.createElement('td');
+            timeTd.textContent = act.time;
+            tr.appendChild(timeTd);
+
+            const descTd = document.createElement('td');
+            descTd.textContent = act.description;
+            tr.appendChild(descTd);
+
+            const pubTd = document.createElement('td');
+            pubTd.textContent = act.is_public == 1 ? 'Public' : 'Private';
+            pubTd.style.color = act.is_public == 1 ? 'green' : 'red';
+            tr.appendChild(pubTd);
+
+            tableBody.appendChild(tr);
+        });
+
+        renderPagination(data.total);
     }
-}
 
-// Sorting function
-document.querySelectorAll(".sortable").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const colIndex = Array.from(btn.parentNode.parentNode.children).indexOf(btn.parentNode);
-        const orderCycle = ["none", "asc", "desc"];
-        const currentOrder = btn.dataset.order || "none";
-        const nextOrder = orderCycle[(orderCycle.indexOf(currentOrder) + 1) % 3];
-        btn.dataset.order = nextOrder;
+    function renderPagination(totalItems) {
+        const totalPages = Math.ceil(totalItems / rowsPerPage);
+        pagination.innerHTML = '';
 
-        // Reset arrows for other buttons
-        document.querySelectorAll(".sortable").forEach(b => {
-            if (b !== btn) b.textContent = b.textContent.replace(/[▲▼]/g, "");
-        });
-
-        // Update arrow for current button
-        btn.textContent = btn.textContent.replace(/[▲▼]/g, "");
-        if (nextOrder === "asc") btn.textContent += " ▲";
-        else if (nextOrder === "desc") btn.textContent += " ▼";
-
-        const visibleRows = allRowsMaster.filter(row => row.style.display !== "none");
-
-        if (nextOrder === "none") {
-            sortDefault();
-            return;
+        for (let i = 1; i <= totalPages; i++) {
+            const li = document.createElement('li');
+            li.className = 'page-item ' + (i === currentPage ? 'active' : '');
+            li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+            li.addEventListener('click', e => {
+                e.preventDefault();
+                if (i === currentPage) return;
+                currentPage = i;
+                loadActivity();
+            });
+            pagination.appendChild(li);
         }
+    }
 
-        visibleRows.sort((a, b) => {
-            let aVal = a.cells[colIndex].textContent.toLowerCase();
-            let bVal = b.cells[colIndex].textContent.toLowerCase();
-
-            if (btn.dataset.column === "time") {
-                aVal = new Date(aVal);
-                bVal = new Date(bVal);
-            }
-            if (btn.dataset.column === "is_public") {
-                aVal = parseInt(a.dataset.is_public, 10);
-                bVal = parseInt(b.dataset.is_public, 10);
-            }
-
-
-            if (aVal < bVal) return nextOrder === "asc" ? -1 : 1;
-            if (aVal > bVal) return nextOrder === "asc" ? 1 : -1;
-            return 0;
+    // Filters
+    [userInput, typeSelect, publicSelect].forEach(el => {
+        el.addEventListener('input', () => {
+            currentPage = 1;
+            loadActivity();
         });
-
-        visibleRows.forEach(row => tbody.appendChild(row));
-        renderPage(1);
+        el.addEventListener('change', () => {
+            currentPage = 1;
+            loadActivity();
+        });
     });
-});
 
-document.getElementById("searchUser").addEventListener("input", filterTable);
-document.getElementById("filterType").addEventListener("change", filterTable);
-document.getElementById("filterPublic").addEventListener("change", filterTable);
-document.getElementById("resetFilters").addEventListener("click", () => {
-    document.getElementById("searchUser").value = "";
-    document.getElementById("filterType").value = "";
-    document.getElementById("filterPublic").value = "";
-    filterTable();
-});
+    // Sorting
+    document.querySelectorAll(".sortable").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const col = btn.dataset.column;
+            if (currentSortColumn === col) {
+                // cycle: desc -> asc -> default
+                if (currentSortOrder === 'desc') currentSortOrder = 'asc';
+                else if (currentSortOrder === 'asc') {
+                    currentSortColumn = 'id'; // default
+                    currentSortOrder = 'desc';
+                } else currentSortOrder = 'desc';
+            } else {
+                currentSortColumn = col;
+                currentSortOrder = 'desc';
+            }
+            currentPage = 1;
+            loadActivity();
+        });
+    });
 
-// Initial render
-sortDefault();
-filterTable();
+    // Reset button
+    document.getElementById("resetFilters").addEventListener('click', () => {
+        userInput.value = '';
+        typeSelect.value = '';
+        publicSelect.value = 'all';
+        currentPage = 1;
+        currentSortColumn = 'id';
+        currentSortOrder = 'desc';
+        loadActivity();
+    });
+
+    // Initial load
+    loadActivity();
+});
 </script>
+
 
 <style>
 .table-hover tbody tr:hover { background-color: #f0f8ff; }
