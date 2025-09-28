@@ -13,7 +13,16 @@ include_once('../php/functions.php');
 include_once("../php/header.php");
 include_once('../php/navigation.php');
 
-
+// Admin-only access
+if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
+    ?>
+    <div class="container mt-5 text-center">
+        <p class="text-danger">Táto stránka je prístupná iba administrátorom.</p>
+    </div>
+<?php
+    include '../php/footer.php';
+    exit;
+}
 
 ?>
    <!-- Dashboard Header -->
@@ -53,10 +62,12 @@ include_once('../php/navigation.php');
             </a>
         </div>
 
+
+
         <div class="col-6 col-md-3 mb-3 mb-md-0">
             <a href="log.php" class="stat-card-link">
                 <div class="stat-card p-3">
-                    <div class="number"><?php echo 0;?></div>
+                    <div class="number"><?php echo get_recent_activity_number($mysqli);?></div>
                     <div class="label">Recent activity</div>
                 </div>
             </a>
@@ -94,9 +105,9 @@ include_once('../php/navigation.php');
         </div>
 
         <div class="col-6 col-md-3">
-            <a href="users.php" class="stat-card-link">
+            <a href="../users.php?sort=new" class="stat-card-link">
                 <div class="stat-card p-3">
-                    <div class="number"><?php echo 0 ?></div>
+                    <div class="number"><?php echo get_recent_activity_number($mysqli,"new_user"); ?></div>
                     <div class="label">New users</div>
                 </div>
             </a>

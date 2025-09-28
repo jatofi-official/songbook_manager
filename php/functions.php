@@ -595,6 +595,38 @@ function get_recent_activity($mysqli, int $number, ?string $username = null): ar
     return $activities;
 }
 
+function get_recent_activity_number($mysqli, $type = "") {
+    if ($type !== "") {
+        // Count only a specific activity type in the last 7 days
+        $stmt = $mysqli->prepare("
+            SELECT COUNT(*) AS count
+            FROM activity_log
+            WHERE type = ?
+              AND time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        ");
+        $stmt->bind_param("s", $type);
+    } else {
+        // Count all non-login activity in the last 7 days
+        $stmt = $mysqli->prepare("
+            SELECT COUNT(*) AS count
+            FROM activity_log
+            WHERE type NOT IN ('auto_login', 'manual_login')
+              AND time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        ");
+    }
+
+    if ($stmt && $stmt->execute()) {
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $stmt->close();
+        return (int)$row['count'];
+    } else {
+        error_log("MySQL Error in get_recent_activity_number: " . $mysqli->error);
+        return 0;
+    }
+}
+
+
 
 
 
