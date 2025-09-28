@@ -559,48 +559,21 @@ function get_recent_activity($mysqli, int $number, ?string $username = null): ar
     if ($mysqli->connect_errno) return [];
 
     // Base query
-    $sql = "SELECT username, type, time, description 
-            FROM activity_log ";
-
+    $sql = "SELECT username, type, time, description FROM activity_log ";
     $params = [];
     $types = "";
 
-if ($username !== null) {
-    // A specific username is being filtered
-    if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true) {
-        // Admin sees everything for the user
-        $sql .= "WHERE username = ? ";
+    if ($username !== null) {
+        // Filter by specific username (only public)
+        $sql .= "WHERE username = ? AND is_public = 1 ";
         $params[] = $username;
         $types .= "s";
     } else {
-        // Non-admin: show public entries of that user or private if it's the same user
-        $sql .= "WHERE username = ? AND (is_public = 1";
-        $params[] = $username;
-        $types .= "s";
-
-        if (isset($_SESSION["user"]) && $_SESSION["user"] === $username) {
-            $sql .= " OR username = ?";
-            $params[] = $username;
-            $types .= "s";
-        }
-
-        $sql .= ") ";
-    }
-} else {
-    // No username filter
-    if (isset($_SESSION["user"]) && (!isset($_SESSION["admin_view"]) || $_SESSION["admin_view"] !== true)) {
-        // Logged-in user: show public and own private
-        $sql .= "WHERE is_public = 1 OR username = ? ";
-        $params[] = $_SESSION["user"];
-        $types .= "s";
-    } else {
-        // Not logged in or admin viewing general list: show only public
+        // No username filter: show only public activities
         $sql .= "WHERE is_public = 1 ";
     }
-}
 
-
-    // Append ordering and limit
+    // Ordering and limit
     $sql .= "ORDER BY time DESC LIMIT ?";
     $params[] = $number;
     $types .= "i";
@@ -618,8 +591,10 @@ if ($username !== null) {
         $activities[] = $row;
     }
 
+    $stmt->close();
     return $activities;
 }
+
 
 
 
