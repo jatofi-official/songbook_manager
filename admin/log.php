@@ -213,27 +213,8 @@ filterTable();
 <style>
 .table-hover tbody tr:hover { background-color: #f0f8ff; }
 .sortable { cursor: pointer; min-width: 100px; }
-.sortable::after { content: " ⬍"; font-size: 0.7rem; color: #888; }
 .table-header button.btn-sm { border-radius: 0.375rem; }
 </style>
 
-
-<style>
-.table-hover tbody tr:hover {
-    background-color: #f0f8ff;
-}
-.sortable {
-    cursor: pointer;
-    min-width: 100px;
-}
-.sortable::after {
-    content: " ⬍";
-    font-size: 0.7rem;
-    color: #888;
-}
-.table-header button.btn-sm {
-    border-radius: 0.375rem;
-}
-</style>
 
 <?php include $phpBase . 'footer.php'; ?>
