@@ -63,7 +63,7 @@ include_once('php/navigation.php');
             <a href="songbooks.php" class="stat-card-link">
                 <div class="stat-card p-3">
                     <div class="number"><?php echo get_number_of_songbooks($mysqli); ?></div>
-                    <div class="label">Public Songbooks</div>
+                    <div class="label">Songbooks</div>
                 </div>
             </a>
         </div>        
