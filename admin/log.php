@@ -22,9 +22,6 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
     exit;
 }
 
-// Fetch latest 500 activities for admins
-$activities = get_recent_activity($mysqli, 500);
-
 // Get all activity types dynamically
 $typeRes = $mysqli->query("SELECT DISTINCT type FROM activity_log ORDER BY type ASC");
 $types = [];
@@ -66,9 +63,9 @@ while ($row = $typeRes->fetch_assoc()) {
         <tr class="table-header">
             <th style="width:150px"><button class="sortable btn btn-outline-secondary btn-sm" data-column="username" data-order="none">Username</button></th>
             <th style="width:200px"><button class="sortable btn btn-outline-secondary btn-sm" data-column="type" data-order="none">Type</button></th>
-            <th style="width:80px"><button class="sortable btn btn-outline-secondary btn-sm" data-column="is_public" data-order="none">Visibility</button></th>
             <th style="width:180px"><button class="sortable btn btn-outline-secondary btn-sm" data-column="time" data-order="none">Time</button></th>
             <th><button class="sortable btn btn-outline-secondary btn-sm" data-column="description" data-order="none">Description</button></th>
+            <th style="width:80px"><button class="sortable btn btn-outline-secondary btn-sm" data-column="is_public" data-order="none">Visibility</button></th>
         </tr>
     </thead>
     <tbody id="activityBody"></tbody>
