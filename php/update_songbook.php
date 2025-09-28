@@ -68,15 +68,22 @@ $songsStr = implode(',', $songsStrParts);
 
 $groupIdVal = ($group_id === '' || $group_id === null) ? 'NULL' : intval($group_id);
 
-
 $result = update_songbook($mysqli,$id,$name,$description,$adminsStr,$categoriesStr,$songsStr,$groupIdVal,$is_public);
 
-
-
 if ($result) {
+    // ✅ Log activity
+    if (isset($_SESSION['user'])) {
+        add_activity(
+            $mysqli,
+            $_SESSION['user'],
+            "Edited songbook",
+            "User " . $_SESSION['user'] . " edited songbook " . $name,
+            0
+        );
+    }
+
     echo json_encode(['success' => true]);
 } else {
     http_response_code(500);
-    echo json_encode(['error' => 'Execute failed: ' . $stmt->error]);
+    echo json_encode(['error' => 'Execute failed']);
 }
-

@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $mysqli,
                         $userId,
                         "edit",
-                        "Edited '{$title}' by {$artist}",
+                        "Edited '{$title}' - {$artist}",
                         $is_public
                     );
                     $successMessage = "Song updated successfully.";

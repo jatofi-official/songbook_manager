@@ -532,6 +532,7 @@ function add_activity($mysqli, $username, $type, $description, $is_public = 1) {
         return false;
     }
 }
+
 function get_activities_user($mysqli, string $type, string $username): int {
     $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM activity_log WHERE type = ? AND username = ?");
     if (!$stmt) {
