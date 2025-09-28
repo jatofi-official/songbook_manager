@@ -4,7 +4,7 @@ include('php/db.php');
 include('php/auth.php');
 include('php/data.php');
 $website = "songbooks";
-include('php/functions.php');
+include_once('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 
