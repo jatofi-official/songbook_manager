@@ -45,7 +45,7 @@ if (!isset($_SESSION["id"]) && isset($_COOKIE["rememberme"])) {
         }
     }
 }
-else{
+else if(!isset($_SESSION["user"])){
     // Logging ip address
     add_activity($mysqli,"anonymous","guest",get_user_ip(),0);
 
