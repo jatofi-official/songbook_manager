@@ -1,17 +1,18 @@
 <?php
-session_start();
-include('php/auth.php'); 
-include('php/db.php');          
-include('php/data.php');      
-$website = "index";
-include('php/functions.php'); 
-include("php/header.php");
-include('php/navigation.php');
-
-
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+session_start();
+include_once('php/auth.php'); 
+include_once('php/db.php');          
+include_once('php/data.php');      
+$website = "index";
+include_once('php/functions.php'); 
+include_once("php/header.php");
+include_once('php/navigation.php');
+
+
 
 ?>
    <!-- Dashboard Header -->

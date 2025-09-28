@@ -1,10 +1,13 @@
 <?php
 session_start();
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 include('php/auth.php'); 
 require_once('php/db.php');
-include('php/data.php');
+include_once('php/data.php');
 $website = "user";
-include('php/functions.php');
+include_once('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 
@@ -28,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["username"]) && isset(
 			$_SESSION["id"] = $result["id"];
 			$_SESSION["admin_view"] = false;
 			$_SESSION["advanced_view"] = false;
+			add_activity($mysqli,$_SESSION["user"],"manual_login",'User "'.$_SESSION["user"].'" manually logged in.',0);
+
 
 
 			// Call login.php to set the cookie/token (via GET with ?id=...)

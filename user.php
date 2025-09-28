@@ -2,8 +2,9 @@
 session_start();
 include('php/db.php');
 include('php/data.php');
+include("php/auth.php");
 $website = "users";
-include('php/functions.php');
+include_once('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 

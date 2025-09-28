@@ -1,11 +1,9 @@
 <?php
 session_start();
 include('php/auth.php'); 
-// error_reporting(E_ALL);
-// ini_set('display_errors', 1);
 include('php/db.php');
 include('php/data.php');
-include('php/functions.php');
+include_once('php/functions.php');
 $website = "songs";
 
 $allTags = get_all_tags($mysqli);

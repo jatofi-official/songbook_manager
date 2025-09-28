@@ -1,6 +1,6 @@
 <?php
-session_start();
 require_once("db.php");
+require_once("functions.php");
 
 if (!isset($_SESSION["id"]) && isset($_COOKIE["rememberme"])) {
     $token = $_COOKIE["rememberme"];
@@ -34,7 +34,14 @@ if (!isset($_SESSION["id"]) && isset($_COOKIE["rememberme"])) {
             $_SESSION["user"] = $user["username"];
             $_SESSION["admin"] = $user["admin"];
             $_SESSION["name"] = $user["name"];
+
+            
+			$_SESSION["advanced_view"] = false;
             $_SESSION["admin_view"] = false;
+            
+            // Adding a log in log
+            add_activity($mysqli,$user["username"],"auto_login",'User "'.$user["username"].'" automatically logged in.',0);
+
         }
     }
 }

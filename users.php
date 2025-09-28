@@ -2,14 +2,15 @@
 session_start();
 include('php/db.php');
 include('php/data.php');
+include("php/auth.php");
 $website = "users";
-include('php/functions.php');
+include_once('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// ini_set('display_errors', 1);
+// ini_set('display_startup_errors', 1);
+// error_reporting(E_ALL);
 
 ?>
 <!-- Page Header -->
