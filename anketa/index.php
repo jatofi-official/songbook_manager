@@ -10,7 +10,7 @@ include $phpBase . 'auth.php';
 
 $website = "none";
 
-include $phpBase . 'functions.php';
+include_once $phpBase . 'functions.php';
 include $phpBase . 'header.php';
 include $phpBase . 'navigation.php';
 
