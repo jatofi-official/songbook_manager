@@ -148,19 +148,52 @@ document.addEventListener("DOMContentLoaded", () => {
         const totalPages = Math.ceil(totalItems / rowsPerPage);
         pagination.innerHTML = '';
 
-        for (let i = 1; i <= totalPages; i++) {
+        if (totalPages <= 1) return; // no pagination needed
+
+        const addPage = (page, label = null, active = false) => {
             const li = document.createElement('li');
-            li.className = 'page-item ' + (i === currentPage ? 'active' : '');
-            li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+            li.className = 'page-item' + (active ? ' active' : '');
+            li.innerHTML = `<a class="page-link" href="#">${label ?? page}</a>`;
             li.addEventListener('click', e => {
                 e.preventDefault();
-                if (i === currentPage) return;
-                currentPage = i;
+                if (page === currentPage) return;
+                currentPage = page;
                 loadActivity();
             });
             pagination.appendChild(li);
+        };
+
+        const start = Math.max(2, currentPage - 2);
+        const end = Math.min(totalPages - 1, currentPage + 2);
+
+        // Always show first page
+        addPage(1, '1', currentPage === 1);
+
+        // Ellipsis before start
+        if (start > 2) {
+            const li = document.createElement('li');
+            li.className = 'page-item disabled';
+            li.innerHTML = `<span class="page-link">…</span>`;
+            pagination.appendChild(li);
         }
+
+        // Pages in the middle range
+        for (let i = start; i <= end; i++) {
+            addPage(i, i, i === currentPage);
+        }
+
+        // Ellipsis after end
+        if (end < totalPages - 1) {
+            const li = document.createElement('li');
+            li.className = 'page-item disabled';
+            li.innerHTML = `<span class="page-link">…</span>`;
+            pagination.appendChild(li);
+        }
+
+        // Always show last page
+        if (totalPages > 1) addPage(totalPages, totalPages, currentPage === totalPages);
     }
+
 
     // Filters
     [userInput, typeSelect, publicSelect].forEach(el => {
