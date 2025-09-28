@@ -1,7 +1,7 @@
 <?php
 session_start();
 $phpBase = dirname(__DIR__) . '/php/';
-
+$title = "Activity log";
 include $phpBase . 'db.php';
 include $phpBase . 'data.php';
 include $phpBase . 'functions.php';
