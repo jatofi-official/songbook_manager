@@ -1694,41 +1694,51 @@ function delete_songbook($mysqli, $id) {
 
 
 function get_all_songbooks($mysqli, $limit = 20, $offset = 0, $search = null) {
-    if (!isset($_SESSION["id"])) {
-        return ["songbooks" => [], "total" => 0, "totalPages" => 0];
-    }
-
-    $userId = $_SESSION["id"];
-    $user = get_user($mysqli, $userId);
-    if (!$user) {
-        return ["songbooks" => [], "total" => 0, "totalPages" => 0];
-    }
-    $userGroupId = $user["group_id"];
-
     $params = [];
     $types = "";
     $conditions = [];
 
-    // Public and group/admin access rules
-    $conditionsAccess = "(
-        s.is_public = 2
-        OR (s.is_public = 1 AND (s.group_id = ? OR FIND_IN_SET(?, s.admins)))
-        OR (s.is_public = 0 AND FIND_IN_SET(?, s.admins))
-    )";
-    $params[] = $userGroupId; // for is_public=1
-    $params[] = $userId;      // for is_public=1
-    $params[] = $userId;      // for is_public=0
-    $types .= "iii";
+    // --- Admin override: show all songbooks ---
+    if (!empty($_SESSION["admin_view"])) {
+        // Skip all access rules; only apply search if present
+        if (!empty($search)) {
+            $conditions[] = "(s.name LIKE ? OR s.description LIKE ?)";
+            $searchParam = '%' . $search . '%';
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $types .= "ss";
+        }
+    } elseif (!isset($_SESSION["id"])) {
+        // Not logged in → only fully public songbooks
+        $conditions[] = "s.is_public = 2";
+    } else {
+        // Logged in → normal rules
+        $userId = $_SESSION["id"];
+        $user = get_user($mysqli, $userId);
+        if (!$user) {
+            return ["songbooks" => [], "total" => 0, "totalPages" => 0];
+        }
+        $userGroupId = $user["group_id"];
 
-    $conditions[] = $conditionsAccess;
+        $conditions[] = "(
+            s.is_public = 2
+            OR (s.is_public = 1 AND (s.group_id = ? OR FIND_IN_SET(?, s.admins)))
+            OR (s.is_public = 0 AND FIND_IN_SET(?, s.admins))
+        )";
 
-    // Search filter
-    if (!empty($search)) {
-        $conditions[] = "(s.name LIKE ? OR s.description LIKE ?)";
-        $searchParam = '%' . $search . '%';
-        $params[] = $searchParam;
-        $params[] = $searchParam;
-        $types .= "ss";
+        $params[] = $userGroupId;
+        $params[] = $userId;
+        $params[] = $userId;
+        $types .= "iii";
+
+        // Optional search filter
+        if (!empty($search)) {
+            $conditions[] = "(s.name LIKE ? OR s.description LIKE ?)";
+            $searchParam = '%' . $search . '%';
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $types .= "ss";
+        }
     }
 
     $whereClause = "";
@@ -1792,27 +1802,6 @@ function get_all_songbooks($mysqli, $limit = 20, $offset = 0, $search = null) {
 }
 
 
-function get_all_songbooks_alt($mysqli) {
-    $sql = "SELECT * FROM songbooks ORDER BY name ASC";
-    $result = $mysqli->query($sql);
-
-    $songbooks = [];
-    if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $songbooks[] = $row;
-        }
-    }
-
-    $total = count($songbooks);
-    $totalPages = 1; // No paging in this version
-
-    return [
-        "songbooks" => $songbooks,
-        "total" => $total,
-        "totalPages" => $totalPages
-    ];
-}
-
 function get_songbook($mysqli, $id) {
     $stmt = $mysqli->prepare("SELECT * FROM songbooks WHERE id = ?");
     $stmt->bind_param("i", $id);
@@ -1865,7 +1854,7 @@ function get_songbook($mysqli, $id) {
     return $songbook;
 }
 
-function get_number_of_songbooks($mysqli, $only_public = 0) {
+function get_number_of_songbooks($mysqli, $only_public = 1) {
     if ($only_public) {
         // Count only public songbooks
         $stmt = $mysqli->prepare("SELECT COUNT(*) AS total FROM songbooks WHERE is_public = ?");

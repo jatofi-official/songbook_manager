@@ -101,9 +101,11 @@ error_reporting(E_ALL);
     // Get filters from query params
     $searchQuery = $_GET['search'] ?? '';
     $group = $_GET['group'] ?? '';
+    $offset = ($page - 1) * $perPage;
+
 
     // Fetch user data
-    $songbooksData = get_all_songbooks($mysqli,$limit=$perPage,$offset=$page-1,$search=$searchQuery,$groupId=$group);
+    $songbooksData = get_all_songbooks($mysqli,$limit=$perPage,$offset=$offset,$search=$searchQuery,$groupId=$group);
     // $songbooksData = get_all_songbooks_alt($mysqli);
     $songbooks = $songbooksData['songbooks'];
     $totalPages = $songbooksData['totalPages'];
