@@ -5,7 +5,7 @@ $phpBase = dirname(__DIR__) . '/php/';
 
 include $phpBase . 'db.php';
 include $phpBase . 'data.php';
-include $phpBase . 'functions.php';
+include_once $phpBase . 'functions.php';
 include $phpBase . 'header.php';
 include $phpBase . 'navigation.php';
 
