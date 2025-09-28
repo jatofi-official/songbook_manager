@@ -610,7 +610,7 @@ function get_recent_activity_number($mysqli, $type = "") {
         $stmt = $mysqli->prepare("
             SELECT COUNT(*) AS count
             FROM activity_log
-            WHERE type NOT IN ('auto_login', 'manual_login')
+            WHERE type NOT IN ('auto_login', 'manual_login','guest')
               AND time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
         ");
     }
