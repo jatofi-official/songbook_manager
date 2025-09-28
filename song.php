@@ -7,12 +7,12 @@ if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
     ini_set('display_startup_errors', 1);
 }
 
-include('php/db.php');
-include('php/data.php');
+include_once('php/db.php');
+include_once('php/data.php');
 
 $website = "songs";
 
-include('php/functions.php');
+include_once('php/functions.php');
 include("php/header.php");
 include('php/navigation.php');
 include("php/categories.php");
