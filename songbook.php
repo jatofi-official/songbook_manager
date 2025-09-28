@@ -23,6 +23,32 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         exit("Songbook not found.");
     }
 
+    // --- Visibility check ---
+    $userId = $_SESSION['id'] ?? null;
+    $userGroupId = $_SESSION['group_id'] ?? null;
+
+    if (empty($_SESSION['admin_view'])) { // admin override off
+        if (
+            // Guest user: only see is_public = 2
+            (!$userId && $songbook['is_public'] != 2)
+            ||
+            // Logged-in user
+            ($userId && (
+                // Group-access songbooks (is_public = 1)
+                ($songbook['is_public'] == 1 &&
+                    // either not in same group OR not admin
+                    (!is_null($userGroupId) && $userGroupId != $songbook['group_id'] && !in_array($userId, $songbook['admins']))
+                )
+                ||
+                // Private songbooks (is_public = 0)
+                ($songbook['is_public'] == 0 && !in_array($userId, $songbook['admins']))
+            ))
+        ) {
+            exit("You do not have permission to view this songbook.");
+        }
+    }
+
+
     $name = $songbook["name"] ?? '';
     $description = $songbook["description"] ?? '';
 
