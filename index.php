@@ -108,7 +108,7 @@ include_once('php/navigation.php');
         <div class="col-12 col-md-4 order-1 order-md-2 mb-4 mb-md-0">
             <div class="all_songs_card h-100">
                 <div class="card-body p-0 h-100">
-                    <a href="songs.php" class="btn w-100 h-100 d-flex justify-content-center align-items-center fs-4 rounded border border-primary text-primary bg-transparent">
+                    <a href="songs.php" class="btn w-100 h-100 d-flex justify-content-center align-items-center fs-4 rounded border border-primary text-primary bg-white">
                         All songs
                     </a>
                 </div>
