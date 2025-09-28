@@ -95,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function loadActivity() {
         const username = userInput.value.trim();
         const type = typeSelect.value;
-        const isPublic = publicSelect.value; // "all" | "1" | "0"
+        const isPublic = publicSelect.value;
 
         const params = new URLSearchParams({
             page: currentPage,
@@ -142,13 +142,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         renderPagination(data.total);
+        updateSortArrows();
     }
 
     function renderPagination(totalItems) {
         const totalPages = Math.ceil(totalItems / rowsPerPage);
         pagination.innerHTML = '';
 
-        if (totalPages <= 1) return; // no pagination needed
+        if (totalPages <= 1) return;
 
         const addPage = (page, label = null, active = false) => {
             const li = document.createElement('li');
@@ -166,10 +167,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const start = Math.max(2, currentPage - 2);
         const end = Math.min(totalPages - 1, currentPage + 2);
 
-        // Always show first page
         addPage(1, '1', currentPage === 1);
 
-        // Ellipsis before start
         if (start > 2) {
             const li = document.createElement('li');
             li.className = 'page-item disabled';
@@ -177,12 +176,10 @@ document.addEventListener("DOMContentLoaded", () => {
             pagination.appendChild(li);
         }
 
-        // Pages in the middle range
         for (let i = start; i <= end; i++) {
             addPage(i, i, i === currentPage);
         }
 
-        // Ellipsis after end
         if (end < totalPages - 1) {
             const li = document.createElement('li');
             li.className = 'page-item disabled';
@@ -190,10 +187,17 @@ document.addEventListener("DOMContentLoaded", () => {
             pagination.appendChild(li);
         }
 
-        // Always show last page
         if (totalPages > 1) addPage(totalPages, totalPages, currentPage === totalPages);
     }
 
+    function updateSortArrows() {
+        document.querySelectorAll(".sortable").forEach(btn => {
+            btn.textContent = btn.dataset.column.charAt(0).toUpperCase() + btn.dataset.column.slice(1); // reset
+            if (btn.dataset.column === currentSortColumn) {
+                btn.textContent += currentSortOrder === 'asc' ? ' ▲' : ' ▼';
+            }
+        });
+    }
 
     // Filters
     [userInput, typeSelect, publicSelect].forEach(el => {
@@ -212,10 +216,9 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.addEventListener("click", () => {
             const col = btn.dataset.column;
             if (currentSortColumn === col) {
-                // cycle: desc -> asc -> default
                 if (currentSortOrder === 'desc') currentSortOrder = 'asc';
                 else if (currentSortOrder === 'asc') {
-                    currentSortColumn = 'id'; // default
+                    currentSortColumn = 'id';
                     currentSortOrder = 'desc';
                 } else currentSortOrder = 'desc';
             } else {
@@ -231,7 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("resetFilters").addEventListener('click', () => {
         userInput.value = '';
         typeSelect.value = '';
-        publicSelect.value = 'all';
+        publicSelect.value = '';
         currentPage = 1;
         currentSortColumn = 'id';
         currentSortOrder = 'desc';
@@ -242,6 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadActivity();
 });
 </script>
+
 
 
 <style>
