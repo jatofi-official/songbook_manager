@@ -203,6 +203,20 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 
 <!-- Scripts -->
 <script>
+
+function showMessage(containerId, type, text) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = `<div class="alert alert-${type}">${text}</div>`;
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        container.innerHTML = "";
+    }, 3000);
+}
+
+
 document.getElementById("profileForm").addEventListener("submit", async function(e) {
     e.preventDefault();
 
@@ -224,14 +238,13 @@ document.getElementById("profileForm").addEventListener("submit", async function
             result = JSON.parse(text);
         } catch (err) {
             console.error("JSON parse error:", err);
-            document.getElementById("updateMsg").innerHTML =
-                '<div class="alert alert-danger">Invalid JSON response. Check console.</div>';
+			showMessage("updateMsg","danger","Invalid JSON response.")
             return;
         }
 
         if (result.success) {
-            document.getElementById("updateMsg").innerHTML =
-                '<div class="alert alert-success">Profile updated successfully!</div>';
+			showMessage("updateMsg", "success", "Profile updated successfully!");
+
 
             // Update displayed name
             const namePreview = document.getElementById("namePreview");
@@ -247,14 +260,12 @@ document.getElementById("profileForm").addEventListener("submit", async function
             }
 
         } else {
-            document.getElementById("updateMsg").innerHTML =
-                '<div class="alert alert-danger">Error: ' + (result.error || "Update failed") + '</div>';
+			showMessage("updateMsg", "danger", "Error: " + (result.error || "Update failed"));
         }
 
     } catch (err) {
         console.error("Fetch error:", err);
-        document.getElementById("updateMsg").innerHTML =
-            '<div class="alert alert-danger">Request failed: ' + err.message + '</div>';
+		showMessage("updateMsg", "danger", 'Request failed: ' + err.message);
     }
 });
 
@@ -271,14 +282,11 @@ document.getElementById("passwordForm").addEventListener("submit", function(e) {
     })
     .then(res => res.json())
     .then(data => {
-        console.log("Password change response:", data);
-        let msg = document.getElementById("passwordMessage");
-
         if (data.success) {
-            msg.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+			showMessage("passwordMessage", "success", data.message);
             document.getElementById("passwordForm").reset();
         } else {
-            msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+			showMessage("passwordMessage", "danger", data.error);
         }
     })
     .catch(err => {
@@ -301,12 +309,11 @@ document.getElementById("savePreferencesBtn").addEventListener("click", function
     })
     .then(res => res.json())
     .then(data => {
-		let msg = document.getElementById("preferencesMessage");
 
         if (data.success) {
-            msg.innerHTML = `<div class="alert alert-success">Preferences updated successfully!</div>`;
+			showMessage("preferencesMessage", "success", "Preferences updated successfully!");
         } else {
-            msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+			showMessage("preferencesMessage", "danger", data.error);
         }
     })
     .catch(err => console.error("Request failed:", err));
