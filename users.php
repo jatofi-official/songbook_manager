@@ -141,7 +141,8 @@ HTML;
         // Profile picture logic
         $profilePicPath = __DIR__ . "/profile_pics/{$userId}.png";
         if ($userId && file_exists($profilePicPath)) {
-            $avatarUrl = "profile_pics/{$userId}.png";
+            $mtime = filemtime($profilePicPath);
+            $avatarUrl = "profile_pics/{$userId}.png?v={$mtime}";
         } else {
             $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($name) . "&background=random";
         }

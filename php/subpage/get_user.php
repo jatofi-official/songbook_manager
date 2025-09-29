@@ -42,11 +42,9 @@ $displayName = htmlspecialchars($user['name'] ?? $user['username']);
 $username = htmlspecialchars($user['username']);
 
 $profilePicPath = __DIR__ . "/../../profile_pics/{$id}.png";  // filesystem path
-$profilePicUrl = "";                 // URL path relative to site root
-
 if ($id && file_exists($profilePicPath)) {
-    $profilePicUrl = "profile_pics/".$id.".png";                  // URL path relative to site root
-
+    $mtime = filemtime($profilePicPath);
+    $profilePicUrl = "profile_pics/{$id}.png?v={$mtime}";
 } else {
     $profilePicUrl = "https://ui-avatars.com/api/?name=" . urlencode($displayName) . "&background=random";
 }
@@ -79,10 +77,7 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
     <div class="container">
         <div class="row align-items-center">
             <div class="col-md-3 text-center">
-                <!-- <img src="<?= $profilePicUrl ?>" class="profile-pic rounded-circle" alt="Profile Picture"> -->
-
-                <img src="<?= htmlspecialchars($profilePicUrl) ?>" class="profile-pic rounded-circle" alt="Profile Picture">
-
+                <img src="<?= htmlspecialchars($profilePicUrl) ?>" class="profile-pic rounded-circle" alt="Profile Picture" id="profilePreview">
             </div>
             <div class="col-md-7">
                 <h1 class="display-5 mb-1"><?= $displayName ?></h1>
