@@ -62,7 +62,8 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 		<!-- Sidebar Navigation -->
 		<div class="col-lg-3">
 			<div class="card settings-card">
-				<div class="profile-header text-center">
+			<a href="user.php?id=<?= $_SESSION['id'] ?>" class="text-decoration-none">
+				<div class="profile-header text-center" style="cursor: pointer;">
 					<?php 
 					$profilePicPath = "profile_pics/" . $_SESSION["id"] . ".png";
 					if (file_exists($profilePicPath)): 
@@ -85,6 +86,8 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 						<p class="text-light mb-2">@<?= $_SESSION["user"] ?></p>
 					</div>
 				</div>
+			</a>
+
 
 				<div class="card-body">
 					<div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist">
@@ -366,6 +369,8 @@ document.getElementById("savePreferencesBtn").addEventListener("click", function
 		color: white;
 		border-radius: 10px 10px 0 0;
 		padding: 30px;
+		margin-bottom: 0px;
+
 	}
 	.nav-pills .nav-link.active {
 		background-color: #6c5ce7;
