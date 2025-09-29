@@ -74,11 +74,12 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 							class="rounded-circle mb-3" 
 							id="profilePreview"  
 							alt="Profile Picture">
-					<?php else: ?>
-						<img src="default_avatar.png" 
-							alt="Profile picture" 
-							style="max-width: 100px; border-radius: 50%;">
-					<?php endif; ?>
+						<?php else: ?>
+							<img src="<?= "https://ui-avatars.com/api/?name=" . urlencode($_SESSION['name']) . "&background=random"; ?>"
+								alt="Profile picture"
+								style="max-width: 100px; border-radius: 50%;">
+						<?php endif; ?>
+
 
 
 					<h5 id="namePreview"><?php echo $_SESSION["name"];  ?></h5>
@@ -90,7 +91,7 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 							<i class="bi bi-person-circle me-2"></i>Profile
 						</a>
 						<a class="nav-link" id="v-pills-account-tab" data-bs-toggle="pill" href="#v-pills-account" role="tab">
-							<i class="bi bi-shield-lock me-2"></i>Account Security
+							<i class="bi bi-shield-lock me-2"></i>Password
 						</a>
 						<a class="nav-link" id="v-pills-songbook-tab" data-bs-toggle="pill" href="#v-pills-songbook" role="tab">
 							<i class="bi bi-music-note-list me-2"></i>Songbook Preferences

@@ -126,6 +126,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 } else {
                     // Set session manually and redirect
                     $_SESSION["id"] = $user_id;
+                    $_SESSION["name"] = $name;
                     $_SESSION["user"] = $username;
                     $_SESSION["admin"] = false;
                     $_SESSION["admin_view"] = false;
