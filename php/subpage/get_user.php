@@ -18,6 +18,12 @@ if ($id <= 0) {
 
 $user = get_user($mysqli, $id);
 
+// settings, bio and instruments
+$settings = get_public_profile_settings($mysqli, $id);
+$bio = $settings['bio'] ?? '';
+$instruments = $settings['instruments'] ?? [];
+
+
 if (!$user) {
     echo "<p>User not found.</p>";
     exit;
@@ -79,18 +85,25 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
             <div class="col-md-3 text-center">
                 <img src="<?= htmlspecialchars($profilePicUrl) ?>" class="profile-pic rounded-circle" alt="Profile Picture" id="profilePreview">
             </div>
+
+            <!-- Top part -->
             <div class="col-md-7">
-                <h1 class="display-5 mb-1"><?= $displayName ?></h1>
+                <h1 class="h1 fw-bold mb-1"><?= $displayName ?></h1>
                 <p class="lead mb-2">@<?= $username ?></p>
-                <span class="xp-badge me-2">
-                    <i class="bi bi-star-fill me-1"></i> Level <?= $level ?> Contributor
-                </span>
-                <?php if ($isAdmin): ?>
-                <span class="xp-badge">
-                    <i class="bi bi-patch-check-fill me-1"></i> Admin
-                </span>
-                <?php endif; ?>
+
+                <div class="mt-4 mb-0">
+                    <span class="xp-badge me-2">
+                        <i class="bi bi-star-fill me-1"></i> Level <?= $level ?>
+                    </span>
+                    <?php if ($isAdmin): ?>
+                        <span class="xp-badge">
+                            <i class="bi bi-patch-check-fill me-1"></i> Admin
+                        </span>
+                    <?php endif; ?>
+                </div>
+
             </div>
+
             
         </div>
     </div>
@@ -154,49 +167,49 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
 
 
 
-<div class="row mb-4">
-    <div class="col-md-12 mb-3">
-        <div class="card border-0 shadow-sm rounded-3 position-relative">
-            <div class="card-body">
+    <div class="row mb-4">
+        <div class="col-md-12 mb-3">
+            <div class="card border-0 shadow-sm rounded-3 position-relative">
+                <div class="card-body">
 
-                <h6 class="card-title text-muted mb-3">Songs breakdown:</h6>
+                    <h6 class="card-title text-muted mb-3">Songs breakdown:</h6>
 
-                <?php
-                $fixedPercent = $songsAdded > 0 ? round(($fixedSongs / $songsAdded) * 100) : 0;
-                $notFixedPercent = $songsAdded > 0 ? round(($notFixedSongs / $songsAdded) * 100) : 0;
-                ?>
+                    <?php
+                    $fixedPercent = $songsAdded > 0 ? round(($fixedSongs / $songsAdded) * 100) : 0;
+                    $notFixedPercent = $songsAdded > 0 ? round(($notFixedSongs / $songsAdded) * 100) : 0;
+                    ?>
 
-                <!-- Progress bar -->
-                <div class="progress mb-2" style="height: 25px;">
-                    <div class="progress-bar bg-success d-flex align-items-center justify-content-center"
-                        style="width: <?= $fixedPercent ?>%">
-                        <?= $fixedPercent ?>%
+                    <!-- Progress bar -->
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div class="progress-bar bg-success d-flex align-items-center justify-content-center"
+                            style="width: <?= $fixedPercent ?>%">
+                            <?= $fixedPercent ?>%
+                        </div>
+                        <div class="progress-bar bg-danger d-flex align-items-center justify-content-center"
+                            style="width: <?= $notFixedPercent ?>%">
+                            <?= $notFixedPercent ?>%
+                        </div>
                     </div>
-                    <div class="progress-bar bg-danger d-flex align-items-center justify-content-center"
-                        style="width: <?= $notFixedPercent ?>%">
-                        <?= $notFixedPercent ?>%
+
+                    <!-- Counts -->
+                    <div class="d-flex justify-content-between small text-muted">
+                        <span>Fixed: <?= $fixedSongs ?></span>
+                        <span>Unfinished: <?= $notFixedSongs ?></span>
                     </div>
+
                 </div>
 
-                <!-- Counts -->
-                <div class="d-flex justify-content-between small text-muted">
-                    <span>Fixed: <?= $fixedSongs ?></span>
-                    <span>Unfinished: <?= $notFixedSongs ?></span>
+                <!-- Info box outside card-body but inside card -->
+                <div class="info-box position-absolute top-0 end-0 m-3 p-3 rounded shadow-sm bg-light border small text-muted" style="display: none; width: 250px; z-index: 10;">
+                    <strong>Finished songs:</strong><br>
+                    Have at least <b>3 tags</b> and a <b>difficulty</b>.<br><br>
+                    <strong>Special categories</strong> (Duchovné, Ľudové):<br>
+                    Only need <b>2 tags</b> and a <b>difficulty</b>.
                 </div>
 
             </div>
-
-            <!-- Info box outside card-body but inside card -->
-            <div class="info-box position-absolute top-0 end-0 m-3 p-3 rounded shadow-sm bg-light border small text-muted" style="display: none; width: 250px; z-index: 10;">
-                <strong>Finished songs:</strong><br>
-                Have at least <b>3 tags</b> and a <b>difficulty</b>.<br><br>
-                <strong>Special categories</strong> (Duchovné, Ľudové):<br>
-                Only need <b>2 tags</b> and a <b>difficulty</b>.
-            </div>
-
         </div>
     </div>
-</div>
 
 
 
@@ -238,10 +251,31 @@ container.addEventListener('mouseleave', function(e) {
 
 
 
-        </div>
+    </div>
         
     <!-- Right Column -->
     <div class="col-12 col-md-7 order-2 order-md-1">
+    <?php if(!empty($bio) || !empty($instruments)): ?>
+        <!-- About Me Section -->
+        <h3 class="section-title mb-1">About me</h3>
+        <div class="bg-light rounded p-3" style="max-height: 500px;">
+            <!-- Bio -->
+            <?php if(!empty($bio)): ?>
+                <p class="mb-3"><?= htmlspecialchars($bio) ?></p>
+            <?php endif; ?>
+
+            <!-- Instruments -->
+            <?php if(!empty($instruments)): ?>
+                <div>
+                    <?php foreach($instruments as $instr): ?>
+                        <span class="badge bg-secondary me-1"><?= htmlspecialchars($instr) ?></span>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+            
         <h3 class="section-title mb-1">Recent Activity</h3>
         <div class="bg-light rounded p-3" style="max-height: 500px;">
             <div class="list-group">

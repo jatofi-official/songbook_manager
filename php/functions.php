@@ -1914,27 +1914,35 @@ function get_user_ip(): ?string {
 }
 
 function get_public_profile_settings($mysqli, $userId) {
-    // Prepare statement to avoid SQL injection
     $stmt = $mysqli->prepare("
-        SELECT bio, customisation
+        SELECT bio, customisation, instruments
         FROM user_settings
         WHERE user_id = ?
     ");
-    if (!$stmt) {
-        // Optional: log error
-        return null;
-    }
+    if (!$stmt) return null;
 
     $stmt->bind_param("i", $userId);
     $stmt->execute();
-
     $result = $stmt->get_result();
+
     if ($result && $row = $result->fetch_assoc()) {
-        return $row; // associative array with all settings
+        // Instruments: comma-separated
+        if (!empty($row['instruments'])) {
+            $row['instruments'] = array_map('trim', explode(',', $row['instruments']));
+            $row['instruments'] = array_map('htmlspecialchars', $row['instruments']);
+        } else {
+            $row['instruments'] = [];
+        }
+
+        // Bio: sanitize
+        $row['bio'] = htmlspecialchars($row['bio'] ?? '');
+
+        return $row;
     }
 
-    return null; // no settings found
+    return null;
 }
+
 
 
 function load_user_settings_into_session($mysqli) {
