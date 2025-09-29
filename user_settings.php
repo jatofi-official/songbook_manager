@@ -87,6 +87,10 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 							<i class="bi bi-music-note-list me-2"></i>Admin Settings
 						</a>
 						<?php }?>
+						<!-- Logout -->
+						<form method="post" class="nav flex-column"> 
+						<input class="btn btn-danger" name="logout" type="submit" value="Log out"> 
+						</form>
 					</div>
 				</div>
 			</div>
@@ -100,24 +104,29 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 						<!-- Profile Tab -->
 						<div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel">
 							<h4 class="section-title">Profile Settings</h4>
-							<form>
+							<form id="profileForm">
 								<div class="row mb-3">
 									<div class="col-md">
-										<label for="firstName" class="form-label">Full Name</label>
-										<input type="text" class="form-control" id="firstName" value="<?php echo $_SESSION["name"]; ?>">
+										<label for="name" class="form-label">Full Name</label>
+										<input type="text" class="form-control" id="name" name="name" value="<?php echo $_SESSION["name"]; ?>">
 									</div>
 								</div>
 
 								<div class="mb-3">
 									<label for="bio" class="form-label">Bio</label>
-									<textarea class="form-control" id="bio" rows="3"><?php echo $public_profile["bio"]; ?></textarea>
+									<textarea class="form-control" id="bio" name="bio" rows="3"><?php echo $public_profile["bio"]; ?></textarea>
 								</div>
+
 								<div class="mb-3">
 									<label for="profilePicture" class="form-label">Profile Picture</label>
-									<input class="form-control" type="file" id="profilePicture">
+									<input class="form-control" type="file" id="profilePicture" name="profilePicture">
 								</div>
+
 								<button type="submit" class="btn btn-primary">Update Profile</button>
 							</form>
+
+							<div id="updateMsg" class="mt-2"></div>
+
 						</div>
 
 						<!-- Account Security Tab -->
@@ -171,48 +180,35 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 	</div>
 </div>
 
+<!-- Scripts -->
+<script>
+document.getElementById("profileForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
 
-<p>Welcome, <strong><?= htmlspecialchars($_SESSION["name"]) ?></strong>!</p>
+    const form = e.target;
+    const formData = new FormData(form);
 
-<!-- Profile picture -->
-<?php if (!empty("profile_pics/".$_SESSION["id"].".png")): ?>
-<img src="<?= htmlspecialchars("profile_pics/".$_SESSION["id"].".png") ?>" style="max-width: 150px; border-radius: 50%;">
-<?php else: ?>
-<img src="default_avatar.png" style="max-width: 150px; border-radius: 50%;">
-<?php endif; ?>
+    try {
+        const response = await fetch("php/update_profile.php", {
+            method: "POST",
+            body: formData
+        });
 
+        const result = await response.json();
 
-<!-- Admin toggle -->
-<?php
-if (isset($_POST['toggle_admin_view'])) {
-if ($_SESSION['admin'] == true) {
-	$_SESSION['admin_view'] = !$_SESSION['admin_view'];
-}
-}
-if (isset($_POST['toggle_advanced_view'])) {
-$_SESSION['advanced_view'] = !$_SESSION['advanced_view'];
-}
-?>
-<form method="post">
-<button class="btn btn-primary mt-3" type="submit" name="toggle_advanced_view">
-	<?= $_SESSION["advanced_view"] ? "Disable Advanced View" : "Enable Advanced View" ?>
-</button>
-</form>
-
-<?php
-
-if ($_SESSION["admin"] == true): ?>
-<form method="post">
-	<button class="btn btn-primary mt-3" type="submit" name="toggle_admin_view">
-		<?= $_SESSION["admin_view"] ? "Disable Admin View" : "Enable Admin View" ?>
-	</button>
-</form>
-<?php endif; ?>
-
-<!-- Logout -->
-<form method="post" class="mt-3"> 
-<input class="btn btn-danger" name="logout" type="submit" value="Log out"> 
-</form>
+        if (result.success) {
+            document.getElementById("updateMsg").innerHTML =
+                '<div class="alert alert-success">Profile updated successfully!</div>';
+        } else {
+            document.getElementById("updateMsg").innerHTML =
+                '<div class="alert alert-danger">Error: ' + (result.error || "Update failed") + '</div>';
+        }
+    } catch (err) {
+        document.getElementById("updateMsg").innerHTML =
+            '<div class="alert alert-danger">Request failed: ' + err.message + '</div>';
+    }
+});
+</script>
 
 
 <style>
