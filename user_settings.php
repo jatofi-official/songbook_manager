@@ -66,25 +66,26 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 					<?php 
 					$profilePicPath = "profile_pics/" . $_SESSION["id"] . ".png";
 					if (file_exists($profilePicPath)): 
-						// Add last-modified timestamp to bust cache
 						$mtime = filemtime($profilePicPath);
 					?>
-						<img src="<?= htmlspecialchars($profilePicPath . '?v=' . $mtime) ?>" 
-							style="max-width: 100px; border-radius: 50%;" 
-							class="rounded-circle mb-3" 
-							id="profilePreview"  
-							alt="Profile Picture">
-						<?php else: ?>
-							<img src="<?= "https://ui-avatars.com/api/?name=" . urlencode($_SESSION['name']) . "&background=random"; ?>"
-								alt="Profile picture"
-								style="max-width: 100px; border-radius: 50%;">
-						<?php endif; ?>
+						<img src="<?= htmlspecialchars($profilePicPath . '?v=' . $mtime) ?>"
+							class="profile-pic rounded-circle mb-3"
+							id="profilePreview"
+							alt="Profile Picture"
+							style="width: 120px; height: 120px;">
+					<?php else: ?>
+						<img src="<?= "https://ui-avatars.com/api/?name=" . urlencode($_SESSION['name']) . "&background=random" ?>"
+							class="profile-pic rounded-circle mb-3"
+							alt="Profile picture"
+							style="width: 120px; height: 120px;">
+					<?php endif; ?>
 
-
-
-					<h5 id="namePreview"><?php echo $_SESSION["name"];  ?></h5>
-					<p class="text-light">@<?php echo $_SESSION["user"]; ?></p>
+					<div>
+						<h5 id="namePreview" class="mb-1 fw-bold"><?= $_SESSION["name"] ?></h5>
+						<p class="text-light mb-2">@<?= $_SESSION["user"] ?></p>
+					</div>
 				</div>
+
 				<div class="card-body">
 					<div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist">
 						<a class="nav-link active" id="v-pills-profile-tab" data-bs-toggle="pill" href="#v-pills-profile" role="tab">
@@ -362,10 +363,9 @@ document.getElementById("savePreferencesBtn").addEventListener("click", function
 			transition: transform 0.3s;
 	}
 	.profile-header {
-		/* background: linear-gradient(135deg, #6c5ce7, #8e44ad); */
 		color: white;
 		border-radius: 10px 10px 0 0;
-		padding: 20px;
+		padding: 30px;
 	}
 	.nav-pills .nav-link.active {
 		background-color: #6c5ce7;
