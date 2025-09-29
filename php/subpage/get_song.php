@@ -42,7 +42,7 @@ if (isset($_GET['id'])) {
                 <div>
 
                     <?php
-                    $canEditDelete = (($_SESSION["admin_view"] ?? false) === true) || ($song['owner'] === ($_SESSION["user"] ?? ''));
+                    $canEditDelete = (($_SESSION["admin_view"] ?? false) == true) || ($song['owner'] === ($_SESSION["user"] ?? ''));
                     ?>
 
                     <div class="d-flex gap-2">
