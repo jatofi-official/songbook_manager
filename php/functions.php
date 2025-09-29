@@ -1965,6 +1965,22 @@ function load_user_settings_into_session($mysqli) {
     return false; // no row found
 }
 
+function create_default_user_settings($mysqli, $userId) {
+    $stmt = $mysqli->prepare("
+        INSERT INTO user_settings (user_id, advanced_view, admin_view)
+        VALUES (?, 0, 0)
+    ");
+    if (!$stmt) {
+        error_log("DB error in create_default_user_settings: " . $mysqli->error);
+        return false;
+    }
+    $stmt->bind_param("i", $userId);
+    $result = $stmt->execute();
+    $stmt->close();
+    return $result;
+}
+
+
 
 
 ?>
