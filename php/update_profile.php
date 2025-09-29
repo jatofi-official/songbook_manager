@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once "db.php";
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+ini_set('display_errors', 0);
+
 
 header('Content-Type: application/json');
 
@@ -40,8 +43,9 @@ try {
     // --- Handle profile picture upload ---
     if (!empty($_FILES["profilePicture"]["tmp_name"])) {
 
-        $uploadDir = __DIR__ . "/../profile_pics/"; // sibling folder of php
-        $filename = $uploadDir . $user_id . ".png";
+        $uploadDir = __DIR__ . "/../profile_pics/"; // correct path from php/update_profile.php
+        $filename  = $uploadDir . $user_id . ".png";
+
 
         error_log("Debug: Uploading profile picture to: $filename");
         error_log("Debug: Upload folder exists: " . (is_dir($uploadDir) ? "yes" : "no"));

@@ -63,12 +63,12 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 				<div class="profile-header text-center">
 					<!-- Profile picture -->
 					<?php if (!empty("profile_pics/".$_SESSION["id"].".png")): ?>
-					<img src="<?= htmlspecialchars("profile_pics/".$_SESSION["id"].".png") ?>" style="max-width: 100px; border-radius: 50%;" class="rounded-circle mb-3"  alt="Profile Picture">
+					<img src="<?= htmlspecialchars("profile_pics/".$_SESSION["id"].".png") ?>" style="max-width: 100px; border-radius: 50%;" class="rounded-circle mb-3" id="profilePreview"  alt="Profile Picture">
 					<?php else: ?>
 					<img src="default_avatar.png" alt ="Profile picture" style="max-width: 100px; border-radius: 50%;">
 					<?php endif; ?>
 
-					<h5><?php echo $_SESSION["name"];  ?></h5>
+					<h5 id="namePreview"><?php echo $_SESSION["name"];  ?></h5>
 					<p class="text-light">@<?php echo $_SESSION["user"]; ?></p>
 				</div>
 				<div class="card-body">
@@ -194,20 +194,49 @@ document.getElementById("profileForm").addEventListener("submit", async function
             body: formData
         });
 
-        const result = await response.json();
+        // Read raw response for debugging
+        const text = await response.text();
+        console.log("Raw response from server:", text);
+
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (err) {
+            console.error("JSON parse error:", err);
+            document.getElementById("updateMsg").innerHTML =
+                '<div class="alert alert-danger">Invalid JSON response. Check console.</div>';
+            return;
+        }
 
         if (result.success) {
             document.getElementById("updateMsg").innerHTML =
                 '<div class="alert alert-success">Profile updated successfully!</div>';
+
+            // Update displayed name
+            const namePreview = document.getElementById("namePreview");
+            const nameInput = document.getElementById("name");
+            if (namePreview && nameInput) {
+                namePreview.textContent = nameInput.value;
+            }
+
+            // Update profile picture preview (with cache-busting)
+            const profileImg = document.getElementById("profilePreview");
+            if (profileImg) {
+                profileImg.src = "profile_pics/<?php echo $_SESSION["id"]; ?>.png?" + new Date().getTime();
+            }
+
         } else {
             document.getElementById("updateMsg").innerHTML =
                 '<div class="alert alert-danger">Error: ' + (result.error || "Update failed") + '</div>';
         }
+
     } catch (err) {
+        console.error("Fetch error:", err);
         document.getElementById("updateMsg").innerHTML =
             '<div class="alert alert-danger">Request failed: ' + err.message + '</div>';
     }
 });
+
 </script>
 
 
