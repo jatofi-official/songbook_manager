@@ -188,15 +188,42 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 						<div class="tab-pane fade" id="v-pills-admin" role="tabpanel">
 							<h4 class="section-title">Admin Settings</h4>
 							<div class="form-check form-switch mb-3">
-								<input class="form-check-input" type="checkbox" id="advancedSwitch" 
+								<input class="form-check-input" type="checkbox" id="adminViewSwitch" 
 									<?= !empty($_SESSION["admin_view"]) && $_SESSION["admin_view"] ? "checked" : "" ?>>
-								<label class="form-check-label" for="advancedSwitch">Admin view</label>
+								<label class="form-check-label" for="adminViewSwitch">Admin view</label>
 							</div>
 							<button type="button" id="saveAdminBtn" class="btn btn-primary">Save Settings</button>
 
 							<div id="adminMessage" class="mt-3"></div>
 
 						</div>
+
+						<script>
+
+						// Save Admin Settings
+						document.getElementById("saveAdminBtn").addEventListener("click", function () {
+							const adminView = document.getElementById("adminViewSwitch").checked ? 1 : 0;
+
+							fetch("php/update_admin.php", {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({ admin_view: adminView })
+							})
+							.then(res => res.json())
+							.then(data => {
+								if (data.success) {
+									showMessage("adminMessage", "success", "Admin settings updated successfully!");
+								} else {
+									showMessage("adminMessage", "danger", data.error);
+								}
+							})
+							.catch(err => {
+								console.error("Request failed:", err);
+								showMessage("adminMessage", "danger", "Request failed. Check console.");
+							});
+						});
+
+						</script>
 						<?php }?>
 
 					</div>
