@@ -61,12 +61,23 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 		<div class="col-lg-3">
 			<div class="card settings-card">
 				<div class="profile-header text-center">
-					<!-- Profile picture -->
-					<?php if (!empty("profile_pics/".$_SESSION["id"].".png")): ?>
-					<img src="<?= htmlspecialchars("profile_pics/".$_SESSION["id"].".png") ?>" style="max-width: 100px; border-radius: 50%;" class="rounded-circle mb-3" id="profilePreview"  alt="Profile Picture">
+					<?php 
+					$profilePicPath = "profile_pics/" . $_SESSION["id"] . ".png";
+					if (file_exists($profilePicPath)): 
+						// Add last-modified timestamp to bust cache
+						$mtime = filemtime($profilePicPath);
+					?>
+						<img src="<?= htmlspecialchars($profilePicPath . '?v=' . $mtime) ?>" 
+							style="max-width: 100px; border-radius: 50%;" 
+							class="rounded-circle mb-3" 
+							id="profilePreview"  
+							alt="Profile Picture">
 					<?php else: ?>
-					<img src="default_avatar.png" alt ="Profile picture" style="max-width: 100px; border-radius: 50%;">
+						<img src="default_avatar.png" 
+							alt="Profile picture" 
+							style="max-width: 100px; border-radius: 50%;">
 					<?php endif; ?>
+
 
 					<h5 id="namePreview"><?php echo $_SESSION["name"];  ?></h5>
 					<p class="text-light">@<?php echo $_SESSION["user"]; ?></p>
