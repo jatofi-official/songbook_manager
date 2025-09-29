@@ -1934,5 +1934,29 @@ function get_user_ip(): ?string {
     return null;
 }
 
+function get_public_profile_settings($mysqli, $userId) {
+    // Prepare statement to avoid SQL injection
+    $stmt = $mysqli->prepare("
+        SELECT bio, customisation
+        FROM user_settings
+        WHERE user_id = ?
+    ");
+    if (!$stmt) {
+        // Optional: log error
+        return null;
+    }
+
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    if ($result && $row = $result->fetch_assoc()) {
+        return $row; // associative array with all settings
+    }
+
+    return null; // no settings found
+}
+
+
 
 ?>

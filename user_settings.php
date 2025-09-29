@@ -49,7 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["username"]) && isset(
 
 
 // PAGE CONTENT
-if (isset($_SESSION["user"])): ?>
+if (isset($_SESSION["user"])): 
+
+$public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
+
+?>
 
 <div class="container py-5">
 	<div class="row">
@@ -106,7 +110,7 @@ if (isset($_SESSION["user"])): ?>
 
 								<div class="mb-3">
 									<label for="bio" class="form-label">Bio</label>
-									<textarea class="form-control" id="bio" rows="3">Music enthusiast and guitar player</textarea>
+									<textarea class="form-control" id="bio" rows="3"><?php echo $public_profile["bio"]; ?></textarea>
 								</div>
 								<div class="mb-3">
 									<label for="profilePicture" class="form-label">Profile Picture</label>
@@ -166,6 +170,8 @@ if (isset($_SESSION["user"])): ?>
 		</div>
 	</div>
 </div>
+
+
 <p>Welcome, <strong><?= htmlspecialchars($_SESSION["name"]) ?></strong>!</p>
 
 <!-- Profile picture -->
