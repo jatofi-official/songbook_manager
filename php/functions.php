@@ -31,27 +31,6 @@ function login_user($mysqli, $username, $pass) {
 	}
 }
 
-// zmeni password $pass pouzivatelovi s id cislom $id
-function zmen_heslo($mysqli, $id, $pass) {
-	if (!$mysqli->connect_errno) {
-	  	$sql="UPDATE kvety_pouzivatelia SET password='".md5($pass)."'"." WHERE uid='$id' ;"; // definuj dopyt   
-		echo "sql = $sql <br>";
-		if ($result = $mysqli->query($sql)) {  // vykonaj dopyt
-		// dopyt sa podarilo vykonať
-      	echo '<p>Heslo bolo zmenené.</p>'. "\n"; 
-		$_SESSION["password"]= md5($pass);
-		} 
-		else {
-			// NEpodarilo sa vykonať dopyt!
-			echo '<p class="chyba">Nastala chyba pri zmene hesla.</p>'. "\n"; 
-		}
-	} 
-	else {
-		// NEpodarilo sa spojiť s databázovým serverom alebo vybrať databázu!
-		echo '<p class="chyba">NEpodarilo sa spojiť s databázovým serverom!</p>';
-	}
-}	// koniec funkcie
-
 function add_user($mysqli, $name, $username, $password, $group_id) {
     if ($mysqli->connect_errno) {
         echo "Failed to connect to MySQL: " . $mysqli->connect_error;

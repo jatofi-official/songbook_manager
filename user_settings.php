@@ -145,21 +145,24 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 							<h4 class="section-title">Account Security</h4>
 							<div class="mb-4">
 								<h5>Change Password</h5>
-								<form>
+								<form id="passwordForm">
 									<div class="mb-3">
 										<label for="currentPassword" class="form-label">Current Password</label>
-										<input type="password" class="form-control" id="currentPassword">
+										<input type="password" class="form-control" id="currentPassword" name="currentPassword" autocomplete="current-password">
 									</div>
 									<div class="mb-3">
 										<label for="newPassword" class="form-label">New Password</label>
-										<input type="password" class="form-control" id="newPassword">
+										<input type="password" class="form-control" id="newPassword" name="newPassword" autocomplete="new-password">
 									</div>
 									<div class="mb-3">
 										<label for="confirmPassword" class="form-label">Confirm New Password</label>
-										<input type="password" class="form-control" id="confirmPassword">
+										<input type="password" class="form-control" id="confirmPassword" name="confirmPassword" autocomplete="new-password">
 									</div>
 									<button type="submit" class="btn btn-primary">Update Password</button>
 								</form>
+
+								<div id="passwordMessage" class="mt-3"></div>
+
 							</div>
 
 						</div>
@@ -247,6 +250,37 @@ document.getElementById("profileForm").addEventListener("submit", async function
             '<div class="alert alert-danger">Request failed: ' + err.message + '</div>';
     }
 });
+
+
+// Password changing
+document.getElementById("passwordForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    let formData = new FormData(this);
+
+    fetch("php/update_password.php", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log("Password change response:", data);
+        let msg = document.getElementById("passwordMessage");
+
+        if (data.success) {
+            msg.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+            document.getElementById("passwordForm").reset();
+        } else {
+            msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+        }
+    })
+    .catch(err => {
+        console.error("Request failed:", err);
+        document.getElementById("passwordMessage").innerHTML = 
+            `<div class="alert alert-danger">Request failed. Check console.</div>`;
+    });
+});
+
 
 </script>
 
