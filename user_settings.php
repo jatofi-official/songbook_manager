@@ -17,7 +17,7 @@ if (isset($_POST["logout"])) {
     exit();
 }
 
-
+// Handle login/register
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["username"]) && isset($_POST["password"])) {
 	if ($_POST["submit"] == "Register") {
 		header("Location: register_user.php");
@@ -51,51 +51,199 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["username"]) && isset(
 // PAGE CONTENT
 if (isset($_SESSION["user"])): ?>
 
-<section>
-	<p>Welcome, <strong><?= htmlspecialchars($_SESSION["name"]) ?></strong>!</p>
+<div class="container py-5">
+	<div class="row">
+		<!-- Sidebar Navigation -->
+		<div class="col-lg-3">
+			<div class="card settings-card">
+				<div class="profile-header text-center">
+					<!-- Profile picture -->
+					<?php if (!empty("profile_pics/".$_SESSION["id"].".png")): ?>
+					<img src="<?= htmlspecialchars("profile_pics/".$_SESSION["id"].".png") ?>" style="max-width: 100px; border-radius: 50%;" class="rounded-circle mb-3"  alt="Profile Picture">
+					<?php else: ?>
+					<img src="default_avatar.png" alt ="Profile picture" style="max-width: 100px; border-radius: 50%;">
+					<?php endif; ?>
 
-	<!-- Profile picture -->
-	<?php if (!empty("profile_pics/".$_SESSION["id"].".png")): ?>
-		<img src="<?= htmlspecialchars("profile_pics/".$_SESSION["id"].".png") ?>" style="max-width: 150px; border-radius: 50%;">
-	<?php else: ?>
-		<img src="default_avatar.png" style="max-width: 150px; border-radius: 50%;">
-	<?php endif; ?>
+					<h5><?php echo $_SESSION["name"];  ?></h5>
+					<p class="text-light">@<?php echo $_SESSION["user"]; ?></p>
+				</div>
+				<div class="card-body">
+					<div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist">
+						<a class="nav-link active" id="v-pills-profile-tab" data-bs-toggle="pill" href="#v-pills-profile" role="tab">
+							<i class="bi bi-person-circle me-2"></i>Profile
+						</a>
+						<a class="nav-link" id="v-pills-account-tab" data-bs-toggle="pill" href="#v-pills-account" role="tab">
+							<i class="bi bi-shield-lock me-2"></i>Account Security
+						</a>
+						<a class="nav-link" id="v-pills-songbook-tab" data-bs-toggle="pill" href="#v-pills-songbook" role="tab">
+							<i class="bi bi-music-note-list me-2"></i>Songbook Preferences
+						</a>
+						<?php if($_SESSION["admin"]==true){ ?>
+						<a class="nav-link" id="v-pills-admin-tab" data-bs-toggle="pill" href="#v-pills-admin" role="tab">
+							<i class="bi bi-music-note-list me-2"></i>Admin Settings
+						</a>
+						<?php }?>
+					</div>
+				</div>
+			</div>
+		</div>
 
+		<!-- Content Area -->
+		<div class="col-lg-9">
+			<div class="card settings-card">
+				<div class="card-body">
+					<div class="tab-content" id="v-pills-tabContent">
+						<!-- Profile Tab -->
+						<div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel">
+							<h4 class="section-title">Profile Settings</h4>
+							<form>
+								<div class="row mb-3">
+									<div class="col-md">
+										<label for="firstName" class="form-label">Full Name</label>
+										<input type="text" class="form-control" id="firstName" value="<?php echo $_SESSION["name"]; ?>">
+									</div>
+								</div>
 
-	<!-- Admin toggle -->
-	<?php
-	if (isset($_POST['toggle_admin_view'])) {
-		if ($_SESSION['admin'] == true) {
-			$_SESSION['admin_view'] = !$_SESSION['admin_view'];
-		}
-	}
-	if (isset($_POST['toggle_advanced_view'])) {
-		$_SESSION['advanced_view'] = !$_SESSION['advanced_view'];
-	}
-	?>
-	<form method="post">
-		<button class="btn btn-primary mt-3" type="submit" name="toggle_advanced_view">
-			<?= $_SESSION["advanced_view"] ? "Disable Advanced View" : "Enable Advanced View" ?>
-		</button>
-	</form>
+								<div class="mb-3">
+									<label for="bio" class="form-label">Bio</label>
+									<textarea class="form-control" id="bio" rows="3">Music enthusiast and guitar player</textarea>
+								</div>
+								<div class="mb-3">
+									<label for="profilePicture" class="form-label">Profile Picture</label>
+									<input class="form-control" type="file" id="profilePicture">
+								</div>
+								<button type="submit" class="btn btn-primary">Update Profile</button>
+							</form>
+						</div>
 
-	<?php
+						<!-- Account Security Tab -->
+						<div class="tab-pane fade" id="v-pills-account" role="tabpanel">
+							<h4 class="section-title">Account Security</h4>
+							<div class="mb-4">
+								<h5>Change Password</h5>
+								<form>
+									<div class="mb-3">
+										<label for="currentPassword" class="form-label">Current Password</label>
+										<input type="password" class="form-control" id="currentPassword">
+									</div>
+									<div class="mb-3">
+										<label for="newPassword" class="form-label">New Password</label>
+										<input type="password" class="form-control" id="newPassword">
+									</div>
+									<div class="mb-3">
+										<label for="confirmPassword" class="form-label">Confirm New Password</label>
+										<input type="password" class="form-control" id="confirmPassword">
+									</div>
+									<button type="submit" class="btn btn-primary">Update Password</button>
+								</form>
+							</div>
 
-	if ($_SESSION["admin"] == true): ?>
-		<form method="post">
-			<button class="btn btn-primary mt-3" type="submit" name="toggle_admin_view">
-				<?= $_SESSION["admin_view"] ? "Disable Admin View" : "Enable Admin View" ?>
-			</button>
-		</form>
-	<?php endif; ?>
+						</div>
 
-	<!-- Logout -->
-	<form method="post" class="mt-3"> 
-		<input class="btn btn-danger" name="logout" type="submit" value="Log out"> 
-	</form>
-</section>
+						<!-- Songbook Preferences Tab -->
+						<div class="tab-pane fade" id="v-pills-songbook" role="tabpanel">
+							<h4 class="section-title">Songbook Preferences</h4>
+							<div class="form-check form-switch mb-3">
+								<input class="form-check-input" type="checkbox" id="advancedSwitch" checked>
+								<label class="form-check-label" for="advancedSwitch">Advanced View</label>
+							</div>
+							<button type="submit" class="btn btn-primary">Save Preferences</button>
+						</div>
 
+						<?php if($_SESSION["admin"]==true){ ?>
+						<div class="tab-pane fade" id="v-pills-admin" role="tabpanel">
+							<h4 class="section-title">Admin Settings</h4>
+							<div class="form-check form-switch mb-3">
+								<input class="form-check-input" type="checkbox" id="adminViewSwitch" checked>
+								<label class="form-check-label" for="adminViewSwitch">Admin View</label>
+							</div>
+						</div>
+						<?php }?>
+
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<p>Welcome, <strong><?= htmlspecialchars($_SESSION["name"]) ?></strong>!</p>
+
+<!-- Profile picture -->
+<?php if (!empty("profile_pics/".$_SESSION["id"].".png")): ?>
+<img src="<?= htmlspecialchars("profile_pics/".$_SESSION["id"].".png") ?>" style="max-width: 150px; border-radius: 50%;">
 <?php else: ?>
+<img src="default_avatar.png" style="max-width: 150px; border-radius: 50%;">
+<?php endif; ?>
+
+
+<!-- Admin toggle -->
+<?php
+if (isset($_POST['toggle_admin_view'])) {
+if ($_SESSION['admin'] == true) {
+	$_SESSION['admin_view'] = !$_SESSION['admin_view'];
+}
+}
+if (isset($_POST['toggle_advanced_view'])) {
+$_SESSION['advanced_view'] = !$_SESSION['advanced_view'];
+}
+?>
+<form method="post">
+<button class="btn btn-primary mt-3" type="submit" name="toggle_advanced_view">
+	<?= $_SESSION["advanced_view"] ? "Disable Advanced View" : "Enable Advanced View" ?>
+</button>
+</form>
+
+<?php
+
+if ($_SESSION["admin"] == true): ?>
+<form method="post">
+	<button class="btn btn-primary mt-3" type="submit" name="toggle_admin_view">
+		<?= $_SESSION["admin_view"] ? "Disable Admin View" : "Enable Admin View" ?>
+	</button>
+</form>
+<?php endif; ?>
+
+<!-- Logout -->
+<form method="post" class="mt-3"> 
+<input class="btn btn-danger" name="logout" type="submit" value="Log out"> 
+</form>
+
+
+<style>
+	.settings-card {
+			border-radius: 10px;
+			box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+			margin-bottom: 20px;
+			transition: transform 0.3s;
+	}
+	.profile-header {
+		/* background: linear-gradient(135deg, #6c5ce7, #8e44ad); */
+		color: white;
+		border-radius: 10px 10px 0 0;
+		padding: 20px;
+	}
+	.nav-pills .nav-link.active {
+		background-color: #6c5ce7;
+	}
+	.nav-pills .nav-link {
+		color: #495057;
+	}
+	.section-title {
+		border-bottom: 2px solid #6c5ce7;
+		padding-bottom: 10px;
+		margin-bottom: 20px;
+		color: #6c5ce7;
+	}
+	.btn-primary:hover {
+		background-color: #5649c0;
+		border-color: #5649c0;
+	}
+</style>
+
+
+<?php 
+// Default page
+else: ?>
 <section>
 	<div class="row">
 		<div class="col 12 col-md-4 container-wide">
