@@ -1937,5 +1937,34 @@ function get_public_profile_settings($mysqli, $userId) {
 }
 
 
+function load_user_settings_into_session($mysqli) {
+    if (!isset($_SESSION["id"])) {
+        return false; // not logged in
+    }
+
+    $userId = $_SESSION["id"];
+
+    $stmt = $mysqli->prepare("SELECT advanced_view, admin_view FROM user_settings WHERE user_id = ?");
+    if (!$stmt) {
+        error_log("DB error: " . $mysqli->error);
+        return false;
+    }
+
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $stmt->bind_result($advancedView, $adminView);
+
+    if ($stmt->fetch()) {
+        $_SESSION["advanced_view"] = (bool)$advancedView;
+        $_SESSION["admin_view"] = (bool)$adminView;
+        $stmt->close();
+        return true;
+    }
+
+    $stmt->close();
+    return false; // no row found
+}
+
+
 
 ?>

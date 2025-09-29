@@ -36,8 +36,8 @@ if (!isset($_SESSION["id"]) && isset($_COOKIE["rememberme"])) {
             $_SESSION["name"] = $user["name"];
 
             
-			$_SESSION["advanced_view"] = false;
-            $_SESSION["admin_view"] = false;
+            // Load settings. 
+            load_user_settings_into_session($mysqli);
             
             // Adding a log in log
             add_activity($mysqli,$user["username"],"auto_login",'User "'.$user["username"].'" automatically logged in.',0);

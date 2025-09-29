@@ -29,8 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST["username"]) && isset(
 			$_SESSION["admin"] = $result["admin"];
 			$_SESSION["name"] = $result["name"];
 			$_SESSION["id"] = $result["id"];
-			$_SESSION["admin_view"] = false;
-			$_SESSION["advanced_view"] = false;
+			
+			// Load user settings
+			load_user_settings_into_session($mysqli);
+
 			add_activity($mysqli,$_SESSION["user"],"manual_login",'User "'.$_SESSION["user"].'" manually logged in.',0);
 
 
