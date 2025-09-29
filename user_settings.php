@@ -94,18 +94,18 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 							<i class="bi bi-shield-lock me-2"></i>Password
 						</a>
 						<a class="nav-link" id="v-pills-songbook-tab" data-bs-toggle="pill" href="#v-pills-songbook" role="tab">
-							<i class="bi bi-music-note-list me-2"></i>Songbook Preferences
+							<i class="bi bi-music-note-list me-2"></i>Appearance
 						</a>
 						<?php if($_SESSION["admin"]==true){ ?>
 						<a class="nav-link" id="v-pills-admin-tab" data-bs-toggle="pill" href="#v-pills-admin" role="tab">
 							<i class="bi bi-music-note-list me-2"></i>Admin Settings
 						</a>
 						<?php }?>
-						<!-- Logout -->
-						<form method="post" class="nav flex-column"> 
-						<input class="btn btn-danger" name="logout" type="submit" value="Log out"> 
-						</form>
 					</div>
+					<!-- Logout -->
+					<form method="post" class="nav flex-column mt-2"> 
+					<input class="btn btn-danger" name="logout" type="submit" value="Log out"> 
+					</form>
 				</div>
 			</div>
 		</div>
@@ -172,12 +172,16 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 
 						<!-- Songbook Preferences Tab -->
 						<div class="tab-pane fade" id="v-pills-songbook" role="tabpanel">
-							<h4 class="section-title">Songbook Preferences</h4>
+							<h4 class="section-title">Appearance</h4>
 							<div class="form-check form-switch mb-3">
-								<input class="form-check-input" type="checkbox" id="advancedSwitch" checked>
+								<input class="form-check-input" type="checkbox" id="advancedSwitch" 
+									<?= !empty($_SESSION["advanced_view"]) && $_SESSION["advanced_view"] ? "checked" : "" ?>>
 								<label class="form-check-label" for="advancedSwitch">Advanced View</label>
 							</div>
-							<button type="submit" class="btn btn-primary">Save Preferences</button>
+							<button type="button" id="savePreferencesBtn" class="btn btn-primary">Save Preferences</button>
+							
+							<div id="preferencesMessage" class="mt-3"></div>
+
 						</div>
 
 						<?php if($_SESSION["admin"]==true){ ?>
@@ -284,6 +288,29 @@ document.getElementById("passwordForm").addEventListener("submit", function(e) {
     });
 });
 
+
+// Update preferences
+
+document.getElementById("savePreferencesBtn").addEventListener("click", function () {
+    const advanced = document.getElementById("advancedSwitch").checked ? 1 : 0;
+
+    fetch("php/update_preferences.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ advanced_view: advanced })
+    })
+    .then(res => res.json())
+    .then(data => {
+		let msg = document.getElementById("preferencesMessage");
+
+        if (data.success) {
+            msg.innerHTML = `<div class="alert alert-success">Preferences updated successfully!</div>`;
+        } else {
+            msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+        }
+    })
+    .catch(err => console.error("Request failed:", err));
+});
 
 </script>
 
