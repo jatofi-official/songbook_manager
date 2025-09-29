@@ -20,11 +20,6 @@ if (!isset($projectUrl)) {
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
-                <?php if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){ ?>
-                <li class="nav-item">
-                    <a class="nav-link <?php if($website=="index") echo "active"?>" href="<?= $projectUrl ?>/admin/index.php">Admin</a>
-                </li>
-                <?php } ?>
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="songs") echo "active"?>" href="<?= $projectUrl ?>/songs.php">Songs</a>
                 </li>
@@ -34,6 +29,11 @@ if (!isset($projectUrl)) {
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="users") echo "active"?>" href="<?= $projectUrl ?>/users.php">Users</a>
                 </li>
+                <?php if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){ ?>
+                    <li class="nav-item">
+                        <a class="nav-link <?php if($website=="admin") echo "active";?>" href="<?= $projectUrl ?>/admin/index.php">Admin</a>
+                    </li>
+                <?php } ?>
                 <li class="nav-item">
                     <a href="<?= $projectUrl ?>/user_settings.php" class="nav-link <?php if($website=="user") echo "active"?>">
                         <?= isset($_SESSION["name"]) ? $_SESSION["name"] : "Log in"; ?>

@@ -4,11 +4,11 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 session_start();
-$website = "index";
+include_once('../php/data.php');      
+$website = "admin";
 $title = "Admin dashboard";
 include_once('../php/auth.php'); 
 include_once('../php/db.php');          
-include_once('../php/data.php');      
 include_once('../php/functions.php'); 
 include_once("../php/header.php");
 include_once('../php/navigation.php');

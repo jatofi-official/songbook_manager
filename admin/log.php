@@ -4,6 +4,7 @@ $phpBase = dirname(__DIR__) . '/php/';
 $title = "Activity log";
 include $phpBase . 'db.php';
 include $phpBase . 'data.php';
+$website = "admin";
 include $phpBase . 'functions.php';
 include $phpBase . 'header.php';
 include $phpBase . 'navigation.php';
