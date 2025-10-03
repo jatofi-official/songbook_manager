@@ -46,10 +46,11 @@ include $phpBase . 'auth.php';
       Projekt vznikol pre 24. skautský zbor <strong>Mustangy</strong>,
       no otvorený je každému, kto má rád hudbu a hľadá jednoduchý, pekný spôsob správy spevníka.
     </p>
+    <p>Všetky texty piesní sú určené na osobné použitie a v prípade nesúhlasu autora ich na požiadanie stiahneme. Pridávanie piesní je na vlastnú zodpovednosť.</p>
 
     <h2>Kontakt</h2>
     <p>
-      Máte otázky, návrhy alebo ste našli chybu?  
+      Máte otázky, návrhy alebo dotazy?
       Napíšte správcovi spevníku jakubo.hlavaty@gmail.com.
     </p>
   </section>
