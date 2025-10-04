@@ -24,7 +24,7 @@ include $phpBase . 'auth.php';
     <p>
       Cieľom tohoto projektu je:</p>
       <ul> 
-        <li>vytvoriť centrálnu hudobné databázu, kde si každý vie pridať pesničky, ktoré ho zaujímajú alebo hrať už existujúce pesničky.</li>
+        <li>vytvoriť centrálnu hudobnú databázu najmä pre slovenských a českých uživateľov, kde si každý vie pridať pesničky, ktoré ho zaujímajú alebo hrať už existujúce pesničky.</li>
         <li>vytvoriť jednoduchý, rýchly a prístupný spôsob, ako vytvárať vlastné spevníky rovno na tlač</li>
       </ul>
       <p>a to všetko <strong>bezplatne</strong>.
