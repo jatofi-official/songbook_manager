@@ -4,7 +4,6 @@
 <footer class="py-4 mt-5 text-center text-muted">
     <p>
         Songbook Manager &copy; 2025 | 
-        <a href="/about.php" class="footer-about">About</a> 
         <em><?php echo VERSION; ?></em>
     </p>
 </footer>

@@ -29,6 +29,10 @@ if (!isset($projectUrl)) {
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="users") echo "active"?>" href="<?= $projectUrl ?>/users.php">Users</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php if($website=="about") echo "active"?>" href="<?= $projectUrl ?>/about.php">About</a>
+                </li>
+
                 <?php if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){ ?>
                     <li class="nav-item">
                         <a class="nav-link <?php if($website=="admin") echo "active";?>" href="<?= $projectUrl ?>/admin/index.php">Admin</a>
