@@ -88,6 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = $result['message'];
             } elseif ($result['status'] === 'duplicate') {
                 $errors[] = "This song is already requested for this songbook - vote for it instead.";
+            } elseif ($result['status'] === 'in_songbook') {
+                $errors[] = "This song is already in this songbook.";
             } else {
                 $successMessage = "Added to the songbook's wishlist.";
                 if ($username) {
@@ -128,6 +130,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($selectedSongbookId) {
                 $selectedSongbook = get_songbook($mysqli, $selectedSongbookId);
             }
+        }
+    } elseif ($formType === 'delete_general') {
+        $entryId = (int)($_POST['entry_id'] ?? 0);
+        $stmt = $mysqli->prepare("SELECT * FROM wishlist_songs WHERE id = ?");
+        $stmt->bind_param("i", $entryId);
+        $stmt->execute();
+        $entry = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$entry) {
+            $errors[] = "Wishlist entry not found.";
+        } elseif (!can_delete_wishlist_entry($entry, $username, $isAdmin)) {
+            $errors[] = "You may not remove this wishlist entry.";
+        } else {
+            delete_wishlist_song($mysqli, $entryId);
+            $successMessage = "Removed from the wishlist.";
+        }
+        $activeTab = 'general';
+    } elseif ($formType === 'delete_songbook') {
+        $entryId = (int)($_POST['entry_id'] ?? 0);
+        $stmt = $mysqli->prepare("SELECT * FROM wishlist_songbooks WHERE id = ?");
+        $stmt->bind_param("i", $entryId);
+        $stmt->execute();
+        $entry = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$entry) {
+            $errors[] = "Wishlist entry not found.";
+        } elseif (!can_delete_wishlist_entry($entry, $username, $isAdmin)) {
+            $errors[] = "You may not remove this wishlist entry.";
+        } else {
+            delete_wishlist_songbook_entry($mysqli, $entryId);
+            $successMessage = "Removed from the songbook's wishlist.";
+        }
+        $activeTab = 'songbook';
+        $selectedSongbookId = (int)($entry['songbook_id'] ?? 0);
+        if ($selectedSongbookId) {
+            $selectedSongbook = get_songbook($mysqli, $selectedSongbookId);
         }
     }
 }
@@ -238,6 +278,15 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                                    href="song.php?new=1&title=<?= urlencode($item['name']) ?>&artist=<?= urlencode($item['artist'] ?? '') ?>&youtube_link=<?= urlencode($item['youtube_link'] ?? '') ?>&wishlist_song_id=<?= (int)$item['id'] ?>">
                                     Create this song
                                 </a>
+                                <?php if (can_delete_wishlist_entry($item, $username, $isAdmin)): ?>
+                                    <form method="post" action="wishlist.php" class="d-inline" onsubmit="return confirm('Remove this song from the wishlist?');">
+                                        <input type="hidden" name="form_type" value="delete_general">
+                                        <input type="hidden" name="entry_id" value="<?= (int)$item['id'] ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from wishlist">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -353,6 +402,15 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                                            href="song.php?new=1&title=<?= urlencode($item['name']) ?>&artist=<?= urlencode($item['artist'] ?? '') ?>&youtube_link=<?= urlencode($item['youtube_link'] ?? '') ?>&wishlist_song_id=<?= (int)$item['wishlist_song_id'] ?>&songbook_id=<?= (int)$selectedSongbookId ?>">
                                             Create this song
                                         </a>
+                                    <?php endif; ?>
+                                    <?php if (can_delete_wishlist_entry($item, $username, $isAdmin)): ?>
+                                        <form method="post" action="wishlist.php?tab=songbook&songbook_id=<?= (int)$selectedSongbookId ?>" class="d-inline" onsubmit="return confirm('Remove this song from the songbook\'s wishlist?');">
+                                            <input type="hidden" name="form_type" value="delete_songbook">
+                                            <input type="hidden" name="entry_id" value="<?= (int)$item['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from wishlist">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     <?php endif; ?>
                                 </div>
                             </div>

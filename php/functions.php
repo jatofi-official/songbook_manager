@@ -2121,6 +2121,10 @@ function add_wishlist_songbook_entry($mysqli, $songbookId, $name, $artist, $yout
     if ($existingSongId) {
         $existingSongId = (int)$existingSongId;
 
+        if (songbook_contains_song($mysqli, $songbookId, $existingSongId)) {
+            return ['status' => 'in_songbook'];
+        }
+
         $stmt = $mysqli->prepare("SELECT id FROM wishlist_songbooks WHERE songbook_id = ? AND song_id = ?");
         $stmt->bind_param("ii", $songbookId, $existingSongId);
         $stmt->execute();
@@ -2311,6 +2315,39 @@ function can_vote_on_wishlist_songbook($songbookRow, $userId, $userGroupId, $isA
     return $userGroupId !== null && (int)$userGroupId === (int)$songbookRow['group_id'];
 }
 
+// A wishlist entry (general or songbook-targeted) may be removed by a site
+// admin, or by the logged-in user who originally requested it.
+function can_delete_wishlist_entry($entryRow, $username, $isAdmin) {
+    if ($isAdmin) {
+        return true;
+    }
+    return $username !== null && !empty($entryRow['username']) && $entryRow['username'] === $username;
+}
+
+// Whether a song already sits in a songbook, in any category. The `songs`
+// column is a flat "catId-songId,catId-songId,..." string, so this checks
+// the songId half of every pair rather than relying on a specific category.
+function songbook_contains_song($mysqli, $songbookId, $songId) {
+    $stmt = $mysqli->prepare("SELECT songs FROM songbooks WHERE id = ?");
+    $stmt->bind_param("i", $songbookId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$row || !$row['songs']) {
+        return false;
+    }
+
+    $songId = (string)(int)$songId;
+    foreach (explode(',', $row['songs']) as $pair) {
+        $parts = explode('-', $pair, 2);
+        if (isset($parts[1]) && $parts[1] === $songId) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Attaches an existing song to a songbook category, mirroring the client-side
 // logic in songbook.php's "Add Song" modal so wishlist fulfillment can do the
 // same thing from the server.
@@ -2322,15 +2359,8 @@ function attach_song_to_songbook($mysqli, $songbookId, $categoryId, $songId) {
 
     $categoryId = (int)$categoryId;
     $songId = (int)$songId;
-    $alreadyPresent = false;
 
-    foreach ($songbook['songs_categories'] as $cat) {
-        if ((int)$cat['id'] === $categoryId && in_array((string)$songId, $cat['songs'], true)) {
-            $alreadyPresent = true;
-        }
-    }
-
-    if ($alreadyPresent) {
+    if (songbook_contains_song($mysqli, $songbookId, $songId)) {
         return true;
     }
 
