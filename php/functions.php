@@ -609,7 +609,7 @@ function get_recent_activity_number($mysqli, $type = "") {
 
 
 
-function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = [], $owner = null, $finished = null) {
+function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instruments, $tags = [], $owner = null, $finished = null, $sortBy = 'category', $sortDir = 'asc') {
     if ($mysqli->connect_errno) {
         return [
             'songs' => [],
@@ -618,7 +618,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         ];
     }
 
-    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date, is_nsfw FROM songs";
+    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date, modified_date, views, is_nsfw FROM songs";
     $conditions = [];
     $params = [];
     $types = "";
@@ -687,8 +687,16 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
     }
 
 
-    // Ordering and pagination - order by category, then id
-    $sql .= " ORDER BY category ASC, id ASC LIMIT ?, ?";
+    // Ordering and pagination
+    $sortColumns = [
+        'category' => 'category',
+        'modified' => 'modified_date',
+        'created' => 'create_date',
+        'views' => 'views',
+    ];
+    $sortColumn = $sortColumns[$sortBy] ?? $sortColumns['category'];
+    $dir = strtolower($sortDir) === 'asc' ? 'ASC' : 'DESC';
+    $sql .= " ORDER BY $sortColumn $dir, id $dir LIMIT ?, ?";
 
     $offset = ($page - 1) * $perPage;
     $params[] = $offset;
@@ -755,6 +763,16 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
     ];
 }
 
+// Usernames that have authored at least one song, for the "User" filter's autocomplete.
+function get_song_owner_usernames($mysqli) {
+    $result = $mysqli->query("SELECT DISTINCT owner FROM songs WHERE owner IS NOT NULL AND owner != '' ORDER BY owner ASC");
+    $owners = [];
+    while ($row = $result->fetch_assoc()) {
+        $owners[] = $row['owner'];
+    }
+    return $owners;
+}
+
 function get_new_songs($mysqli, $perPage, $page) {
     if ($mysqli->connect_errno) {
         return [
@@ -764,7 +782,7 @@ function get_new_songs($mysqli, $perPage, $page) {
         ];
     }
 
-    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date, is_nsfw FROM songs ";
+    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date, views, is_nsfw FROM songs ";
     $conditions = [];
     $params = [];
     $types = "";

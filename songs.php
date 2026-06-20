@@ -8,6 +8,7 @@ $website = "songs";
 
 $allTags = get_all_tags($mysqli);
 $categories = get_all_categories($mysqli);
+$songOwnerUsernames = get_song_owner_usernames($mysqli);
 ?>
 <?php include("php/header.php"); ?>
 <?php include('php/navigation.php');?>
@@ -74,6 +75,25 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         ?>
                     </select>
+
+                    <!-- Sort order -->
+                    <?php
+                    $sortBy = $_GET['sort'] ?? 'views';
+                    $sortDir = ($_GET['dir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+                    $toggledDir = $sortDir === 'asc' ? 'desc' : 'asc';
+                    ?>
+                    <select name="sort" class="form-select form-select-sm">
+                        <option value="category" <?= $sortBy === 'category' ? 'selected' : '' ?>>Category</option>
+                        <option value="modified" <?= $sortBy === 'modified' ? 'selected' : '' ?>>Recently modified</option>
+                        <option value="created" <?= $sortBy === 'created' ? 'selected' : '' ?>>Recently added</option>
+                        <option value="views" <?= $sortBy === 'views' ? 'selected' : '' ?>>Most views</option>
+                    </select>
+                    <input type="hidden" name="dir" value="<?= htmlspecialchars($sortDir) ?>">
+                    <a href="?<?= htmlspecialchars(http_build_query(array_merge($_GET, ['dir' => $toggledDir, 'page' => 1]))) ?>"
+                       class="btn btn-outline-secondary btn-sm d-flex align-items-center"
+                       title="<?= $sortDir === 'asc' ? 'Ascending (click for descending)' : 'Descending (click for ascending)' ?>">
+                        <i class="bi <?= $sortDir === 'asc' ? 'bi-sort-up' : 'bi-sort-down' ?>"></i>
+                    </a>
 
                     <!-- Reset button -->
                     <a href="songs.php" class="btn btn-outline-secondary btn-sm d-flex align-items-center">
@@ -152,7 +172,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         <div class="mb-2">
                             <label for="owner" class="form-label mb-1">User</label>
-                            <input type="text" name="owner" class="form-control form-control-sm" value="<?= htmlspecialchars($_GET['owner'] ?? '') ?>">
+                            <input type="text" name="owner" id="owner" class="form-control form-control-sm" list="ownerSuggestions" autocomplete="off" value="<?= htmlspecialchars($_GET['owner'] ?? '') ?>">
+                            <datalist id="ownerSuggestions">
+                                <?php foreach ($songOwnerUsernames as $ownerUsername): ?>
+                                    <option value="<?= htmlspecialchars($ownerUsername) ?>"></option>
+                                <?php endforeach; ?>
+                            </datalist>
                         </div>
                         
                         <div class="mb-2">
@@ -181,6 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Get ALL filter inputs (including tags, instruments, owner)
     const allFilterInputs = form.querySelectorAll(
         "select[name='category'], " +
+        "select[name='sort'], " +
         "select[name='instruments'], " +
         "input[name='owner'], " +
         "select[name='finished'], " +
@@ -253,7 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     $selectedInstruments = is_array($instrumentsRaw) ? $instrumentsRaw : [$instrumentsRaw];
                 }
 
-                $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags, $owner, $finished);
+                $songData = get_all_songs($mysqli, $perPage, $page, $search, $category, $selectedInstruments, $selectedTags, $owner, $finished, $sortBy, $sortDir);
             }
             $songs = $songData['songs'];
             $totalPages = $songData['totalPages'];
@@ -270,10 +296,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     echo "</div>";
 
 
-                    echo "<div class='song-artist'>" . 
-                        (isset($song['artist']) && trim($song['artist']) !== '' 
-                            ? htmlspecialchars($song['artist']) 
-                            : '&nbsp;') . 
+                    echo "<div class='song-artist'>" .
+                        (isset($song['artist']) && trim($song['artist']) !== ''
+                            ? htmlspecialchars($song['artist'])
+                            : '&nbsp;') .
+                        "<span class='song-views text-muted small float-end'><i class='bi bi-eye'></i> " . (int)($song['views'] ?? 0) . "</span>" .
                         "</div><div class='mt-2'>";
 
 

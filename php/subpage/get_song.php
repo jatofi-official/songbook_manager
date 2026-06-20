@@ -109,6 +109,11 @@ if (isset($_GET['id'])) {
                                 <?= htmlspecialchars($song['owner']) ?>
                             <?php endif; ?>
                         </div>
+                        <div class="mb-2"><strong>Added:</strong> <?= htmlspecialchars(time_elapsed_string($song['create_date'])) ?></div>
+                        <?php if (!empty($song['modified_date'])): ?>
+                            <div class="mb-2"><strong>Last modified:</strong> <?= htmlspecialchars(time_elapsed_string($song['modified_date'])) ?></div>
+                        <?php endif; ?>
+                        <div class="mb-2"><strong>Views:</strong> <?= (int)($song['views'] ?? 0) ?></div>
                         <div class="mb-2 d-flex align-items-center">
                             <?php
                             $capoValue = $song['capo'] ?? 0;
