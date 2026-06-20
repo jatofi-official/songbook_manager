@@ -2000,6 +2000,20 @@ function create_default_user_settings($mysqli, $userId) {
 // WISHLIST FUNCTIONS
 
 
+// Whether a song with this title/artist (case-insensitive) already exists in
+// the main songs table. Returns the matching row (id, title, artist) or null.
+function find_song_in_database($mysqli, $name, $artist) {
+    $name = trim($name);
+    $artist = trim($artist ?? '');
+
+    $stmt = $mysqli->prepare("SELECT id, title, artist FROM songs WHERE LOWER(title) = LOWER(?) AND LOWER(COALESCE(artist, '')) = LOWER(?)");
+    $stmt->bind_param("ss", $name, $artist);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return $row ?: null;
+}
+
 function add_wishlist_song($mysqli, $name, $artist, $youtubeLink, $username) {
     $name = trim($name);
     $artist = trim($artist ?? '');
@@ -2007,6 +2021,11 @@ function add_wishlist_song($mysqli, $name, $artist, $youtubeLink, $username) {
 
     if ($name === '') {
         return ['status' => 'error', 'message' => 'Name is required.'];
+    }
+
+    $existingSong = find_song_in_database($mysqli, $name, $artist);
+    if ($existingSong) {
+        return ['status' => 'in_database', 'song_id' => (int)$existingSong['id']];
     }
 
     $stmt = $mysqli->prepare("SELECT id FROM wishlist_songs WHERE LOWER(name) = LOWER(?) AND LOWER(COALESCE(artist, '')) = LOWER(?)");
@@ -2117,6 +2136,15 @@ function get_songbooks_for_wishlist($mysqli) {
 
 function add_wishlist_songbook_entry($mysqli, $songbookId, $name, $artist, $youtubeLink, $existingSongId, $username) {
     $songbookId = (int)$songbookId;
+
+    // Even if the caller didn't explicitly pick a database match, treat a
+    // name/artist match against the real songs table as "existing song" too.
+    if (!$existingSongId) {
+        $matchedSong = find_song_in_database($mysqli, $name, $artist);
+        if ($matchedSong) {
+            $existingSongId = (int)$matchedSong['id'];
+        }
+    }
 
     if ($existingSongId) {
         $existingSongId = (int)$existingSongId;

@@ -58,6 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = $result['message'];
         } elseif ($result['status'] === 'duplicate') {
             $errors[] = "This song is already on the wishlist - vote for it instead.";
+        } elseif ($result['status'] === 'in_database') {
+            $errors[] = "This song is already in the database (song #{$result['song_id']}) - no need to wishlist it.";
         } else {
             $successMessage = "Added to the wishlist.";
             if ($username) {
