@@ -2006,7 +2006,7 @@ function find_song_in_database($mysqli, $name, $artist) {
     $name = trim($name);
     $artist = trim($artist ?? '');
 
-    $stmt = $mysqli->prepare("SELECT id, title, artist FROM songs WHERE LOWER(title) = LOWER(?) AND LOWER(COALESCE(artist, '')) = LOWER(?)");
+    $stmt = $mysqli->prepare("SELECT id, title, artist FROM songs WHERE LOWER(title) COLLATE utf8mb4_general_ci = LOWER(?) AND LOWER(COALESCE(artist, '')) COLLATE utf8mb4_general_ci = LOWER(?)");
     $stmt->bind_param("ss", $name, $artist);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
@@ -2028,7 +2028,7 @@ function add_wishlist_song($mysqli, $name, $artist, $youtubeLink, $username) {
         return ['status' => 'in_database', 'song_id' => (int)$existingSong['id']];
     }
 
-    $stmt = $mysqli->prepare("SELECT id FROM wishlist_songs WHERE LOWER(name) = LOWER(?) AND LOWER(COALESCE(artist, '')) = LOWER(?)");
+    $stmt = $mysqli->prepare("SELECT id FROM wishlist_songs WHERE LOWER(name) COLLATE utf8mb4_general_ci = LOWER(?) AND LOWER(COALESCE(artist, '')) COLLATE utf8mb4_general_ci = LOWER(?)");
     $stmt->bind_param("ss", $name, $artist);
     $stmt->execute();
     $existing = $stmt->get_result()->fetch_assoc();
@@ -2056,14 +2056,81 @@ function add_wishlist_song($mysqli, $name, $artist, $youtubeLink, $username) {
     return ['status' => 'ok', 'id' => $newId];
 }
 
-function get_wishlist_songs($mysqli, $username = null) {
+function update_wishlist_song($mysqli, $id, $name, $artist, $youtubeLink) {
+    $name = trim($name);
+    $artist = trim($artist ?? '');
+    $youtubeLink = trim($youtubeLink ?? '');
+
+    if ($name === '') {
+        return ['status' => 'error', 'message' => 'Name is required.'];
+    }
+
+    $artistParam = $artist !== '' ? $artist : null;
+    $linkParam = $youtubeLink !== '' ? $youtubeLink : null;
+
+    $stmt = $mysqli->prepare("UPDATE wishlist_songs SET name = ?, artist = ?, youtube_link = ? WHERE id = ?");
+    $stmt->bind_param("sssi", $name, $artistParam, $linkParam, $id);
+    $stmt->execute();
+    $stmt->close();
+
+    return ['status' => 'ok'];
+}
+
+// $filters may contain: user, artist, search (each a LIKE substring match),
+// page (1-based) and perPage. Returns ['items', 'total', 'totalPages', 'page'].
+function get_wishlist_songs($mysqli, $username = null, $filters = []) {
+    $filterUser = trim($filters['user'] ?? '');
+    $filterArtist = trim($filters['artist'] ?? '');
+    $search = trim($filters['search'] ?? '');
+    $page = max(1, (int)($filters['page'] ?? 1));
+    $perPage = max(1, (int)($filters['perPage'] ?? 10));
+
+    $conditions = [];
+    $params = [];
+    $types = "";
+
+    // Forcing a collation here avoids "Illegal mix of collations" if this
+    // table's columns and the bound LIKE parameter don't already agree.
+    if ($filterUser !== '') {
+        $conditions[] = "ws.username COLLATE utf8mb4_general_ci LIKE ?";
+        $params[] = "%" . $filterUser . "%";
+        $types .= "s";
+    }
+    if ($filterArtist !== '') {
+        $conditions[] = "ws.artist COLLATE utf8mb4_general_ci LIKE ?";
+        $params[] = "%" . $filterArtist . "%";
+        $types .= "s";
+    }
+    if ($search !== '') {
+        $conditions[] = "(ws.name COLLATE utf8mb4_general_ci LIKE ? OR ws.artist COLLATE utf8mb4_general_ci LIKE ?)";
+        $params[] = "%" . $search . "%";
+        $params[] = "%" . $search . "%";
+        $types .= "ss";
+    }
+
+    $whereClause = !empty($conditions) ? " WHERE " . implode(" AND ", $conditions) : "";
+
+    $countSql = "SELECT COUNT(*) AS total FROM wishlist_songs ws" . $whereClause;
+    $countStmt = $mysqli->prepare($countSql);
+    if (!empty($params)) {
+        $countStmt->bind_param($types, ...$params);
+    }
+    $countStmt->execute();
+    $total = (int)($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
+    $countStmt->close();
+
+    $offset = ($page - 1) * $perPage;
     $sql = "SELECT ws.*,
             EXISTS(SELECT 1 FROM wishlist_song_likes l WHERE l.wishlist_song_id = ws.id AND l.username = ?) AS liked_by_me
-            FROM wishlist_songs ws
-            ORDER BY ws.likes DESC, ws.create_date DESC";
+            FROM wishlist_songs ws" . $whereClause . "
+            ORDER BY ws.likes DESC, ws.create_date DESC
+            LIMIT ? OFFSET ?";
+
+    $allParams = array_merge([$username ?? ''], $params, [$perPage, $offset]);
+    $allTypes = "s" . $types . "ii";
+
     $stmt = $mysqli->prepare($sql);
-    $usernameParam = $username ?? '';
-    $stmt->bind_param("s", $usernameParam);
+    $stmt->bind_param($allTypes, ...$allParams);
     $stmt->execute();
     $result = $stmt->get_result();
     $rows = [];
@@ -2072,7 +2139,13 @@ function get_wishlist_songs($mysqli, $username = null) {
         $rows[] = $row;
     }
     $stmt->close();
-    return $rows;
+
+    return [
+        'items' => $rows,
+        'total' => $total,
+        'totalPages' => max(1, (int)ceil($total / $perPage)),
+        'page' => $page,
+    ];
 }
 
 // Songbooks a guest/user is allowed to target with a wishlist request:
@@ -2188,7 +2261,7 @@ function add_wishlist_songbook_entry($mysqli, $songbookId, $name, $artist, $yout
     }
 
     // Reuse a matching general wishlist entry instead of creating a duplicate.
-    $stmt = $mysqli->prepare("SELECT id FROM wishlist_songs WHERE LOWER(name) = LOWER(?) AND LOWER(COALESCE(artist, '')) = LOWER(?)");
+    $stmt = $mysqli->prepare("SELECT id FROM wishlist_songs WHERE LOWER(name) COLLATE utf8mb4_general_ci = LOWER(?) AND LOWER(COALESCE(artist, '')) COLLATE utf8mb4_general_ci = LOWER(?)");
     $stmt->bind_param("ss", $name, $artist);
     $stmt->execute();
     $matchingWish = $stmt->get_result()->fetch_assoc();
@@ -2239,23 +2312,73 @@ function add_wishlist_songbook_entry($mysqli, $songbookId, $name, $artist, $yout
     return ['status' => 'ok', 'id' => $newId];
 }
 
-function get_wishlist_songbook_entries($mysqli, $songbookId, $username = null) {
+// $filters may contain: user, artist, search (each a LIKE substring match),
+// page (1-based) and perPage. Returns ['items', 'total', 'totalPages', 'page'].
+function get_wishlist_songbook_entries($mysqli, $songbookId, $username = null, $filters = []) {
+    $filterUser = trim($filters['user'] ?? '');
+    $filterArtist = trim($filters['artist'] ?? '');
+    $search = trim($filters['search'] ?? '');
+    $page = max(1, (int)($filters['page'] ?? 1));
+    $perPage = max(1, (int)($filters['perPage'] ?? 10));
+
+    $joinSql = " FROM wishlist_songbooks wsb
+            LEFT JOIN wishlist_songs ws ON ws.id = wsb.wishlist_song_id
+            LEFT JOIN songs s ON s.id = wsb.song_id";
+
+    // songs.title/artist and wishlist_songs.name/artist can have different
+    // collations; force a common one before COALESCE-ing across the two
+    // tables, or MySQL raises "Illegal mix of collations" on comparison.
+    $nameExpr = "COALESCE(s.title COLLATE utf8mb4_general_ci, ws.name COLLATE utf8mb4_general_ci)";
+    $artistExpr = "COALESCE(s.artist COLLATE utf8mb4_general_ci, ws.artist COLLATE utf8mb4_general_ci)";
+
+    $conditions = ["wsb.songbook_id = ?"];
+    $params = [$songbookId];
+    $types = "i";
+
+    if ($filterUser !== '') {
+        $conditions[] = "wsb.username COLLATE utf8mb4_general_ci LIKE ?";
+        $params[] = "%" . $filterUser . "%";
+        $types .= "s";
+    }
+    if ($filterArtist !== '') {
+        $conditions[] = "$artistExpr LIKE ?";
+        $params[] = "%" . $filterArtist . "%";
+        $types .= "s";
+    }
+    if ($search !== '') {
+        $conditions[] = "($nameExpr LIKE ? OR $artistExpr LIKE ?)";
+        $params[] = "%" . $search . "%";
+        $params[] = "%" . $search . "%";
+        $types .= "ss";
+    }
+
+    $whereClause = " WHERE " . implode(" AND ", $conditions);
+
+    $countSql = "SELECT COUNT(*) AS total" . $joinSql . $whereClause;
+    $countStmt = $mysqli->prepare($countSql);
+    $countStmt->bind_param($types, ...$params);
+    $countStmt->execute();
+    $total = (int)($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
+    $countStmt->close();
+
+    $offset = ($page - 1) * $perPage;
     $sql = "SELECT
                 wsb.id, wsb.songbook_id, wsb.username, wsb.likes, wsb.create_date,
                 wsb.wishlist_song_id, wsb.song_id,
-                COALESCE(s.title, ws.name) AS name,
-                COALESCE(s.artist, ws.artist) AS artist,
+                $nameExpr AS name,
+                $artistExpr AS artist,
                 ws.youtube_link AS youtube_link,
                 (wsb.song_id IS NOT NULL) AS is_existing_song,
-                EXISTS(SELECT 1 FROM wishlist_songbook_likes l WHERE l.wishlist_songbook_id = wsb.id AND l.username = ?) AS liked_by_me
-            FROM wishlist_songbooks wsb
-            LEFT JOIN wishlist_songs ws ON ws.id = wsb.wishlist_song_id
-            LEFT JOIN songs s ON s.id = wsb.song_id
-            WHERE wsb.songbook_id = ?
-            ORDER BY wsb.likes DESC, wsb.create_date DESC";
+                EXISTS(SELECT 1 FROM wishlist_songbook_likes l WHERE l.wishlist_songbook_id = wsb.id AND l.username = ?) AS liked_by_me"
+            . $joinSql . $whereClause . "
+            ORDER BY wsb.likes DESC, wsb.create_date DESC
+            LIMIT ? OFFSET ?";
+
+    $allParams = array_merge([$username ?? ''], $params, [$perPage, $offset]);
+    $allTypes = "s" . $types . "ii";
+
     $stmt = $mysqli->prepare($sql);
-    $usernameParam = $username ?? '';
-    $stmt->bind_param("si", $usernameParam, $songbookId);
+    $stmt->bind_param($allTypes, ...$allParams);
     $stmt->execute();
     $result = $stmt->get_result();
     $rows = [];
@@ -2265,7 +2388,13 @@ function get_wishlist_songbook_entries($mysqli, $songbookId, $username = null) {
         $rows[] = $row;
     }
     $stmt->close();
-    return $rows;
+
+    return [
+        'items' => $rows,
+        'total' => $total,
+        'totalPages' => max(1, (int)ceil($total / $perPage)),
+        'page' => $page,
+    ];
 }
 
 // $type is "song" (wishlist_songs/wishlist_song_likes) or "songbook" (wishlist_songbooks/wishlist_songbook_likes).

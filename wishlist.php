@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 session_start();
 include('php/auth.php');
 
@@ -21,6 +25,21 @@ $successMessage = "";
 
 $activeTab = ($_GET['tab'] ?? 'general') === 'songbook' ? 'songbook' : 'general';
 $selectedSongbookId = isset($_GET['songbook_id']) ? (int)$_GET['songbook_id'] : null;
+$filterUser = trim($_GET['user'] ?? '');
+$filterArtist = trim($_GET['artist'] ?? '');
+$search = trim($_GET['q'] ?? '');
+$page = max(1, (int)($_GET['page'] ?? 1));
+$sbPage = max(1, (int)($_GET['sb_page'] ?? 1));
+$wishlistFilters = ['user' => $filterUser, 'artist' => $filterArtist, 'search' => $search];
+$hasActiveFilters = $filterUser !== '' || $filterArtist !== '' || $search !== '';
+
+// Builds a wishlist.php query string from the current GET params, overriding
+// the given keys - used for pagination/"clear filters" links.
+function wishlist_url($overrides = []) {
+    $params = array_merge($_GET, $overrides);
+    $params = array_filter($params, fn($v) => $v !== null && $v !== '');
+    return 'wishlist.php?' . http_build_query($params);
+}
 
 $accessibleSongbooks = get_songbooks_for_wishlist($mysqli);
 
@@ -171,11 +190,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($selectedSongbookId) {
             $selectedSongbook = get_songbook($mysqli, $selectedSongbookId);
         }
+    } elseif ($formType === 'edit_general') {
+        $entryId = (int)($_POST['entry_id'] ?? 0);
+        $stmt = $mysqli->prepare("SELECT * FROM wishlist_songs WHERE id = ?");
+        $stmt->bind_param("i", $entryId);
+        $stmt->execute();
+        $entry = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$entry) {
+            $errors[] = "Wishlist entry not found.";
+        } elseif (!can_delete_wishlist_entry($entry, $username, $isAdmin)) {
+            $errors[] = "You may not edit this wishlist entry.";
+        } else {
+            $result = update_wishlist_song($mysqli, $entryId, $_POST['name'] ?? '', $_POST['artist'] ?? '', $_POST['youtube_link'] ?? '');
+            if ($result['status'] === 'error') {
+                $errors[] = $result['message'];
+            } else {
+                $successMessage = "Wishlist entry updated.";
+            }
+        }
+        $activeTab = 'general';
+    } elseif ($formType === 'edit_songbook') {
+        $entryId = (int)($_POST['entry_id'] ?? 0);
+        $stmt = $mysqli->prepare("SELECT * FROM wishlist_songbooks WHERE id = ?");
+        $stmt->bind_param("i", $entryId);
+        $stmt->execute();
+        $entry = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$entry) {
+            $errors[] = "Wishlist entry not found.";
+        } elseif (!can_delete_wishlist_entry($entry, $username, $isAdmin)) {
+            $errors[] = "You may not edit this wishlist entry.";
+        } elseif (!$entry['wishlist_song_id']) {
+            $errors[] = "Songs already in the database can't be edited here.";
+        } else {
+            $result = update_wishlist_song($mysqli, $entry['wishlist_song_id'], $_POST['name'] ?? '', $_POST['artist'] ?? '', $_POST['youtube_link'] ?? '');
+            if ($result['status'] === 'error') {
+                $errors[] = $result['message'];
+            } else {
+                $successMessage = "Wishlist entry updated.";
+            }
+        }
+        $activeTab = 'songbook';
+        $selectedSongbookId = (int)($entry['songbook_id'] ?? 0);
+        if ($selectedSongbookId) {
+            $selectedSongbook = get_songbook($mysqli, $selectedSongbookId);
+        }
     }
 }
 
-$generalWishlist = get_wishlist_songs($mysqli, $username);
-$songbookEntries = $selectedSongbookId ? get_wishlist_songbook_entries($mysqli, $selectedSongbookId, $username) : [];
+$generalResult = get_wishlist_songs($mysqli, $username, array_merge($wishlistFilters, ['page' => $page]));
+$generalWishlist = $generalResult['items'];
+$generalTotalPages = $generalResult['totalPages'];
+
+$songbookResult = $selectedSongbookId
+    ? get_wishlist_songbook_entries($mysqli, $selectedSongbookId, $username, array_merge($wishlistFilters, ['page' => $sbPage]))
+    : ['items' => [], 'totalPages' => 1];
+$songbookEntries = $songbookResult['items'];
+$songbookTotalPages = $songbookResult['totalPages'];
 
 $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($selectedSongbook, $userId, $userGroupId, $isAdmin) : false;
 ?>
@@ -247,6 +321,28 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                 </div>
             </div>
 
+            <form method="get" action="wishlist.php" class="row g-2 mb-3 align-items-end">
+                <input type="hidden" name="tab" value="general">
+                <div class="col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="q" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="song or artist">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Filter by artist</label>
+                    <input type="text" name="artist" class="form-control" value="<?= htmlspecialchars($filterArtist) ?>" placeholder="artist">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Filter by user</label>
+                    <input type="text" name="user" class="form-control" value="<?= htmlspecialchars($filterUser) ?>" placeholder="username">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary">Filter</button>
+                    <?php if ($hasActiveFilters): ?>
+                        <a href="wishlist.php?tab=general" class="btn btn-outline-secondary">Clear</a>
+                    <?php endif; ?>
+                </div>
+            </form>
+
             <?php if (empty($generalWishlist)): ?>
                 <p class="text-muted">No songs on the wishlist yet.</p>
             <?php else: ?>
@@ -281,6 +377,9 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                                     Create this song
                                 </a>
                                 <?php if (can_delete_wishlist_entry($item, $username, $isAdmin)): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#editGeneral<?= (int)$item['id'] ?>" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
                                     <form method="post" action="wishlist.php" class="d-inline" onsubmit="return confirm('Remove this song from the wishlist?');">
                                         <input type="hidden" name="form_type" value="delete_general">
                                         <input type="hidden" name="entry_id" value="<?= (int)$item['id'] ?>">
@@ -291,8 +390,47 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                                 <?php endif; ?>
                             </div>
                         </div>
+                        <?php if (can_delete_wishlist_entry($item, $username, $isAdmin)): ?>
+                            <div class="collapse" id="editGeneral<?= (int)$item['id'] ?>">
+                                <div class="card-body border-top">
+                                    <form method="post" action="wishlist.php">
+                                        <input type="hidden" name="form_type" value="edit_general">
+                                        <input type="hidden" name="entry_id" value="<?= (int)$item['id'] ?>">
+                                        <div class="row g-3">
+                                            <div class="col-md-5">
+                                                <label class="form-label">Name</label>
+                                                <input type="text" name="name" class="form-control" maxlength="60" required value="<?= htmlspecialchars($item['name']) ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Artist</label>
+                                                <input type="text" name="artist" class="form-control" maxlength="60" value="<?= htmlspecialchars($item['artist'] ?? '') ?>">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">YouTube link</label>
+                                                <input type="url" name="youtube_link" class="form-control" value="<?= htmlspecialchars($item['youtube_link'] ?? '') ?>">
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-sm mt-2">Save changes</button>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
+
+                <?php if ($generalTotalPages > 1): ?>
+                    <nav class="d-flex justify-content-center mt-3">
+                        <ul class="pagination">
+                            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                                <a class="page-link" href="<?= wishlist_url(['page' => $page - 1]) ?>">Previous</a>
+                            </li>
+                            <li class="page-item disabled"><span class="page-link">Page <?= $page ?> of <?= $generalTotalPages ?></span></li>
+                            <li class="page-item <?= $page >= $generalTotalPages ? 'disabled' : '' ?>">
+                                <a class="page-link" href="<?= wishlist_url(['page' => $page + 1]) ?>">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 
@@ -301,9 +439,9 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
 
             <form method="get" action="wishlist.php" class="row g-2 mb-4 align-items-end">
                 <input type="hidden" name="tab" value="songbook">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Songbook</label>
-                    <select name="songbook_id" class="form-select" onchange="this.form.submit()">
+                    <select name="songbook_id" class="form-select">
                         <option value="">Choose a songbook...</option>
                         <?php foreach ($accessibleSongbooks as $sb): ?>
                             <option value="<?= (int)$sb['id'] ?>" <?= $selectedSongbookId === (int)$sb['id'] ? 'selected' : '' ?>>
@@ -311,6 +449,24 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                             </option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="q" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="song or artist">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Artist</label>
+                    <input type="text" name="artist" class="form-control" value="<?= htmlspecialchars($filterArtist) ?>" placeholder="artist">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">User</label>
+                    <input type="text" name="user" class="form-control" value="<?= htmlspecialchars($filterUser) ?>" placeholder="username">
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary">View</button>
+                    <?php if ($hasActiveFilters): ?>
+                        <a href="wishlist.php?tab=songbook&songbook_id=<?= (int)$selectedSongbookId ?>" class="btn btn-outline-secondary">Clear</a>
+                    <?php endif; ?>
                 </div>
             </form>
 
@@ -406,6 +562,11 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                                         </a>
                                     <?php endif; ?>
                                     <?php if (can_delete_wishlist_entry($item, $username, $isAdmin)): ?>
+                                        <?php if (!$item['is_existing_song']): ?>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#editSongbook<?= (int)$item['id'] ?>" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        <?php endif; ?>
                                         <form method="post" action="wishlist.php?tab=songbook&songbook_id=<?= (int)$selectedSongbookId ?>" class="d-inline" onsubmit="return confirm('Remove this song from the songbook\'s wishlist?');">
                                             <input type="hidden" name="form_type" value="delete_songbook">
                                             <input type="hidden" name="entry_id" value="<?= (int)$item['id'] ?>">
@@ -416,8 +577,47 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                                     <?php endif; ?>
                                 </div>
                             </div>
+                            <?php if (can_delete_wishlist_entry($item, $username, $isAdmin) && !$item['is_existing_song']): ?>
+                                <div class="collapse" id="editSongbook<?= (int)$item['id'] ?>">
+                                    <div class="card-body border-top">
+                                        <form method="post" action="wishlist.php?tab=songbook&songbook_id=<?= (int)$selectedSongbookId ?>">
+                                            <input type="hidden" name="form_type" value="edit_songbook">
+                                            <input type="hidden" name="entry_id" value="<?= (int)$item['id'] ?>">
+                                            <div class="row g-3">
+                                                <div class="col-md-5">
+                                                    <label class="form-label">Name</label>
+                                                    <input type="text" name="name" class="form-control" maxlength="60" required value="<?= htmlspecialchars($item['name']) ?>">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Artist</label>
+                                                    <input type="text" name="artist" class="form-control" maxlength="60" value="<?= htmlspecialchars($item['artist'] ?? '') ?>">
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label">YouTube link</label>
+                                                    <input type="url" name="youtube_link" class="form-control" value="<?= htmlspecialchars($item['youtube_link'] ?? '') ?>">
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary btn-sm mt-2">Save changes</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
+
+                    <?php if ($songbookTotalPages > 1): ?>
+                        <nav class="d-flex justify-content-center mt-3">
+                            <ul class="pagination">
+                                <li class="page-item <?= $sbPage <= 1 ? 'disabled' : '' ?>">
+                                    <a class="page-link" href="<?= wishlist_url(['sb_page' => $sbPage - 1]) ?>">Previous</a>
+                                </li>
+                                <li class="page-item disabled"><span class="page-link">Page <?= $sbPage ?> of <?= $songbookTotalPages ?></span></li>
+                                <li class="page-item <?= $sbPage >= $songbookTotalPages ? 'disabled' : '' ?>">
+                                    <a class="page-link" href="<?= wishlist_url(['sb_page' => $sbPage + 1]) ?>">Next</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    <?php endif; ?>
                 <?php endif; ?>
             <?php endif; ?>
         </div>
