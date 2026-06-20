@@ -38,6 +38,10 @@ $song = [
     "nsfw" => 0,
 ];
 
+// Wishlist fulfillment params (only used when ?new=1)
+$wishlistSongId = isset($_GET['wishlist_song_id']) ? (int)$_GET['wishlist_song_id'] : null;
+$wishlistSongbookId = isset($_GET['songbook_id']) ? (int)$_GET['songbook_id'] : null;
+
 // Determine mode:
 $addingNew = isset($_GET['new']) && $_GET['new'] == 1 && $userId !== null;
 $id        = isset($_GET['id']) ? (int)$_GET['id'] : null;
@@ -143,6 +147,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     "Added '{$title}' by {$artist}",
                     $is_public
                 );
+
+                // Fulfilling a wishlist request: attach to the songbook it was
+                // wished for (if any), then remove the wishlist entry/entries.
+                $postedWishlistSongId = isset($_POST['wishlist_song_id']) && $_POST['wishlist_song_id'] !== '' ? (int)$_POST['wishlist_song_id'] : null;
+                if ($postedWishlistSongId) {
+                    $postedSongbookId = isset($_POST['songbook_id']) && $_POST['songbook_id'] !== '' ? (int)$_POST['songbook_id'] : null;
+                    if ($postedSongbookId) {
+                        attach_song_to_songbook($mysqli, $postedSongbookId, UNCATEGORIZED_CATEGORY_ID, $newId);
+                    }
+                    delete_wishlist_song($mysqli, $postedWishlistSongId);
+                }
+
                 header("Location: song.php?id=$newId");
                 exit;
             } else {
@@ -160,6 +176,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         $editing = true;
+        if (isset($_GET['title'])) $song['title'] = trim($_GET['title']);
+        if (isset($_GET['artist'])) $song['artist'] = trim($_GET['artist']);
+        if (isset($_GET['youtube_link'])) $song['youtube_link'] = trim($_GET['youtube_link']);
     } elseif ($id) {#tag
         $stmt = $mysqli->prepare(
             "SELECT * FROM songs WHERE id = ? AND (is_public = 1 OR owner = ? OR ? = 1)"
@@ -228,6 +247,12 @@ if (!empty($song['title'])) {
         <form method="post" action="song.php<?= $song['id'] ? '?id=' . $song['id'] . '&edit=1' : '?new=1' ?>">
             <?php if ($song['id']): ?>
                 <input type="hidden" name="id" value="<?= (int)$song['id'] ?>">
+            <?php endif; ?>
+            <?php if (!$song['id'] && $wishlistSongId): ?>
+                <input type="hidden" name="wishlist_song_id" value="<?= (int)$wishlistSongId ?>">
+                <?php if ($wishlistSongbookId): ?>
+                    <input type="hidden" name="songbook_id" value="<?= (int)$wishlistSongbookId ?>">
+                <?php endif; ?>
             <?php endif; ?>
 
             <div class="mb-3">

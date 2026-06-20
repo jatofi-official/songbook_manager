@@ -65,6 +65,8 @@ if ($website == "songs") {
     echo '<link href="' . cssWithVersion($stylesFs . 'user_styles.css', $stylesUrl . 'user_styles.css') . '" rel="stylesheet">';
 } elseif ($website == "songbooks") {
     echo '<link href="' . cssWithVersion($stylesFs . 'songbooks_view.css', $stylesUrl . 'songbooks_view.css') . '" rel="stylesheet">';
+} elseif ($website == "wishlist") {
+    echo '<link href="' . cssWithVersion($stylesFs . 'wishlist_styles.css', $stylesUrl . 'wishlist_styles.css') . '" rel="stylesheet">';
 }
 
 ?>

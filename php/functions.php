@@ -1804,6 +1804,12 @@ function get_songbook($mysqli, $id) {
         $categories[$catId] = $catName;
     }
 
+    // Every songbook has an implicit "Uncategorized" bucket (id 0) for songs
+    // added without picking a category (e.g. fulfilled wishlist requests).
+    if (!array_key_exists("0", $categories)) {
+        $categories["0"] = "Uncategorized";
+    }
+
     // Parse songs and group by category ID
     $songs_raw = $songbook["songs"] ? explode(",", $songbook["songs"]) : [];
     $songs_by_category = [];
@@ -1989,6 +1995,399 @@ function create_default_user_settings($mysqli, $userId) {
 }
 
 
+
+
+// WISHLIST FUNCTIONS
+
+
+function add_wishlist_song($mysqli, $name, $artist, $youtubeLink, $username) {
+    $name = trim($name);
+    $artist = trim($artist ?? '');
+    $youtubeLink = trim($youtubeLink ?? '');
+
+    if ($name === '') {
+        return ['status' => 'error', 'message' => 'Name is required.'];
+    }
+
+    $stmt = $mysqli->prepare("SELECT id FROM wishlist_songs WHERE LOWER(name) = LOWER(?) AND LOWER(COALESCE(artist, '')) = LOWER(?)");
+    $stmt->bind_param("ss", $name, $artist);
+    $stmt->execute();
+    $existing = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($existing) {
+        return ['status' => 'duplicate', 'id' => (int)$existing['id']];
+    }
+
+    $stmt = $mysqli->prepare("INSERT INTO wishlist_songs (name, artist, youtube_link, username) VALUES (?, ?, ?, ?)");
+    $artistParam = $artist !== '' ? $artist : null;
+    $linkParam = $youtubeLink !== '' ? $youtubeLink : null;
+    $stmt->bind_param("ssss", $name, $artistParam, $linkParam, $username);
+    $stmt->execute();
+    $newId = $stmt->insert_id;
+    $stmt->close();
+
+    if ($username) {
+        $likeStmt = $mysqli->prepare("INSERT INTO wishlist_song_likes (wishlist_song_id, username) VALUES (?, ?)");
+        $likeStmt->bind_param("is", $newId, $username);
+        $likeStmt->execute();
+        $likeStmt->close();
+    }
+
+    return ['status' => 'ok', 'id' => $newId];
+}
+
+function get_wishlist_songs($mysqli, $username = null) {
+    $sql = "SELECT ws.*,
+            EXISTS(SELECT 1 FROM wishlist_song_likes l WHERE l.wishlist_song_id = ws.id AND l.username = ?) AS liked_by_me
+            FROM wishlist_songs ws
+            ORDER BY ws.likes DESC, ws.create_date DESC";
+    $stmt = $mysqli->prepare($sql);
+    $usernameParam = $username ?? '';
+    $stmt->bind_param("s", $usernameParam);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $rows = [];
+    while ($row = $result->fetch_assoc()) {
+        $row['liked_by_me'] = (bool)$row['liked_by_me'];
+        $rows[] = $row;
+    }
+    $stmt->close();
+    return $rows;
+}
+
+// Songbooks a guest/user is allowed to target with a wishlist request:
+// fully-public ones, or group-restricted ones the user belongs to/administers.
+// Private (is_public = 0) songbooks are never eligible. Admins see every songbook.
+// WISHLIST_DEFAULT_SONGBOOK_NAME is always included regardless of visibility,
+// since it's meant to be the default target for everyone, logged in or not.
+function get_songbooks_for_wishlist($mysqli) {
+    $conditions = ["s.is_public IN (1, 2)"];
+    $params = [];
+    $types = "";
+    $isAdmin = !empty($_SESSION["admin_view"]);
+
+    if (!$isAdmin) {
+        if (!isset($_SESSION["id"])) {
+            $conditions[] = "s.is_public = 2";
+        } else {
+            $userId = $_SESSION["id"];
+            $userGroupId = get_user_group($mysqli, $userId);
+            $conditions[] = "(s.is_public = 2 OR (s.is_public = 1 AND (s.group_id = ? OR FIND_IN_SET(?, s.admins))))";
+            $params[] = $userGroupId;
+            $params[] = $userId;
+            $types .= "ii";
+        }
+    } else {
+        $conditions = []; // admins may target any songbook, including private ones
+    }
+
+    $whereClause = !empty($conditions) ? " WHERE " . implode(" AND ", $conditions) : "";
+    $sql = "SELECT s.id, s.name, s.group_id, s.admins, s.is_public FROM songbooks s" . $whereClause . " ORDER BY s.name ASC";
+    $stmt = $mysqli->prepare($sql);
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $rows = [];
+    $hasDefault = false;
+    while ($row = $result->fetch_assoc()) {
+        if ($row['name'] === WISHLIST_DEFAULT_SONGBOOK_NAME) {
+            $hasDefault = true;
+        }
+        $rows[] = $row;
+    }
+    $stmt->close();
+
+    if (!$isAdmin && !$hasDefault) {
+        $stmt = $mysqli->prepare("SELECT id, name, group_id, admins, is_public FROM songbooks WHERE name = ?");
+        $defaultName = WISHLIST_DEFAULT_SONGBOOK_NAME;
+        $stmt->bind_param("s", $defaultName);
+        $stmt->execute();
+        $defaultRow = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($defaultRow) {
+            array_unshift($rows, $defaultRow);
+        }
+    }
+
+    return $rows;
+}
+
+function add_wishlist_songbook_entry($mysqli, $songbookId, $name, $artist, $youtubeLink, $existingSongId, $username) {
+    $songbookId = (int)$songbookId;
+
+    if ($existingSongId) {
+        $existingSongId = (int)$existingSongId;
+
+        $stmt = $mysqli->prepare("SELECT id FROM wishlist_songbooks WHERE songbook_id = ? AND song_id = ?");
+        $stmt->bind_param("ii", $songbookId, $existingSongId);
+        $stmt->execute();
+        $existing = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($existing) {
+            return ['status' => 'duplicate', 'id' => (int)$existing['id']];
+        }
+
+        $stmt = $mysqli->prepare("INSERT INTO wishlist_songbooks (songbook_id, song_id, username) VALUES (?, ?, ?)");
+        $stmt->bind_param("iis", $songbookId, $existingSongId, $username);
+        $stmt->execute();
+        $newId = $stmt->insert_id;
+        $stmt->close();
+
+        if ($username) {
+            $likeStmt = $mysqli->prepare("INSERT INTO wishlist_songbook_likes (wishlist_songbook_id, username) VALUES (?, ?)");
+            $likeStmt->bind_param("is", $newId, $username);
+            $likeStmt->execute();
+            $likeStmt->close();
+        }
+
+        return ['status' => 'ok', 'id' => $newId];
+    }
+
+    $name = trim($name);
+    $artist = trim($artist ?? '');
+    $youtubeLink = trim($youtubeLink ?? '');
+
+    if ($name === '') {
+        return ['status' => 'error', 'message' => 'Name is required.'];
+    }
+
+    // Reuse a matching general wishlist entry instead of creating a duplicate.
+    $stmt = $mysqli->prepare("SELECT id FROM wishlist_songs WHERE LOWER(name) = LOWER(?) AND LOWER(COALESCE(artist, '')) = LOWER(?)");
+    $stmt->bind_param("ss", $name, $artist);
+    $stmt->execute();
+    $matchingWish = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($matchingWish) {
+        $wishlistSongId = (int)$matchingWish['id'];
+
+        $stmt = $mysqli->prepare("SELECT id FROM wishlist_songbooks WHERE songbook_id = ? AND wishlist_song_id = ?");
+        $stmt->bind_param("ii", $songbookId, $wishlistSongId);
+        $stmt->execute();
+        $existingLink = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($existingLink) {
+            return ['status' => 'duplicate', 'id' => (int)$existingLink['id']];
+        }
+    } else {
+        $artistParam = $artist !== '' ? $artist : null;
+        $linkParam = $youtubeLink !== '' ? $youtubeLink : null;
+        $stmt = $mysqli->prepare("INSERT INTO wishlist_songs (name, artist, youtube_link, username) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $name, $artistParam, $linkParam, $username);
+        $stmt->execute();
+        $wishlistSongId = $stmt->insert_id;
+        $stmt->close();
+
+        if ($username) {
+            $likeStmt = $mysqli->prepare("INSERT INTO wishlist_song_likes (wishlist_song_id, username) VALUES (?, ?)");
+            $likeStmt->bind_param("is", $wishlistSongId, $username);
+            $likeStmt->execute();
+            $likeStmt->close();
+        }
+    }
+
+    $stmt = $mysqli->prepare("INSERT INTO wishlist_songbooks (songbook_id, wishlist_song_id, username) VALUES (?, ?, ?)");
+    $stmt->bind_param("iis", $songbookId, $wishlistSongId, $username);
+    $stmt->execute();
+    $newId = $stmt->insert_id;
+    $stmt->close();
+
+    if ($username) {
+        $likeStmt = $mysqli->prepare("INSERT INTO wishlist_songbook_likes (wishlist_songbook_id, username) VALUES (?, ?)");
+        $likeStmt->bind_param("is", $newId, $username);
+        $likeStmt->execute();
+        $likeStmt->close();
+    }
+
+    return ['status' => 'ok', 'id' => $newId];
+}
+
+function get_wishlist_songbook_entries($mysqli, $songbookId, $username = null) {
+    $sql = "SELECT
+                wsb.id, wsb.songbook_id, wsb.username, wsb.likes, wsb.create_date,
+                wsb.wishlist_song_id, wsb.song_id,
+                COALESCE(s.title, ws.name) AS name,
+                COALESCE(s.artist, ws.artist) AS artist,
+                ws.youtube_link AS youtube_link,
+                (wsb.song_id IS NOT NULL) AS is_existing_song,
+                EXISTS(SELECT 1 FROM wishlist_songbook_likes l WHERE l.wishlist_songbook_id = wsb.id AND l.username = ?) AS liked_by_me
+            FROM wishlist_songbooks wsb
+            LEFT JOIN wishlist_songs ws ON ws.id = wsb.wishlist_song_id
+            LEFT JOIN songs s ON s.id = wsb.song_id
+            WHERE wsb.songbook_id = ?
+            ORDER BY wsb.likes DESC, wsb.create_date DESC";
+    $stmt = $mysqli->prepare($sql);
+    $usernameParam = $username ?? '';
+    $stmt->bind_param("si", $usernameParam, $songbookId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $rows = [];
+    while ($row = $result->fetch_assoc()) {
+        $row['liked_by_me'] = (bool)$row['liked_by_me'];
+        $row['is_existing_song'] = (bool)$row['is_existing_song'];
+        $rows[] = $row;
+    }
+    $stmt->close();
+    return $rows;
+}
+
+// $type is "song" (wishlist_songs/wishlist_song_likes) or "songbook" (wishlist_songbooks/wishlist_songbook_likes).
+function toggle_wishlist_like($mysqli, $type, $id, $username) {
+    $id = (int)$id;
+    if ($type === 'song') {
+        $entityTable = 'wishlist_songs';
+        $likeTable = 'wishlist_song_likes';
+        $likeColumn = 'wishlist_song_id';
+    } elseif ($type === 'songbook') {
+        $entityTable = 'wishlist_songbooks';
+        $likeTable = 'wishlist_songbook_likes';
+        $likeColumn = 'wishlist_songbook_id';
+    } else {
+        return ['status' => 'error', 'message' => 'Invalid type.'];
+    }
+
+    $stmt = $mysqli->prepare("SELECT id FROM $likeTable WHERE $likeColumn = ? AND username = ?");
+    $stmt->bind_param("is", $id, $username);
+    $stmt->execute();
+    $existing = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($existing) {
+        $stmt = $mysqli->prepare("DELETE FROM $likeTable WHERE id = ?");
+        $stmt->bind_param("i", $existing['id']);
+        $stmt->execute();
+        $stmt->close();
+
+        $stmt = $mysqli->prepare("UPDATE $entityTable SET likes = likes - 1 WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $stmt->close();
+
+        $liked = false;
+    } else {
+        $stmt = $mysqli->prepare("INSERT INTO $likeTable ($likeColumn, username) VALUES (?, ?)");
+        $stmt->bind_param("is", $id, $username);
+        $stmt->execute();
+        $stmt->close();
+
+        $stmt = $mysqli->prepare("UPDATE $entityTable SET likes = likes + 1 WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $stmt->close();
+
+        $liked = true;
+    }
+
+    $stmt = $mysqli->prepare("SELECT likes FROM $entityTable WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $likes = (int)($stmt->get_result()->fetch_assoc()['likes'] ?? 0);
+    $stmt->close();
+
+    return ['status' => 'ok', 'liked' => $liked, 'likes' => $likes];
+}
+
+// Voting on a songbook-targeted wishlist entry is restricted to that songbook's
+// group (or its admins/site admins), even if the songbook itself is fully public,
+// per product decision. If the songbook has no group, any logged-in user may vote.
+function can_vote_on_wishlist_songbook($songbookRow, $userId, $userGroupId, $isAdmin) {
+    if (!$userId) {
+        return false;
+    }
+    if ($isAdmin) {
+        return true;
+    }
+    if (in_array((string)$userId, $songbookRow['admins'] ?? [], true)) {
+        return true;
+    }
+    if (empty($songbookRow['group_id'])) {
+        return true;
+    }
+    return $userGroupId !== null && (int)$userGroupId === (int)$songbookRow['group_id'];
+}
+
+// Attaches an existing song to a songbook category, mirroring the client-side
+// logic in songbook.php's "Add Song" modal so wishlist fulfillment can do the
+// same thing from the server.
+function attach_song_to_songbook($mysqli, $songbookId, $categoryId, $songId) {
+    $songbook = get_songbook($mysqli, $songbookId);
+    if (!$songbook) {
+        return false;
+    }
+
+    $categoryId = (int)$categoryId;
+    $songId = (int)$songId;
+    $alreadyPresent = false;
+
+    foreach ($songbook['songs_categories'] as $cat) {
+        if ((int)$cat['id'] === $categoryId && in_array((string)$songId, $cat['songs'], true)) {
+            $alreadyPresent = true;
+        }
+    }
+
+    if ($alreadyPresent) {
+        return true;
+    }
+
+    $pairs = [];
+    $found = false;
+    foreach ($songbook['songs_categories'] as $cat) {
+        $songsInCat = $cat['songs'];
+        if ((int)$cat['id'] === $categoryId) {
+            $songsInCat[] = (string)$songId;
+            $found = true;
+        }
+        foreach ($songsInCat as $sid) {
+            $pairs[] = $cat['id'] . '-' . $sid;
+        }
+    }
+
+    if (!$found) {
+        // Category not part of this songbook (shouldn't happen via the UI).
+        return false;
+    }
+
+    $categoriesStr = implode(',', array_map(
+        fn($id, $name) => $id . '-' . $name,
+        array_keys($songbook['categories']),
+        array_values($songbook['categories'])
+    ));
+    $adminsStr = implode(',', $songbook['admins']);
+    $songsStr = implode(',', $pairs);
+
+    return update_songbook(
+        $mysqli,
+        $songbookId,
+        $songbook['name'],
+        $songbook['description'],
+        $adminsStr,
+        $categoriesStr,
+        $songsStr,
+        $songbook['group_id'],
+        $songbook['is_public']
+    );
+}
+
+function delete_wishlist_song($mysqli, $id) {
+    $stmt = $mysqli->prepare("DELETE FROM wishlist_songs WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $result = $stmt->execute();
+    $stmt->close();
+    return $result;
+}
+
+function delete_wishlist_songbook_entry($mysqli, $id) {
+    $stmt = $mysqli->prepare("DELETE FROM wishlist_songbooks WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $result = $stmt->execute();
+    $stmt->close();
+    return $result;
+}
 
 
 ?>

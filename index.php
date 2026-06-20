@@ -137,7 +137,18 @@ include_once('php/navigation.php');
 
     </div>
 
-<?php if (isset($_SESSION["id"]) && get_user_group($mysqli, $_SESSION["id"])==1){ ?>
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="<?= $projectUrl ?>/wishlist.php" class="text-decoration-none">
+            <div class="card text-white bg-primary shadow-lg hover-scale rounded-4 p-4 d-flex justify-content-center align-items-center text-center" style="transition: transform 0.2s;">
+                <div class="fs-3 fw-bold mb-2"><i class="bi bi-heart"></i> Song Wishlist</div>
+                <div class="fs-6">Click here to request a song or vote for songs others want added</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- <?php if (isset($_SESSION["id"]) && get_user_group($mysqli, $_SESSION["id"])==1){ ?>
 <div class="row mt-4">
     <div class="col-12">
         <a href="<?= $projectUrl ?>/anketa/index.php" class="text-decoration-none">
@@ -147,7 +158,7 @@ include_once('php/navigation.php');
             </div>
         </a>
     </div>
-</div>
+</div> -->
 
 <?php }?>
 
