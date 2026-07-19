@@ -375,10 +375,10 @@ function get_number_of_songs(mysqli $mysqli, ?string $username = null): array {
     if ($username === null) {
         // Count all songs, fixed and not fixed
         $sql = "
-            SELECT 
+            SELECT
                 COUNT(*) AS total,
-                SUM(is_fixed = 1) AS fixed,
-                SUM(is_fixed = 0) AS not_fixed
+                SUM(is_fixed = 1 AND is_unchecked = 0) AS fixed,
+                SUM(NOT (is_fixed = 1 AND is_unchecked = 0)) AS not_fixed
             FROM songs
         ";
         $result = $mysqli->query($sql);
@@ -395,10 +395,10 @@ function get_number_of_songs(mysqli $mysqli, ?string $username = null): array {
     } else {
         // Count songs for this username in 'owner' column
         $stmt = $mysqli->prepare("
-            SELECT 
+            SELECT
                 COUNT(*) AS total,
-                SUM(is_fixed = 1) AS fixed,
-                SUM(is_fixed = 0) AS not_fixed
+                SUM(is_fixed = 1 AND is_unchecked = 0) AS fixed,
+                SUM(NOT (is_fixed = 1 AND is_unchecked = 0)) AS not_fixed
             FROM songs
             WHERE owner = ?
         ");
@@ -618,7 +618,7 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         ];
     }
 
-    $sql = "SELECT id, category, title, artist, owner, is_public, tags, instruments, create_date, modified_date, views, is_nsfw FROM songs";
+    $sql = "SELECT id, category, title, artist, owner, is_public, is_unchecked, tags, instruments, create_date, modified_date, views, is_nsfw FROM songs";
     $conditions = [];
     $params = [];
     $types = "";
@@ -637,11 +637,11 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         $types .= "s";
     }
 
-    // Finished filter
-    if ($finished === "0" || $finished === "1") {
-        $conditions[] = "is_fixed = ?";
-        $params[] = (int)$finished;
-        $types .= "i";
+    // Finished filter (bez kontroly / is_unchecked=1 sa ráta ako unfinished)
+    if ($finished === "1") {
+        $conditions[] = "(is_fixed = 1 AND is_unchecked = 0)";
+    } elseif ($finished === "0") {
+        $conditions[] = "NOT (is_fixed = 1 AND is_unchecked = 0)";
     }
 
     // Search query - not case sensitive, match title OR artist
@@ -1976,7 +1976,7 @@ function load_user_settings_into_session($mysqli) {
 
     $userId = $_SESSION["id"];
 
-    $stmt = $mysqli->prepare("SELECT advanced_view, admin_view FROM user_settings WHERE user_id = ?");
+    $stmt = $mysqli->prepare("SELECT advanced_view, admin_view, import_enabled FROM user_settings WHERE user_id = ?");
     if (!$stmt) {
         error_log("DB error: " . $mysqli->error);
         return false;
@@ -1984,11 +1984,12 @@ function load_user_settings_into_session($mysqli) {
 
     $stmt->bind_param("i", $userId);
     $stmt->execute();
-    $stmt->bind_result($advancedView, $adminView);
+    $stmt->bind_result($advancedView, $adminView, $importEnabled);
 
     if ($stmt->fetch()) {
         $_SESSION["advanced_view"] = (bool)$advancedView;
         $_SESSION["admin_view"] = (bool)$adminView;
+        $_SESSION["import_enabled"] = (bool)$importEnabled;
         $stmt->close();
         return true;
     }
@@ -2010,6 +2011,42 @@ function create_default_user_settings($mysqli, $userId) {
     $result = $stmt->execute();
     $stmt->close();
     return $result;
+}
+
+/**
+ * 3-stavová viditeľnosť piesne -> [label, css_class].
+ * Poradie: bez_kontroly (is_unchecked) > public > private.
+ */
+function song_visibility_badge(array $song): array {
+    if (!empty($song['is_unchecked'])) return ['Bez kontroly', 'bg-warning text-dark'];
+    if (!empty($song['is_public']))    return ['Public', 'bg-success'];
+    return ['Private', 'bg-dark'];
+}
+
+/** Prečítaj globálne app nastavenie z app_settings. */
+function get_app_setting($mysqli, string $key, string $default = ''): string {
+    if ($stmt = $mysqli->prepare("SELECT svalue FROM app_settings WHERE skey = ?")) {
+        $stmt->bind_param("s", $key);
+        $stmt->execute();
+        $stmt->bind_result($val);
+        $found = $stmt->fetch();
+        $stmt->close();
+        if ($found && $val !== null) return (string)$val;
+    }
+    return $default;
+}
+
+/** Ulož globálne app nastavenie (upsert). */
+function set_app_setting($mysqli, string $key, string $value): bool {
+    $stmt = $mysqli->prepare(
+        "INSERT INTO app_settings (skey, svalue) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)"
+    );
+    if (!$stmt) return false;
+    $stmt->bind_param("ss", $key, $value);
+    $ok = $stmt->execute();
+    $stmt->close();
+    return $ok;
 }
 
 

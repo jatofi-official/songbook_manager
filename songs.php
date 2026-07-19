@@ -2,10 +2,11 @@
 session_start();
 include('php/auth.php'); 
 include('php/db.php');
-include('php/data.php');
+include_once('php/data.php');
 include_once('php/functions.php');
 $website = "songs";
 
+load_user_settings_into_session($mysqli);
 $allTags = get_all_tags($mysqli);
 $categories = get_all_categories($mysqli);
 $songOwnerUsernames = get_song_owner_usernames($mysqli);
@@ -54,6 +55,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 <a href="song.php?new=1" class="btn btn-sm btn-success w-100 <?= isset($_SESSION["user"]) ? '' : 'disabled style="opacity: 0.2; cursor: not-allowed;"' ?>">
                     <i class="bi bi-plus-circle me-1"></i> New Song
                 </a>
+                <?php if(!empty($_SESSION["import_enabled"])){ ?>
+                <a href="import.php" class="btn btn-sm btn-outline-primary w-100 mt-1">
+                    <i class="bi bi-cloud-download me-1"></i> Import Song
+                </a>
+                <?php } ?>
             </div>
 
             <form id="songFilterForm" method="get">
@@ -307,14 +313,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     // Middle row
 
 
-                    if (!$song['is_public']) {
-                        // PRIVATE
+                    // 3-stavová viditeľnosť: Bez kontroly / Private (Public bez badge v liste)
+                    if (!empty($song['is_unchecked'])) {
+                        echo "<span class='badge bg-warning text-dark'>Bez kontroly</span> ";
+                    } elseif (!$song['is_public']) {
                         echo "<span class='badge bg-dark'>Private</span> ";
-                    } 
-                    // else if (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true) {
-                    //     // PUBLIC
-                    //     echo "<span class='badge bg-secondary'>Public</span> ";
-                    // }
+                    }
                     
 
 

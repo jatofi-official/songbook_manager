@@ -156,9 +156,8 @@ if (isset($_GET['id'])) {
                             } ?>
                         </div>
                         <div class="mb-2"><strong>Visibility:</strong>
-                            <span class="badge <?= $song['is_public'] ? 'bg-success' : 'bg-secondary' ?>">
-                                <?= $song['is_public'] ? 'Public' : 'Private' ?>
-                            </span>
+                            <?php [$visLabel, $visClass] = song_visibility_badge($song); ?>
+                            <span class="badge <?= $visClass ?>"><?= $visLabel ?></span>
                         </div>
                     </div>
                 </div>
