@@ -3,8 +3,24 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const category = options.category;
   const blackAndWhite = options.blackAndWhite || false;
   const allowClicking = options.allowClicking || false;  // default false
+  const transposeToCapoZero = options.transposeToCapoZero || false;
 
   const container = document.getElementById('a4-preview-container');
+
+  if (transposeToCapoZero) {
+    // Instruments without a capo (e.g. accordion) need the real sounding chords
+    // written out, so transpose up by the capo fret. We deliberately keep
+    // song.capo/song.capo_alt at their original (truthy) values so the capo
+    // line in the header still renders — dropping it to 0 would remove that
+    // line and shrink the header height, throwing off pagination/ordering
+    // compared to a non-transposed render of the same songbook. Instead,
+    // createSongHeader() uses transposedFromCapo to swap the displayed text.
+    songs = songs.map(song => {
+      const capo = Number(song.capo) || 0;
+      if (!capo) return song;
+      return { ...song, content: transposeContent(song.content, capo), transposedFromCapo: capo };
+    });
+  }
 
   let processedSongs = songs.map(song => splitSongIfNeeded(song));
   const tempContainer = createHiddenMeasureContainer();
@@ -314,18 +330,33 @@ function createSongHeader(song, options = {}) {
     capoLabel.style.fontWeight = '500';
     capoLine.appendChild(capoLabel);
 
+    const transposedFromCapo = Number(song.transposedFromCapo) || 0;
+
     if (song.capo && song.capo !== 0) {
       const capoCircle = document.createElement('span');
       capoCircle.className = 'capo-circle';
-      capoCircle.textContent = song.capo;
+
+      if (transposedFromCapo) {
+        // capo was removed by transposing the chords up; show the delta
+        // (e.g. original capo 2 -> "Transp. -2") instead of shrinking the header.
+        capoCircle.textContent = `Transp. ${0 - transposedFromCapo}`;
+        capoCircle.style.width = 'auto';
+        capoCircle.style.minWidth = '24px';
+        capoCircle.style.height = '24px';
+        capoCircle.style.borderRadius = '12px';
+        capoCircle.style.padding = '0 8px';
+        capoCircle.style.whiteSpace = 'nowrap';
+      } else {
+        capoCircle.textContent = song.capo;
+      }
 
     if (blackAndWhite) {
       // gray background fill for capo
       capoCircle.style.backgroundColor = '#bbb';
       capoCircle.style.color = '#222';
       capoCircle.style.border = '1px solid #888';
-      capoCircle.style.borderRadius = '50%';
-      capoCircle.style.padding = '2px 6px';
+      capoCircle.style.borderRadius = transposedFromCapo ? '12px' : '50%';
+      capoCircle.style.padding = transposedFromCapo ? '0 8px' : '2px 6px';
       capoCircle.style.minWidth = '24px';
       capoCircle.style.height = '24px';              // added for circle shape
       capoCircle.style.textAlign = 'center';
@@ -340,7 +371,9 @@ function createSongHeader(song, options = {}) {
     if (song.capo_alt && song.capo_alt !== 0) {
       const capoAltCircle = document.createElement('span');
       capoAltCircle.className = 'capo-circle-alt';
-      capoAltCircle.textContent = song.capo_alt;
+      capoAltCircle.textContent = transposedFromCapo
+        ? (Number(song.capo_alt) - transposedFromCapo)
+        : song.capo_alt;
 
     if (blackAndWhite) {
       // outline only for capo_alt

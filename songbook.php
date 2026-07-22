@@ -201,6 +201,12 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 Allow manual Ordering
               </label>
             </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="transpose-capo-zero-checkbox">
+              <label class="form-check-label" for="transpose-capo-zero-checkbox">
+                Transpose to Capo 0
+              </label>
+            </div>
 
 
             
@@ -1079,6 +1085,7 @@ async function beginRender(orderedIds, category, clearPages = true) {
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
   const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
   const allowClicking = document.getElementById('allow-manual-ordering-checkbox')?.checked || false;
+  const transposeToCapoZero = document.getElementById('transpose-capo-zero-checkbox')?.checked || false;
 
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
@@ -1091,7 +1098,8 @@ async function beginRender(orderedIds, category, clearPages = true) {
     debug: debugMode,
     category: categoryTitle,
     blackAndWhite: blackAndWhite,
-    allowClicking: allowClicking
+    allowClicking: allowClicking,
+    transposeToCapoZero: transposeToCapoZero
   });
 
   console.log(`✅ Rendered ${pageCount} pages.`);
