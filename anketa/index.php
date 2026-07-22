@@ -228,7 +228,7 @@ document.querySelectorAll('.rating-circle').forEach(circle => {
 
 
 <!-- Include song_render.js -->
-<script src="../js/song_render.js"></script>
+<script src="../js/song_render.js?v=<?= filemtime(dirname(__DIR__) . '/js/song_render.js') ?>"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {

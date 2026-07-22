@@ -513,7 +513,7 @@ function goBackToSongs() {
         <p>Loading song...</p>
     </div>
 
-    <script src="js/song_render.js"></script>
+    <script src="js/song_render.js?v=<?= filemtime('js/song_render.js') ?>"></script>
 
     <script>
     document.addEventListener("DOMContentLoaded", function () {

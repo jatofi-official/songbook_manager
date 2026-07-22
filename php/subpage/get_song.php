@@ -164,6 +164,14 @@ if (isset($_GET['id'])) {
                 </div>
             </div>
         </div>
+        <div class="d-flex align-items-center gap-2 mt-3 transpose-controls">
+            <strong>Transposition:</strong>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-transpose="down">-1</button>
+            <span data-transpose-label>0</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-transpose="up">+1</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-transpose="reset">Reset</button>
+        </div>
+
         <div id="song-content-js" class="song-content mt-3" style="white-space: pre-wrap; font-family: monospace;"><?=
             htmlspecialchars($song['content'])
         ?></div>
