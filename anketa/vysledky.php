@@ -28,6 +28,9 @@ if (isset($_SESSION['admin']) && $_SESSION["admin"] == true) {
 
     <!-- Outer wrapper for nicer spacing -->
     <div class="container mt-4 mb-4">
+        <div class="d-flex justify-content-end mb-3">
+            <a href="vysledky_suhrn.php" class="btn btn-outline-secondary btn-sm">Súhrn podľa kategórií</a>
+        </div>
         <div class="row">
             <!-- Left side: user list -->
             <div class="col-md-4">
