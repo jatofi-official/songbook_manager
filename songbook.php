@@ -208,8 +208,29 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </label>
             </div>
 
+            <hr>
+            <p class="text-muted small mb-2"><strong>Extra Display</strong></p>
 
-            
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-difficulty-checkbox">
+              <label class="form-check-label" for="extra-difficulty-checkbox">
+                Difficulty
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-tags-checkbox">
+              <label class="form-check-label" for="extra-tags-checkbox">
+                Tags
+              </label>
+            </div>
+            <div class="form-check mb-3" title="In development">
+              <input class="form-check-input" type="checkbox" value="" id="extra-instruments-checkbox" disabled>
+              <label class="form-check-label text-muted" for="extra-instruments-checkbox">
+                Instruments
+              </label>
+            </div>
+
+
             <div id="save-layout-wrapper" style="margin-top: 1rem;">
               <button id="save-layout-btn" class="btn btn-success" disabled>💾 Save Layout</button>
             </div>
@@ -1086,6 +1107,9 @@ async function beginRender(orderedIds, category, clearPages = true) {
   const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
   const allowClicking = document.getElementById('allow-manual-ordering-checkbox')?.checked || false;
   const transposeToCapoZero = document.getElementById('transpose-capo-zero-checkbox')?.checked || false;
+  const showDifficulty = document.getElementById('extra-difficulty-checkbox')?.checked || false;
+  const showTags = document.getElementById('extra-tags-checkbox')?.checked || false;
+  const showInstruments = document.getElementById('extra-instruments-checkbox')?.checked || false;
 
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
@@ -1099,7 +1123,10 @@ async function beginRender(orderedIds, category, clearPages = true) {
     category: categoryTitle,
     blackAndWhite: blackAndWhite,
     allowClicking: allowClicking,
-    transposeToCapoZero: transposeToCapoZero
+    transposeToCapoZero: transposeToCapoZero,
+    showDifficulty: showDifficulty,
+    showTags: showTags,
+    showInstruments: showInstruments
   });
 
   console.log(`✅ Rendered ${pageCount} pages.`);

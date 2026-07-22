@@ -4,6 +4,9 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const blackAndWhite = options.blackAndWhite || false;
   const allowClicking = options.allowClicking || false;  // default false
   const transposeToCapoZero = options.transposeToCapoZero || false;
+  const showDifficulty = options.showDifficulty || false;
+  const showTags = options.showTags || false;
+  const showInstruments = false; // instruments extra-display is still in development
 
   const container = document.getElementById('a4-preview-container');
 
@@ -134,7 +137,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       }
 
       if (!partSong.continuation) {
-        const header = createSongHeader(partSong, { blackAndWhite });
+        const header = createSongHeader(partSong, { blackAndWhite, showDifficulty, showTags, showInstruments });
         songDiv.appendChild(header);
       }
 
@@ -277,9 +280,73 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
 
 
+// Small single-line badges used by the "Extra Display" dev-tools options.
+// Kept deliberately compact (small font, tight padding) so they never grow
+// taller than the title line's own text, and never change header height.
+function buildDifficultyBadge(difficulty, blackAndWhite) {
+  if (!difficulty) return null;
+  const diff = String(difficulty).toLowerCase();
+  const colors = { easy: '#198754', normal: '#6c757d', hard: '#dc3545' };
+
+  const span = document.createElement('span');
+  span.textContent = diff.charAt(0).toUpperCase() + diff.slice(1);
+  span.style.display = 'inline-flex';
+  span.style.alignItems = 'center';
+  span.style.fontSize = '0.65rem';
+  span.style.fontWeight = '600';
+  span.style.padding = '3px 8px';
+  span.style.borderRadius = '4px'; // badge-like (rectangular), not a pill
+  span.style.lineHeight = '1';
+  span.style.whiteSpace = 'nowrap';
+  span.style.flexShrink = '0';
+
+  if (blackAndWhite) {
+    // distinct gray shades so Easy/Normal/Hard stay distinguishable without color
+    const bwShades = {
+      easy: { bg: '#e0e0e0', color: '#222' },
+      normal: { bg: '#999999', color: '#fff' },
+      hard: { bg: '#333333', color: '#fff' }
+    };
+    const shade = bwShades[diff] || bwShades.normal;
+    span.style.backgroundColor = shade.bg;
+    span.style.color = shade.color;
+    span.style.border = '1px solid #222';
+  } else {
+    span.style.backgroundColor = colors[diff] || colors.normal;
+    span.style.color = '#fff';
+  }
+  return span;
+}
+
+function buildTagBadge(text, blackAndWhite) {
+  const span = document.createElement('span');
+  span.textContent = text;
+  span.style.display = 'inline-flex';
+  span.style.alignItems = 'center';
+  span.style.fontSize = '0.65rem';
+  span.style.padding = '3px 8px';
+  span.style.borderRadius = '10px'; // pill-shaped, matching the tag look in get_song.php
+  span.style.lineHeight = '1';
+  span.style.whiteSpace = 'nowrap';
+  span.style.flexShrink = '0';
+
+  if (blackAndWhite) {
+    span.style.backgroundColor = 'transparent';
+    span.style.color = '#222';
+    span.style.border = '1px solid #999';
+  } else {
+    span.style.backgroundColor = '#e9ecef';
+    span.style.color = '#495057';
+  }
+  return span;
+}
+
 function createSongHeader(song, options = {}) {
   const header = document.createElement('div');
   const blackAndWhite = options.blackAndWhite || false;
+  const showDifficulty = options.showDifficulty || false;
+  const showTags = options.showTags || false;
+  // showInstruments intentionally unused for now - feature still in development
 
 
   header.classList.add('song-header');
@@ -293,10 +360,25 @@ function createSongHeader(song, options = {}) {
   const titleLine = document.createElement('div');
   titleLine.style.fontWeight = 'bold';
   titleLine.style.fontSize = '1.1rem';
+  titleLine.style.display = 'flex';
+  titleLine.style.alignItems = 'center';
+  titleLine.style.justifyContent = 'space-between';
+  titleLine.style.gap = '8px';
+
+  // Title + artist get their own shrinkable, single-line wrapper so extra
+  // badges on the right never force the row to wrap onto a second line.
+  const titleTextWrapper = document.createElement('span');
+  titleTextWrapper.style.display = 'flex';
+  titleTextWrapper.style.alignItems = 'baseline';
+  titleTextWrapper.style.minWidth = '0';
+  titleTextWrapper.style.flex = '1 1 auto';
+  titleTextWrapper.style.overflow = 'hidden';
+  titleTextWrapper.style.whiteSpace = 'nowrap';
+  titleTextWrapper.style.textOverflow = 'ellipsis';
 
   const titleText = document.createElement('span');
   titleText.textContent = song.title;
-  titleLine.appendChild(titleText);
+  titleTextWrapper.appendChild(titleText);
 
   if (song.artist && song.artist.trim() !== '') {
     const separator = document.createElement('span');
@@ -309,8 +391,40 @@ function createSongHeader(song, options = {}) {
     artistText.style.fontSize = '0.95rem';
     artistText.style.color = '#555';
 
-    titleLine.appendChild(separator);
-    titleLine.appendChild(artistText);
+    titleTextWrapper.appendChild(separator);
+    titleTextWrapper.appendChild(artistText);
+  }
+
+  titleLine.appendChild(titleTextWrapper);
+
+  // Extra Display: difficulty + tags, rendered to the right of the title.
+  // Rendered into a fixed-shrink, overflow-hidden, single-line wrapper so it
+  // can never make the header (and therefore the whole song block) taller.
+  if (showDifficulty || showTags) {
+    const extraWrapper = document.createElement('span');
+    extraWrapper.style.display = 'flex';
+    extraWrapper.style.alignItems = 'center';
+    extraWrapper.style.gap = '4px';
+    extraWrapper.style.flex = '0 1 auto';
+    extraWrapper.style.maxWidth = '55%';
+    extraWrapper.style.overflow = 'hidden';
+    extraWrapper.style.whiteSpace = 'nowrap';
+
+    
+    if (showTags && song.tags) {
+      song.tags.split(',')
+      .map(t => t.trim())
+      .filter(Boolean)
+      .forEach(tag => extraWrapper.appendChild(buildTagBadge(tag, blackAndWhite)));
+    }
+    
+    if (showDifficulty) {
+      const diffBadge = buildDifficultyBadge(song.difficulty, blackAndWhite);
+      if (diffBadge) extraWrapper.appendChild(diffBadge);
+    }
+    if (extraWrapper.children.length) {
+      titleLine.appendChild(extraWrapper);
+    }
   }
 
   header.appendChild(titleLine);

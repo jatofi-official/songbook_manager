@@ -13,7 +13,7 @@ if (empty($ids) || !is_array($ids)) {
 $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $types = str_repeat('i', count($ids));
 
-$stmt = $mysqli->prepare("SELECT id, title, artist, content, capo, capo_alt, owner FROM songs WHERE id IN ($placeholders)");
+$stmt = $mysqli->prepare("SELECT id, title, artist, content, capo, capo_alt, owner, tags, instruments FROM songs WHERE id IN ($placeholders)");
 $stmt->bind_param($types, ...$ids);
 $stmt->execute();
 
@@ -27,6 +27,11 @@ while ($row = $result->fetch_assoc()) {
         'username' => $row['owner'],
         'name' => $user ? $user['name'] : $row['owner']
     ];
+
+    $filtered = filter_difficulty_tags($row['tags']);
+    $row['difficulty'] = $filtered['difficulty'];
+    $row['tags'] = $filtered['tags'];
+
     $songs[] = $row;
 }
 
