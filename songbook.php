@@ -696,6 +696,16 @@ function renderCategories() {
                 category.hasLoadOrderButton = false; // safe fallback
             });
 
+            // Uncategorized (id 0) is an implicit bucket and can't be removed.
+            if (category.id !== 0) {
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'btn btn-sm btn-outline-danger ms-2';
+                removeBtn.textContent = '🗑️ Remove';
+                removeBtn.addEventListener('click', () => {
+                    removeCategory(category);
+                });
+                btnContainer.appendChild(removeBtn);
+            }
 
             headerDiv.appendChild(btnContainer);
         }
@@ -754,6 +764,30 @@ function renderCategories() {
 
         container.appendChild(buttonsDiv);
     }
+}
+
+// Removes a category from the songbook. Its songs are moved to Uncategorized
+// rather than deleted, and any saved layouts for this category id are left
+// untouched in the database - not deleted - in case the category is wanted
+// again later. Purely in-memory until "💾 Save" is clicked, same as Add Category.
+function removeCategory(category) {
+    if (!confirm(`Remove category "${category.name}"? Its songs will be moved to Uncategorized. This isn't persisted until you click "💾 Save".`)) {
+        return;
+    }
+
+    let uncategorized = songbook.songs_categories.find(cat => cat.id === 0);
+    if (!uncategorized) {
+        uncategorized = { id: 0, name: 'Uncategorized', songs: [] };
+        songbook.songs_categories.push(uncategorized);
+    }
+    uncategorized.songs.push(...category.songs);
+
+    songbook.songs_categories = songbook.songs_categories.filter(cat => cat.id !== category.id);
+
+    const option = document.querySelector(`#categorySelect option[value="${category.id}"]`);
+    if (option) option.remove();
+
+    renderCategories();
 }
 
 
