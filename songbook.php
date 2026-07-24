@@ -492,11 +492,55 @@ async function refreshLockStatus() {
   }
 }
 
+// Locking only ever freezes categories that already have a saved layout row
+// (see functions.php get_song_lock_ownership) - a category you've only ever
+// previewed with "Render Layout" but never explicitly saved would otherwise
+// never get captured by any lock, ever, even retroactively. So before locking,
+// make sure every category with songs actually has a saved layout, generating
+// one with the same auto-arrange logic "Render Layout" uses if it doesn't.
+async function ensureCategoryHasSavedLayout(category) {
+  if (category.hasLoadOrderButton || category.songs.length === 0) return;
+
+  const ids = category.songs.map(s => s.id);
+  const songs = await fetchSongsByIds(ids);
+  const ordered = orderSongs(songs, measurer);
+  const generatedIds = getOrderedIds(ordered);
+
+  const res = await fetch('php/save_layout.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      songbook_id: songbook.id,
+      category_id: category.id,
+      ordered_ids: generatedIds
+    })
+  });
+  const data = await res.json();
+  if (data.success) {
+    category.hasLoadOrderButton = true;
+  } else {
+    console.warn(`Failed to auto-save layout for category "${category.name}" before locking:`, data.message);
+  }
+}
+
 document.getElementById('lock-songbook-btn')?.addEventListener('click', async () => {
   const name = prompt('Name this locked version (e.g. "Summer 25"):');
   if (!name || !name.trim()) return;
 
   try {
+    // Commit song membership first (same reasoning as Save Layout - a layout
+    // can only reference songs the songbook actually persists as members).
+    const songbookSaveResult = await saveSongbookToServer();
+    if (!songbookSaveResult.success) {
+      alert('Failed to save songbook: ' + (songbookSaveResult.error || songbookSaveResult.message));
+      return;
+    }
+
+    for (const category of songbook.songs_categories) {
+      if (category.id === 0) continue; // Uncategorized is never locked
+      await ensureCategoryHasSavedLayout(category);
+    }
+
     const res = await fetch('php/lock_songbook.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -807,10 +851,19 @@ function removeCategory(category) {
 
     songbook.songs_categories = songbook.songs_categories.filter(cat => cat.id !== category.id);
 
+    // Drop the removed category's stale id from the selection too, otherwise
+    // it lingers in selectedCategoryIds and throws off "Select All" (its count
+    // no longer matches the now-shorter category list) and any future render.
+    const selIndex = selectedCategoryIds.indexOf(category.id);
+    if (selIndex !== -1) {
+        selectedCategoryIds.splice(selIndex, 1);
+    }
+
     const option = document.querySelector(`#categorySelect option[value="${category.id}"]`);
     if (option) option.remove();
 
     renderCategories();
+    updateRenderCategoriesUI();
 }
 
 
