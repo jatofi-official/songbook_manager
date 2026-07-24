@@ -103,10 +103,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "instruments" => implode(",", $instruments),
             "content"     => $content,
             "is_public"   => $is_public,
+            "is_unchecked" => $is_unchecked,
             "owner"       => $userId,
             "youtube_link" => $youtube_link,
-            "is_nsfw"         => $nsfw,
-
+            "is_nsfw"     => $nsfw,
         ];
 
         if ($id) {
@@ -124,10 +124,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $res->close();
                 $ok = edit_song($mysqli, $id, $data);
                 if ($ok === true) {
-                    // 3. stav "bez kontroly" (add_song/edit_song ho neriešia)
-                    if ($u = $mysqli->prepare("UPDATE songs SET is_unchecked = ? WHERE id = ?")) {
-                        $u->bind_param("ii", $is_unchecked, $id); $u->execute(); $u->close();
-                    }
                     add_activity(
                         $mysqli,
                         $userId,
@@ -148,10 +144,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Add new song, now returns inserted ID
             $newId = add_song($mysqli, $data);
             if (is_int($newId)) {
-                // 3. stav "bez kontroly"
-                if ($u = $mysqli->prepare("UPDATE songs SET is_unchecked = ? WHERE id = ?")) {
-                    $u->bind_param("ii", $is_unchecked, $newId); $u->execute(); $u->close();
-                }
                 add_activity(
                     $mysqli,
                     $userId,

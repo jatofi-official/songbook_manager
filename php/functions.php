@@ -125,14 +125,10 @@ function add_song($mysqli, $data) {
     $tagsArray = array_filter(array_map('trim', explode(',', $data["tags"] ?? '')));
     $normalizedTags = (implode(",", $tagsArray) != "") ? implode(',', $tagsArray) : null;
 
-    // Category
     $category = (int)$data["category"];
-
-    // Determine is_fixed
     $is_fixed = check_is_fixed($tagsArray, $category);
 
     // Sanitize and normalize fields
-    $category = (int)$data["category"];
     $title = $data["title"] ?? '';
     $artist = (isset($data["artist"]) && trim($data["artist"]) !== '') ? $data["artist"] : null;
 
@@ -141,6 +137,8 @@ function add_song($mysqli, $data) {
 
     $owner = $_SESSION["user"];
     $is_public = isset($data["is_public"]) ? (int)$data["is_public"] : 0;
+    $is_unchecked = !empty($data["is_unchecked"]) ? 1 : 0;
+    $source_url = !empty($data["source_url"]) ? trim($data["source_url"]) : null;
     $instruments = $data["instruments"] ?? '';
     $content = $data["content"] ?? null;
     $is_nsfw = isset($data["is_nsfw"]) ? (int)$data["is_nsfw"] : 0;
@@ -148,16 +146,16 @@ function add_song($mysqli, $data) {
 
 
     $stmt = $mysqli->prepare("INSERT INTO songs (
-        category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
+        category, title, artist, capo, capo_alt, owner, is_public, is_unchecked, source_url, create_date, modified_date,
         tags, instruments, content, is_fixed, is_nsfw, youtube_link, views
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0)");
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0)");
 
     if (!$stmt) {
         return "Prepare failed: " . $mysqli->error;
     }
 
     // Dynamic bind_param workaround for NULL support
-    $types = 'issiisssssiis';
+    $types = 'issiisiissssiis';
     $params = [
         &$category,
         &$title,
@@ -166,6 +164,8 @@ function add_song($mysqli, $data) {
         &$capo_alt,
         &$owner,
         &$is_public,
+        &$is_unchecked,
+        &$source_url,
         &$normalizedTags,
         &$instruments,
         &$content,
@@ -304,6 +304,7 @@ function edit_song($mysqli, $id, $data) {
         "title" => $data["title"],
         "capo" => $data["capo"],
         "is_public" => $data["is_public"],
+        "is_unchecked" => !empty($data["is_unchecked"]) ? 1 : 0,
         "tags" => $normalizedTags,
         "instruments" => $data["instruments"],
         "content" => $data["content"],
