@@ -169,6 +169,21 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
         </div>
 
+        <!-- Version Lock Sidebar -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-light">
+            🔒 Version Locks
+          </div>
+          <div class="card-body">
+            <button id="lock-songbook-btn" class="btn btn-outline-danger btn-sm w-100 mb-3 d-none">
+              🔒 Lock Current State
+            </button>
+            <div id="lock-history-list">
+              <p class="text-muted small mb-0">Checking lock status…</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Dev Tools Sidebar -->
         <div class="card shadow-sm">
           <div class="card-header bg-light">
@@ -176,13 +191,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           </div>
           <div class="card-body">
             <p class="text-muted small">Tools for development and layout debugging.</p>
-            
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" value="" id="render-debug-checkbox">
-              <label class="form-check-label" for="render-debug-checkbox">
-                Debug Lines
-              </label>
-            </div>
+
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="render-numbering-checkbox" checked>
               <label class="form-check-label" for="render-numbering-checkbox">
@@ -199,6 +208,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <input class="form-check-input" type="checkbox" value="" id="allow-manual-ordering-checkbox">
               <label class="form-check-label" for="allow-manual-ordering-checkbox">
                 Allow manual Ordering
+              </label>
+              <div class="form-text">Also shows debug lines and marks locked songs as non-movable.</div>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="render-lock-name-checkbox">
+              <label class="form-check-label" for="render-lock-name-checkbox">
+                Show Lock Name
               </label>
             </div>
             <div class="form-check mb-3">
@@ -269,7 +285,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             <h6>💾 Saving + Loading</h6>
             <ul>
               <li>Click <strong>💾 Save Layout</strong> to persist the current order.</li>
-              <li>If saved, <strong>📥 Load Order</strong> will appear for the category. Clicking on it will load an existing layout</li>
+              <li><strong>🖨️ Render Layout</strong> loads the saved order if one exists (any newly-added songs are appended after it), otherwise it auto-generates one.</li>
             </ul>
 
             <h6>⚙️ Auto Layout</h6>
@@ -406,7 +422,108 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
   return isAdminView || (currentUserId && songbook.admins.includes(currentUserId));
 }
 
+async function refreshLockStatus() {
+  const lockBtn = document.getElementById('lock-songbook-btn');
+  const historyList = document.getElementById('lock-history-list');
+  if (!lockBtn || !historyList) return;
 
+  const admin = isCurrentUserAdmin();
+  lockBtn.classList.toggle('d-none', !admin);
+
+  try {
+    const res = await fetch(`php/get_songbook_lock_status.php?songbook_id=${songbook.id}`);
+    const data = await res.json();
+
+    if (!data.success) {
+      historyList.innerHTML = '<p class="text-danger small mb-0">Unable to load lock status.</p>';
+      return;
+    }
+
+    if (!data.history.length) {
+      historyList.innerHTML = '<p class="text-muted small mb-0">Not locked yet. Anyone with access can reorder any song.</p>';
+      return;
+    }
+
+    // Newest first
+    const rows = [...data.history].reverse().map(lock => {
+      const lockedAt = new Date(lock.locked_at.replace(' ', 'T')).toLocaleString();
+      const isActive = lock.unlocked_at === null;
+
+      let meta = `locked by ${lock.locked_by_name || 'unknown'} · ${lockedAt}`;
+      if (!isActive) {
+        const unlockedAt = new Date(lock.unlocked_at.replace(' ', 'T')).toLocaleString();
+        meta += `<br>unlocked ${unlockedAt}`;
+      }
+
+      const unlockBtnHtml = (isActive && admin)
+        ? `<button class="btn btn-outline-secondary btn-sm mt-1 unlock-lock-btn" data-lock-id="${lock.id}">Unlock</button>`
+        : '';
+
+      return `
+        <div class="border rounded p-2 mb-2 ${isActive ? '' : 'bg-light text-muted'}">
+          <div><strong>${lock.name}</strong></div>
+          <div class="small">${meta}</div>
+          ${unlockBtnHtml}
+        </div>
+      `;
+    });
+
+    historyList.innerHTML = rows.join('');
+
+    historyList.querySelectorAll('.unlock-lock-btn').forEach(btn => {
+      btn.addEventListener('click', () => unlockSongbookLock(btn.dataset.lockId));
+    });
+  } catch (err) {
+    console.error('Failed to load lock status', err);
+    historyList.innerHTML = '<p class="text-danger small mb-0">Unable to load lock status.</p>';
+  }
+}
+
+document.getElementById('lock-songbook-btn')?.addEventListener('click', async () => {
+  const name = prompt('Name this locked version (e.g. "Summer 25"):');
+  if (!name || !name.trim()) return;
+
+  try {
+    const res = await fetch('php/lock_songbook.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ songbook_id: songbook.id, name: name.trim() })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`Locked as "${name.trim()}". Songs already in each category's layout can no longer be reordered or removed.`);
+      refreshLockStatus();
+    } else {
+      alert('Failed to lock songbook: ' + data.message);
+    }
+  } catch (err) {
+    console.error('Error locking songbook', err);
+    alert('Error locking songbook.');
+  }
+});
+
+async function unlockSongbookLock(lockId) {
+  if (!confirm('Unlock this version? Songs it froze will become editable again (unless another active lock still covers them).')) return;
+
+  try {
+    const res = await fetch('php/unlock_songbook.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ songbook_id: songbook.id, lock_id: lockId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      refreshLockStatus();
+    } else {
+      alert('Failed to unlock: ' + data.message);
+    }
+  } catch (err) {
+    console.error('Error unlocking songbook', err);
+    alert('Error unlocking songbook.');
+  }
+}
+
+refreshLockStatus();
 
 </script>
 
@@ -554,36 +671,25 @@ function renderCategories() {
             const btnContainer = document.createElement('div');
             btnContainer.className = 'd-flex align-items-center';
 
-            // Generate button (always shown)
-            const generateBtn = document.createElement('button');
-            generateBtn.className = 'btn btn-sm btn-outline-success';
-            generateBtn.textContent = '⚙️ Generate Layout';
-            generateBtn.addEventListener('click', () => {
-                handleGenerateForCategory(category);
+            // Single render button: loads the saved layout if one exists
+            // (appending any newly-added songs after it), otherwise generates one.
+            const renderBtn = document.createElement('button');
+            renderBtn.className = 'btn btn-sm btn-outline-success';
+            renderBtn.textContent = '🖨️ Render Layout';
+            renderBtn.addEventListener('click', () => {
+                handleRenderForCategory(category);
             });
 
-            btnContainer.appendChild(generateBtn);
+            btnContainer.appendChild(renderBtn);
 
-            // Create load button but don't append yet
-            const loadBtn = document.createElement('button');
-            loadBtn.className = 'btn btn-sm btn-outline-primary me-2';
-            loadBtn.textContent = '📥 Load order';
-            loadBtn.addEventListener('click', () => {
-                handleLoadForCategory(category);
-            });
-
-            // Check if layout exists for this category before showing loadBtn
+            // Check if a saved layout exists for this category, so the render
+            // button knows whether to load or generate when clicked.
             fetch(`php/check_layout_exists.php?songbook_id=${songbook.id}&category_id=${category.id}`, {
                 credentials: 'same-origin'
             })
             .then(response => response.json())
             .then(data => {
-                if (data.exists) {
-                    category.hasLoadOrderButton = true;  // <--- Set flag here
-                    btnContainer.insertBefore(loadBtn, generateBtn);
-                } else {
-                    category.hasLoadOrderButton = false; // optional but explicit
-                }
+                category.hasLoadOrderButton = !!data.exists;
             })
             .catch(err => {
                 console.error('Failed to check layout existence:', err);
@@ -911,8 +1017,9 @@ if (saveBtn) {
       if (data.success) {
         alert("Layout saved successfully!");
 
-        // Add Load order button for currentCategory if not already present
-        addLoadOrderButton(currentCategory);
+        // From now on, the category's render button should load this
+        // saved layout instead of generating a fresh one.
+        currentCategory.hasLoadOrderButton = true;
 
       } else {
         alert("Failed to save layout: " + data.message);
@@ -924,58 +1031,6 @@ if (saveBtn) {
   });
 
 }
-
-
-// Add load order button
-function addLoadOrderButton(category) {
-  // Find the headerDiv for this category
-  // Assuming each category block has a data attribute or you can find by category name or id
-  const categoryBlocks = document.querySelectorAll('.category-block');
-  let headerDiv = null;
-
-  for (const block of categoryBlocks) {
-    // Example: each category block could have data-category-id attribute
-    if (block.dataset.categoryId == category.id) {
-      headerDiv = block.querySelector('div.d-flex.justify-content-between.align-items-center');
-      break;
-    }
-  }
-
-  if (!headerDiv) {
-    console.warn('Category header not found for category', category);
-    return;
-  }
-
-  // Check if load button already exists inside headerDiv (by text content or class)
-  if (headerDiv.querySelector('button.btn-outline-primary')) {
-    // Load button already exists, nothing to do
-    return;
-  }
-
-  // Create the load button
-  const loadBtn = document.createElement('button');
-  loadBtn.className = 'btn btn-sm btn-outline-primary me-2';
-  loadBtn.textContent = '📥 Load order';
-  loadBtn.addEventListener('click', () => {
-    handleLoadForCategory(category);
-  });
-
-  // Find the container with the generate button (you appended those buttons inside a flex container)
-  const btnContainer = headerDiv.querySelector('div.d-flex.align-items-center');
-  if (btnContainer) {
-    // Insert loadBtn before the generate button (which is last)
-    const generateBtn = btnContainer.querySelector('button.btn-outline-success');
-    if (generateBtn) {
-      btnContainer.insertBefore(loadBtn, generateBtn);
-    } else {
-      btnContainer.appendChild(loadBtn);
-    }
-  } else {
-    // Fallback: just append to headerDiv
-    headerDiv.appendChild(loadBtn);
-  }
-}
-
 
 
 // Generate button click
@@ -1073,7 +1128,14 @@ async function handleLoadForCategory(category, clearPages = true) {
     const data = await response.json();
 
     if (data.success) {
-      orderedIds = data.ordered_ids;
+      // Songs added to the category since this layout was saved aren't in
+      // it at all - render them after the saved order, in the order they
+      // currently appear on the category (i.e. the order they were added).
+      const currentSongIds = category.songs.map(s => s.id);
+      const loadedIdSet = new Set(data.ordered_ids);
+      const missingIds = currentSongIds.filter(id => !loadedIdSet.has(id));
+
+      orderedIds = [...data.ordered_ids, ...missingIds];
       currentCategory = category;
 
       // Pass clearPages argument correctly
@@ -1093,6 +1155,16 @@ async function handleLoadForCategory(category, clearPages = true) {
   }
 }
 
+// Single entry point for the per-category "Render Layout" button: loads the
+// saved layout if one exists, otherwise auto-generates one.
+async function handleRenderForCategory(category, clearPages = true) {
+  if (category.hasLoadOrderButton) {
+    return await handleLoadForCategory(category, clearPages);
+  } else {
+    return await handleGenerateForCategory(category, clearPages);
+  }
+}
+
 
 
 
@@ -1102,10 +1174,11 @@ async function beginRender(orderedIds, category, clearPages = true) {
     container.innerHTML = ''; // Clear previous content if requested
   }
 
-  const debugMode = document.getElementById('render-debug-checkbox').checked;
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
   const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
   const allowClicking = document.getElementById('allow-manual-ordering-checkbox')?.checked || false;
+  const debugMode = allowClicking; // debug lines are just a side effect of manual ordering now
+  const showLockName = document.getElementById('render-lock-name-checkbox')?.checked || false;
   const transposeToCapoZero = document.getElementById('transpose-capo-zero-checkbox')?.checked || false;
   const showDifficulty = document.getElementById('extra-difficulty-checkbox')?.checked || false;
   const showTags = document.getElementById('extra-tags-checkbox')?.checked || false;
@@ -1117,6 +1190,19 @@ async function beginRender(orderedIds, category, clearPages = true) {
 
   const songs = await fetchSongsByIds(orderedIds);
 
+  // Locked-song info is needed both to mark locked songs as non-movable
+  // (manual ordering) and to label pages with their lock name.
+  let lockNames = {};
+  if (allowClicking || showLockName) {
+    try {
+      const res = await fetch(`php/get_song_lock_info.php?songbook_id=${songbook.id}&category_id=${category.id}`);
+      const data = await res.json();
+      if (data.success) lockNames = data.lock_names || {};
+    } catch (err) {
+      console.error('Failed to load lock info', err);
+    }
+  }
+
   // Wait for rendering and get the total page count
   const pageCount = await renderA4Preview(songs, orderedIds, {
     debug: debugMode,
@@ -1126,7 +1212,9 @@ async function beginRender(orderedIds, category, clearPages = true) {
     transposeToCapoZero: transposeToCapoZero,
     showDifficulty: showDifficulty,
     showTags: showTags,
-    showInstruments: showInstruments
+    showInstruments: showInstruments,
+    showLockName: showLockName,
+    lockNames: lockNames
   });
 
   console.log(`✅ Rendered ${pageCount} pages.`);
@@ -1167,13 +1255,8 @@ async function renderMultiple(categoryIds) {
     }
 
     // Pass clearPages=false to avoid clearing on each iteration
-    if (category.hasLoadOrderButton) {
-      const pages = await handleLoadForCategory(category, false);
-      console.log(`Category "${category.name}" rendered with ${pages} pages.`);
-    } else {
-      const pages = await handleGenerateForCategory(category, false);
-      console.log(`Category "${category.name}" generated with ${pages} pages.`);
-    }
+    const pages = await handleRenderForCategory(category, false);
+    console.log(`Category "${category.name}" rendered with ${pages} pages.`);
   }
 }
 

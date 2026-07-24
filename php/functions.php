@@ -1799,6 +1799,161 @@ function get_all_songbooks($mysqli, $limit = 20, $offset = 0, $search = null) {
 }
 
 
+// The ordered layout for a category as it stood at-or-before a given timestamp, or [] if none was ever saved by then.
+// This is a fallback only (see get_song_lock_ownership below) - `timestamp` columns are
+// whole-second precision, so two rows created in the same second are ambiguous here.
+function get_layout_snapshot_at($mysqli, $songbookId, $categoryId, $atTimestamp) {
+    $stmt = $mysqli->prepare("
+        SELECT ordered_ids FROM songbook_category_layouts
+        WHERE songbook_id = ? AND category_id = ? AND created_at <= ?
+        ORDER BY created_at DESC
+        LIMIT 1
+    ");
+    $stmt->bind_param("iis", $songbookId, $categoryId, $atTimestamp);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+
+    if (!$row) {
+        return [];
+    }
+
+    return array_map("intval", explode(",", $row["ordered_ids"]));
+}
+
+// The exact layout row (by primary key) captured for a category the moment a
+// specific lock was created - see lock_songbook.php. Returns null if no such
+// snapshot was recorded (either the category had no layout yet at lock time,
+// or this lock predates the snapshot mechanism - see get_song_lock_ownership).
+function get_layout_snapshot_for_lock($mysqli, $lockId, $categoryId) {
+    $stmt = $mysqli->prepare("
+        SELECT l.ordered_ids
+        FROM songbook_lock_snapshots s
+        JOIN songbook_category_layouts l ON l.id = s.layout_id
+        WHERE s.lock_id = ? AND s.category_id = ?
+    ");
+    $stmt->bind_param("ii", $lockId, $categoryId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+
+    if (!$row) {
+        return null;
+    }
+
+    return array_map("intval", explode(",", $row["ordered_ids"]));
+}
+
+// Computes, for every song that has ever appeared in a category's layout, which
+// lock first introduced it (its "owner") - like git blame.
+//
+// A layout save always stores the FULL song list, not just newly added ones, so
+// a later lock's snapshot will still contain every song an earlier lock already
+// owns. To correctly attribute only the delta to each lock, this walks ALL locks
+// (including already-unlocked ones) in chronological order and only claims a song
+// for the first lock whose snapshot contains it - a still-unlocked earlier lock is
+// needed here purely to get that delta attribution right, even though it no longer
+// protects anything itself (see the "active" flag on each entry).
+//
+// Each lock's snapshot is looked up by exact layout-row reference (recorded at
+// lock time), not by comparing timestamps - falling back to the timestamp-based
+// lookup only for locks created before that reference existed.
+//
+// Category 0 (Uncategorized) is never locked, so this is always empty for it.
+function get_song_lock_ownership($mysqli, $songbookId, $categoryId) {
+    if ((int)$categoryId === 0) {
+        return [];
+    }
+
+    $stmt = $mysqli->prepare("
+        SELECT id, name, locked_at, unlocked_at FROM songbook_locks
+        WHERE songbook_id = ?
+        ORDER BY locked_at ASC, id ASC
+    ");
+    $stmt->bind_param("i", $songbookId);
+    $stmt->execute();
+    $locks = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    $owners = [];
+    foreach ($locks as $lock) {
+        $lockId = (int)$lock["id"];
+
+        $snapshotIds = get_layout_snapshot_for_lock($mysqli, $lockId, $categoryId);
+        if ($snapshotIds === null) {
+            $snapshotIds = get_layout_snapshot_at($mysqli, $songbookId, $categoryId, $lock["locked_at"]);
+        }
+
+        foreach ($snapshotIds as $songId) {
+            if (!isset($owners[$songId])) {
+                $owners[$songId] = [
+                    "lock_id" => $lockId,
+                    "name" => $lock["name"],
+                    "locked_at" => $lock["locked_at"],
+                    "active" => $lock["unlocked_at"] === null
+                ];
+            }
+        }
+    }
+
+    return $owners;
+}
+
+// The ordered list of song ids currently frozen for a category - i.e. every song
+// whose owning lock (see get_song_lock_ownership) is still active. Order is taken
+// from the latest saved layout: enforcement guarantees locked ids always keep their
+// relative order there, regardless of which specific lock owns which of them.
+function get_locked_ids($mysqli, $songbookId, $categoryId) {
+    if ((int)$categoryId === 0) {
+        return [];
+    }
+
+    $ownership = get_song_lock_ownership($mysqli, $songbookId, $categoryId);
+    if (empty($ownership)) {
+        return [];
+    }
+
+    $stmt = $mysqli->prepare("
+        SELECT ordered_ids FROM songbook_category_layouts
+        WHERE songbook_id = ? AND category_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+    ");
+    $stmt->bind_param("ii", $songbookId, $categoryId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+
+    if (!$row) {
+        return [];
+    }
+
+    $latestIds = array_map("intval", explode(",", $row["ordered_ids"]));
+
+    return array_values(array_filter($latestIds, function ($id) use ($ownership) {
+        return isset($ownership[$id]) && $ownership[$id]["active"];
+    }));
+}
+
+// Map of song_id => ['lock_id', 'name', 'locked_at'] for currently-locked songs only
+// (i.e. ownership entries whose lock is still active). Category 0 is always empty.
+function get_song_lock_names($mysqli, $songbookId, $categoryId) {
+    if ((int)$categoryId === 0) {
+        return [];
+    }
+
+    $ownership = get_song_lock_ownership($mysqli, $songbookId, $categoryId);
+
+    $active = [];
+    foreach ($ownership as $songId => $info) {
+        if ($info["active"]) {
+            $active[$songId] = [
+                "lock_id" => $info["lock_id"],
+                "name" => $info["name"],
+                "locked_at" => $info["locked_at"]
+            ];
+        }
+    }
+
+    return $active;
+}
+
 function get_songbook($mysqli, $id) {
     $stmt = $mysqli->prepare("SELECT * FROM songbooks WHERE id = ?");
     $stmt->bind_param("i", $id);

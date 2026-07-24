@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(python3 -)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(python3 -c ' *)",
+      "Bash(node --check /tmp/lockjs3.js)",
+      "Bash(node --check /home/jatofi/Documents/GitHub/songbook_manager/js/songbook_render_preview.js)"
     ]
   }
 }

@@ -7,8 +7,11 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
   const showInstruments = false; // instruments extra-display is still in development
+  const showLockName = options.showLockName || false;
+  const lockNames = options.lockNames || {}; // song_id (string) -> { lock_id, name, locked_at }
 
   const container = document.getElementById('a4-preview-container');
+  const pagesCreatedThisCall = []; // { page, pageNumber } - for the post-render lock-name label pass
 
   if (transposeToCapoZero) {
     // Instruments without a capo (e.g. accordion) need the real sounding chords
@@ -38,6 +41,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
   let currentPage = createPage(currentPageNum, category);
   pageRow.appendChild(currentPage);
+  pagesCreatedThisCall.push({ page: currentPage, pageNumber: currentPageNum });
 
   if (debug) {
     const line = document.createElement('div');
@@ -68,7 +72,16 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       songDiv.className = 'song-block mb-4';
       songDiv.dataset.songId = partSong.id;
 
-      if (allowClicking) {
+      const isLocked = !!lockNames[String(partSong.id)];
+
+      if (allowClicking && isLocked) {
+        // Locked songs can't be reordered/removed - make that obvious and non-interactive.
+        songDiv.style.borderLeft = '4px solid #dc3545';
+        songDiv.style.cursor = 'not-allowed';
+        songDiv.title = `Locked (${lockNames[String(partSong.id)].name}) - can't be reordered or removed`;
+      }
+
+      if (allowClicking && !isLocked) {
         // Attach click event
         songDiv.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -137,7 +150,11 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       }
 
       if (!partSong.continuation) {
-        const header = createSongHeader(partSong, { blackAndWhite, showDifficulty, showTags, showInstruments });
+        const header = createSongHeader(partSong, {
+          blackAndWhite, showDifficulty, showTags, showInstruments,
+          locked: allowClicking && isLocked,
+          lockedName: isLocked ? lockNames[String(partSong.id)].name : null
+        });
         songDiv.appendChild(header);
       }
 
@@ -211,6 +228,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
         currentPage = createPage(currentPageNum, category);
         pageRow.appendChild(currentPage);
+        pagesCreatedThisCall.push({ page: currentPage, pageNumber: currentPageNum });
 
         if (debug) {
           const line = document.createElement('div');
@@ -267,11 +285,59 @@ function renderA4Preview(songs, orderedIds, options = {}) {
     pageRow.appendChild(blankPage);
   }
 
-
-
+  if (showLockName) {
+    pagesCreatedThisCall.forEach(({ page, pageNumber }) => {
+      addLockNameLabelToPage(page, pageNumber, lockNames);
+    });
+  }
 
   return currentPageNum;
 
+}
+
+// Labels a page with every distinct lock covering the songs on it (skips pages
+// with no locked songs). A page can legitimately span multiple locks - e.g. the
+// last song of an older lock sharing a page with the first song of a newer one -
+// so all of them are shown, oldest to newest, not just the most recent. Placed
+// on the opposite side from the page number, which alternates left/right by
+// page parity - see createPage().
+function addLockNameLabelToPage(page, pageNumber, lockNames) {
+  const songIds = Array.from(page.querySelectorAll('.song-block[data-song-id]')).map(el => el.dataset.songId);
+
+  const locksById = new Map();
+  songIds.forEach(id => {
+    const info = lockNames[id];
+    if (info && !locksById.has(info.lock_id)) {
+      locksById.set(info.lock_id, info);
+    }
+  });
+
+  if (!locksById.size) return;
+
+  const names = Array.from(locksById.values())
+    .sort((a, b) => new Date(a.locked_at) - new Date(b.locked_at))
+    .map(info => info.name);
+
+  const label = document.createElement('div');
+  label.className = 'lock-name-label';
+  label.textContent = names.join(', ');
+  label.style.position = 'absolute';
+  label.style.bottom = '20px';
+  label.style.fontSize = '12px';
+  label.style.color = '#555';
+
+  // Page number: even -> left, odd -> right (see createPage()). Lock label goes on the other side.
+  if (pageNumber % 2 === 0) {
+    label.style.right = '30px';
+    label.style.left = 'auto';
+    label.style.textAlign = 'right';
+  } else {
+    label.style.left = '30px';
+    label.style.right = 'auto';
+    label.style.textAlign = 'left';
+  }
+
+  page.appendChild(label);
 }
 
 
@@ -346,6 +412,8 @@ function createSongHeader(song, options = {}) {
   const blackAndWhite = options.blackAndWhite || false;
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
+  const locked = options.locked || false;
+  const lockedName = options.lockedName || null;
   // showInstruments intentionally unused for now - feature still in development
 
 
@@ -375,6 +443,24 @@ function createSongHeader(song, options = {}) {
   titleTextWrapper.style.overflow = 'hidden';
   titleTextWrapper.style.whiteSpace = 'nowrap';
   titleTextWrapper.style.textOverflow = 'ellipsis';
+
+  if (locked && lockedName) {
+    const lockLabel = document.createElement('span');
+    lockLabel.textContent = lockedName;
+    lockLabel.style.marginRight = '6px';
+    lockLabel.style.flexShrink = '0';
+    lockLabel.style.fontSize = '0.65rem';
+    lockLabel.style.fontWeight = '600';
+    lockLabel.style.padding = '3px 8px';
+    lockLabel.style.borderRadius = '4px';
+    lockLabel.style.lineHeight = '1';
+    lockLabel.style.display = 'inline-flex';
+    lockLabel.style.alignItems = 'center';
+    lockLabel.style.backgroundColor = blackAndWhite ? 'transparent' : '#dc3545';
+    lockLabel.style.color = blackAndWhite ? '#222' : '#fff';
+    if (blackAndWhite) lockLabel.style.border = '1px solid #222';
+    titleTextWrapper.appendChild(lockLabel);
+  }
 
   const titleText = document.createElement('span');
   titleText.textContent = song.title;
