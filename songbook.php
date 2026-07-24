@@ -161,9 +161,16 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           </div>
           <div class="card-body">
             <p class="text-muted small">Select categories to apply batch actions</p>
-            
-            <button id="render-categories-btn" class="btn btn-primary w-100 mt-2" disabled>
-              🖨️ Render Categories
+
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="select-all-categories-checkbox">
+              <label class="form-check-label" for="select-all-categories-checkbox">
+                Select All Categories
+              </label>
+            </div>
+
+            <button id="render-categories-btn" class="btn btn-primary w-100 mt-2">
+              🖨️ Render All Categories
             </button>
           </div>
 
@@ -212,7 +219,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <div class="form-text">Also shows debug lines and marks locked songs as non-movable.</div>
             </div>
             <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" value="" id="render-lock-name-checkbox">
+              <input class="form-check-input" type="checkbox" value="" id="render-lock-name-checkbox" checked>
               <label class="form-check-label" for="render-lock-name-checkbox">
                 Show Lock Name
               </label>
@@ -455,15 +462,18 @@ async function refreshLockStatus() {
         meta += `<br>unlocked ${unlockedAt}`;
       }
 
-      const unlockBtnHtml = (isActive && admin)
-        ? `<button class="btn btn-outline-secondary btn-sm mt-1 unlock-lock-btn" data-lock-id="${lock.id}">Unlock</button>`
-        : '';
+      let actionBtnHtml = '';
+      if (admin) {
+        actionBtnHtml = isActive
+          ? `<button class="btn btn-outline-secondary btn-sm mt-1 unlock-lock-btn" data-lock-id="${lock.id}">Unlock</button>`
+          : `<button class="btn btn-outline-danger btn-sm mt-1 relock-lock-btn" data-lock-id="${lock.id}">Re-lock</button>`;
+      }
 
       return `
         <div class="border rounded p-2 mb-2 ${isActive ? '' : 'bg-light text-muted'}">
           <div><strong>${lock.name}</strong></div>
           <div class="small">${meta}</div>
-          ${unlockBtnHtml}
+          ${actionBtnHtml}
         </div>
       `;
     });
@@ -472,6 +482,9 @@ async function refreshLockStatus() {
 
     historyList.querySelectorAll('.unlock-lock-btn').forEach(btn => {
       btn.addEventListener('click', () => unlockSongbookLock(btn.dataset.lockId));
+    });
+    historyList.querySelectorAll('.relock-lock-btn').forEach(btn => {
+      btn.addEventListener('click', () => relockSongbookLock(btn.dataset.lockId));
     });
   } catch (err) {
     console.error('Failed to load lock status', err);
@@ -520,6 +533,27 @@ async function unlockSongbookLock(lockId) {
   } catch (err) {
     console.error('Error unlocking songbook', err);
     alert('Error unlocking songbook.');
+  }
+}
+
+async function relockSongbookLock(lockId) {
+  if (!confirm('Re-lock this version? Its original songs will be frozen again exactly as they were - anything added since it was unlocked stays untouched.')) return;
+
+  try {
+    const res = await fetch('php/relock_songbook.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ songbook_id: songbook.id, lock_id: lockId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      refreshLockStatus();
+    } else {
+      alert('Failed to re-lock: ' + data.message);
+    }
+  } catch (err) {
+    console.error('Error re-locking songbook', err);
+    alert('Error re-locking songbook.');
   }
 }
 
@@ -596,7 +630,10 @@ function renderCategories() {
     songbook.songs_categories.forEach(category => {
         const catDiv = document.createElement('div');
         catDiv.className = 'mb-5 category-block';
-        catDiv.dataset.categoryId = category.id; 
+        catDiv.dataset.categoryId = category.id;
+        if (selectedCategoryIds.includes(category.id)) {
+            catDiv.classList.add('selected-category');
+        }
 
 
         const headerDiv = document.createElement('div');
@@ -633,21 +670,7 @@ function renderCategories() {
             catDiv.classList.remove('selected-category');
           }
 
-          document.getElementById('render-categories-btn').disabled = selectedCategoryIds.length === 0;
-
-
-          const renderBtn = document.getElementById('render-categories-btn');
-          const manualCheckbox = document.getElementById('allow-manual-ordering-checkbox');
-
-          renderBtn.disabled = selectedCategoryIds.length === 0;
-
-          if (selectedCategoryIds.length > 1) {
-            manualCheckbox.checked = false;
-            manualCheckbox.disabled = true;
-          } else {
-            manualCheckbox.disabled = false;
-          }
-
+          updateRenderCategoriesUI();
         });
 
         const songCountSpan = document.createElement('span');
@@ -806,6 +829,7 @@ function populateCategorySelect() {
 // Initial render calls
 renderCategories();
 populateCategorySelect();
+updateRenderCategoriesUI();
 
 // Your existing event listeners for search and add song:
 
@@ -1117,9 +1141,37 @@ if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
 });
 
 
-document.getElementById('render-categories-btn').addEventListener('click', () => {
-  renderMultiple(selectedCategoryIds);
+document.getElementById('render-categories-btn')?.addEventListener('click', () => {
+  const idsToRender = selectedCategoryIds.length === 0
+    ? songbook.songs_categories.map(cat => cat.id)
+    : selectedCategoryIds;
+  renderMultiple(idsToRender);
 });
+
+document.getElementById('select-all-categories-checkbox')?.addEventListener('change', (e) => {
+  selectedCategoryIds.length = 0;
+  if (e.target.checked) {
+    selectedCategoryIds.push(...songbook.songs_categories.map(cat => cat.id));
+  }
+  renderCategories();
+  updateRenderCategoriesUI();
+});
+
+// Keeps the render button's label/state and the manual-ordering checkbox in
+// sync with the current category selection. Called whenever selection changes.
+function updateRenderCategoriesUI() {
+  const renderBtn = document.getElementById('render-categories-btn');
+  const selectAllCheckbox = document.getElementById('select-all-categories-checkbox');
+  // These live in the admin-only sidebar - simply absent for non-admins.
+  if (!renderBtn || !selectAllCheckbox) return;
+
+  renderBtn.textContent = selectedCategoryIds.length === 0
+    ? '🖨️ Render All Categories'
+    : '🖨️ Render Selected Categories';
+
+  selectAllCheckbox.checked = songbook.songs_categories.length > 0
+    && selectedCategoryIds.length === songbook.songs_categories.length;
+}
 
 
 
