@@ -30,8 +30,37 @@ if ($songbookId === 0 || $categoryId === 0 || !is_array($orderedIds)) {
 }
 
 $orderedIds = array_map("intval", $orderedIds);
-$commaList = implode(",", $orderedIds);
 $userId = $_SESSION["user"];
+
+// A layout can only ever reference songs that are actually persisted members of
+// this category right now - otherwise a layout could end up pointing at songs
+// the songbook doesn't (yet, or anymore) actually contain, which would render
+// today from stale client state but silently vanish (or worse, resurrect) on
+// a later fresh load, since the layout table isn't the source of truth for
+// membership - songbooks.songs is.
+$stmt = $mysqli->prepare("SELECT songs FROM songbooks WHERE id = ?");
+$stmt->bind_param("i", $songbookId);
+$stmt->execute();
+$songbookRow = $stmt->get_result()->fetch_assoc();
+
+if (!$songbookRow) {
+    echo json_encode(["success" => false, "message" => "Songbook not found."]);
+    exit;
+}
+
+$memberIds = [];
+foreach (explode(",", $songbookRow["songs"] ?? "") as $pair) {
+    $parts = explode("-", $pair, 2);
+    if (count($parts) === 2 && (int)$parts[0] === $categoryId) {
+        $memberIds[(int)$parts[1]] = true;
+    }
+}
+
+$orderedIds = array_values(array_filter($orderedIds, function ($id) use ($memberIds) {
+    return isset($memberIds[$id]);
+}));
+
+$commaList = implode(",", $orderedIds);
 
 // If the songbook has an active lock, whatever was already committed to this
 // category's layout as of that lock must stay in the exact same relative

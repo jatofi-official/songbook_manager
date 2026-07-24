@@ -942,45 +942,55 @@ document.getElementById("createCategoryBtn").addEventListener("click", () => {
 });
 
 
+// Persists the current in-memory songbook (categories + song membership) to
+// the database. Shared by the "Save" button and "Save Layout" - a saved
+// layout references song ids, so those ids must actually be committed as
+// members of the songbook first, otherwise a layout can end up pointing at
+// songs the database doesn't actually consider part of the songbook (they'd
+// render today from the in-memory state, but vanish on next page load/render
+// since the membership was never persisted).
+async function saveSongbookToServer() {
+  const categories = songbook.songs_categories.map(cat => ({
+    id: cat.id,
+    name: cat.name
+  }));
+
+  const songs = [];
+  songbook.songs_categories.forEach(cat => {
+    cat.songs.forEach(song => {
+      songs.push({
+        category_id: cat.id,
+        song_id: song.id
+      });
+    });
+  });
+
+  const payload = {
+    id: songbook.id,
+    name: songbook.name,
+    description: songbook.description || '',
+    admins: songbook.admins, // ✅ Already an array
+    group_id: songbook.group_id || null,
+    is_public: songbook.is_public ? 1 : 0,
+    categories: categories,
+    songs: songs
+  };
+
+  const res = await fetch('php/update_songbook.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  return res.json();
+}
+
 const saveBtn = document.getElementById('saveSongbookBtn');
 if (saveBtn) {
   document.getElementById('saveSongbookBtn').addEventListener('click', () => {
-    // Prepare categories array for payload
-    const categories = songbook.songs_categories.map(cat => ({
-      id: cat.id,
-      name: cat.name
-    }));
-
-    // Prepare songs array for payload (flatten songs with their category ids)
-    const songs = [];
-    songbook.songs_categories.forEach(cat => {
-      cat.songs.forEach(song => {
-        songs.push({
-          category_id: cat.id,
-          song_id: song.id
-        });
-      });
-    });
-
-    const payload = {
-      id: songbook.id,
-      name: songbook.name,
-      description: songbook.description || '',
-      admins: songbook.admins, // ✅ Already an array
-      group_id: songbook.group_id || null,
-      is_public: songbook.is_public ? 1 : 0,
-      categories: categories,
-      songs: songs
-    };
-
-    fetch('php/update_songbook.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
+    saveSongbookToServer()
     .then(response => {
       if (response.success) {
         alert('✅ Songbook saved successfully!');
@@ -1001,6 +1011,14 @@ if (saveBtn) {
     }
 
     try {
+      // Commit the songbook's current song membership first, so every id in
+      // this layout is guaranteed to actually be a persisted member.
+      const songbookSaveResult = await saveSongbookToServer();
+      if (!songbookSaveResult.success) {
+        alert("Failed to save songbook: " + (songbookSaveResult.error || songbookSaveResult.message));
+        return;
+      }
+
       const res = await fetch("php/save_layout.php", {
         method: "POST",
         headers: {
