@@ -1954,6 +1954,43 @@ function get_song_lock_names($mysqli, $songbookId, $categoryId) {
     return $active;
 }
 
+// The ordered list of song ids (from the latest saved layout, same ordering
+// rule as get_locked_ids) that a specific lock owns in this category - i.e.
+// this lock was the first to introduce them, per get_song_lock_ownership.
+// Unlike get_locked_ids this doesn't care whether the lock is still active,
+// since printing a past lock's songs should work even after it's unlocked.
+function get_song_ids_for_lock($mysqli, $songbookId, $categoryId, $lockId) {
+    if ((int)$categoryId === 0) {
+        return [];
+    }
+
+    $ownership = get_song_lock_ownership($mysqli, $songbookId, $categoryId);
+    if (empty($ownership)) {
+        return [];
+    }
+
+    $stmt = $mysqli->prepare("
+        SELECT ordered_ids FROM songbook_category_layouts
+        WHERE songbook_id = ? AND category_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+    ");
+    $stmt->bind_param("ii", $songbookId, $categoryId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+
+    if (!$row) {
+        return [];
+    }
+
+    $latestIds = array_map("intval", explode(",", $row["ordered_ids"]));
+    $lockId = (int)$lockId;
+
+    return array_values(array_filter($latestIds, function ($id) use ($ownership, $lockId) {
+        return isset($ownership[$id]) && (int)$ownership[$id]["lock_id"] === $lockId;
+    }));
+}
+
 function get_songbook($mysqli, $id) {
     $stmt = $mysqli->prepare("SELECT * FROM songbooks WHERE id = ?");
     $stmt->bind_param("i", $id);

@@ -40,6 +40,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   container.appendChild(pageRow);
 
   let currentPage = createPage(currentPageNum, category);
+  if (options.categoryId !== undefined) currentPage.dataset.categoryId = options.categoryId;
   pageRow.appendChild(currentPage);
   pagesCreatedThisCall.push({ page: currentPage, pageNumber: currentPageNum });
 
@@ -227,6 +228,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         }
 
         currentPage = createPage(currentPageNum, category);
+        if (options.categoryId !== undefined) currentPage.dataset.categoryId = options.categoryId;
         pageRow.appendChild(currentPage);
         pagesCreatedThisCall.push({ page: currentPage, pageNumber: currentPageNum });
 
@@ -282,6 +284,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
     // Create the blank page with no content
     const blankPage = createPage(currentPageNum, category);
+    if (options.categoryId !== undefined) blankPage.dataset.categoryId = options.categoryId;
     pageRow.appendChild(blankPage);
   }
 
@@ -295,12 +298,12 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
 }
 
-// Labels a page with every distinct lock covering the songs on it (skips pages
+// Labels a page with the newest lock covering the songs on it (skips pages
 // with no locked songs). A page can legitimately span multiple locks - e.g. the
 // last song of an older lock sharing a page with the first song of a newer one -
-// so all of them are shown, oldest to newest, not just the most recent. Placed
-// on the opposite side from the page number, which alternates left/right by
-// page parity - see createPage().
+// but only the newest is shown, since that's the lock whose print this page
+// actually belongs to. Placed on the opposite side from the page number, which
+// alternates left/right by page parity - see createPage().
 function addLockNameLabelToPage(page, pageNumber, lockNames) {
   const songIds = Array.from(page.querySelectorAll('.song-block[data-song-id]')).map(el => el.dataset.songId);
 
@@ -314,13 +317,12 @@ function addLockNameLabelToPage(page, pageNumber, lockNames) {
 
   if (!locksById.size) return;
 
-  const names = Array.from(locksById.values())
-    .sort((a, b) => new Date(a.locked_at) - new Date(b.locked_at))
-    .map(info => info.name);
+  const newest = Array.from(locksById.values())
+    .sort((a, b) => new Date(b.locked_at) - new Date(a.locked_at))[0];
 
   const label = document.createElement('div');
   label.className = 'lock-name-label';
-  label.textContent = names.join(', ');
+  label.textContent = newest.name;
   label.style.position = 'absolute';
   label.style.bottom = '20px';
   label.style.fontSize = '12px';

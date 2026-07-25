@@ -474,6 +474,7 @@ async function refreshLockStatus() {
           <div><strong>${lock.name}</strong></div>
           <div class="small">${meta}</div>
           ${actionBtnHtml}
+          <button class="btn btn-outline-primary btn-sm mt-1 print-lock-btn" data-lock-id="${lock.id}">🖨️ Print This Lock</button>
         </div>
       `;
     });
@@ -485,6 +486,9 @@ async function refreshLockStatus() {
     });
     historyList.querySelectorAll('.relock-lock-btn').forEach(btn => {
       btn.addEventListener('click', () => relockSongbookLock(btn.dataset.lockId));
+    });
+    historyList.querySelectorAll('.print-lock-btn').forEach(btn => {
+      btn.addEventListener('click', () => printSongbookLock(btn.dataset.lockId));
     });
   } catch (err) {
     console.error('Failed to load lock status', err);
@@ -1371,7 +1375,8 @@ async function beginRender(orderedIds, category, clearPages = true) {
     showTags: showTags,
     showInstruments: showInstruments,
     showLockName: showLockName,
-    lockNames: lockNames
+    lockNames: lockNames,
+    categoryId: category.id
   });
 
   console.log(`✅ Rendered ${pageCount} pages.`);
@@ -1411,14 +1416,91 @@ async function renderMultiple(categoryIds) {
       continue;
     }
 
-    // Pass clearPages=false to avoid clearing on each iteration
+    // Each category restarts its own page numbering at 1 (clearPages=false
+    // just avoids wiping previously-rendered categories from the container).
     const pages = await handleRenderForCategory(category, false);
     console.log(`Category "${category.name}" rendered with ${pages} pages.`);
   }
 }
 
+// Prints just one lock's songs - but by rendering the ENTIRE songbook first
+// (every category, each with its own normal page numbering starting at 1 -
+// see renderMultiple) and then keeping only the pages that contain a song
+// owned by that lock (see get_song_lock_ownership in functions.php - each
+// song "belongs" to whichever lock first introduced it). This way every kept
+// page still shows the exact page number it would have in a normal full
+// render of that category, rather than a fresh 1..N specific to this printout.
+//
+// Pages pair up into physical double-sided sheets (page 1&2, 3&4, ... within
+// each category, since every category's own page count is always even - each
+// pads itself, see renderA4Preview - so pairing by flat index across the
+// whole rendered book never crosses a category boundary mid-sheet). A sheet
+// is dropped entirely only if NEITHER of its two pages matches the lock; if
+// just one side matches, BOTH sides are kept with their real, unmodified
+// content - not blanked - so e.g. a lock that begins on an even (back) page
+// still prints together with the real odd (front) page right before it,
+// continuing straight into the lock's content instead of a forced blank gap.
+async function printSongbookLock(lockId) {
+  const container = document.getElementById('a4-preview-container');
 
+  try {
+    const res = await fetch(`php/get_lock_render_data.php?songbook_id=${songbook.id}&lock_id=${lockId}`);
+    const data = await res.json();
 
+    if (!data.success) {
+      alert('Failed to load lock data: ' + (data.message || 'unknown error'));
+      return;
+    }
+
+    const matchesByCategory = {};
+    Object.entries(data.matches || {}).forEach(([catId, ids]) => {
+      matchesByCategory[catId] = new Set(ids.map(String));
+    });
+
+    if (!Object.values(matchesByCategory).some(set => set.size > 0)) {
+      alert(`"${data.lock_name}" doesn't own any songs currently in this songbook.`);
+      return;
+    }
+
+    // Full render of every category, same as "Render All Categories".
+    const allCategoryIds = songbook.songs_categories.map(cat => cat.id);
+    await renderMultiple(allCategoryIds);
+
+    const pages = Array.from(container.querySelectorAll('.a4-page'));
+
+    const keepPage = pages.map(page => {
+      const matchSet = matchesByCategory[page.dataset.categoryId];
+      if (!matchSet || !matchSet.size) return false;
+      return Array.from(page.querySelectorAll('.song-block[data-song-id]'))
+        .some(el => matchSet.has(String(el.dataset.songId)));
+    });
+
+    // Each category always ends on an even page count (it pads itself -
+    // see renderA4Preview), so pages always pair up cleanly here. Only drop
+    // a sheet when neither side matches - otherwise keep both pages as-is,
+    // real content included, so the printout stays continuous across the
+    // sheet boundary (see comment above the function).
+    for (let i = 0; i < pages.length; i += 2) {
+      if (!keepPage[i] && !keepPage[i + 1]) {
+        pages[i].remove();
+        pages[i + 1].remove();
+      }
+    }
+
+    // Drop now-empty page-pair row wrappers left behind by dropped sheets.
+    container.querySelectorAll('.page-pair').forEach(row => {
+      if (!row.querySelector('.a4-page')) row.remove();
+    });
+
+    // Save Layout has no meaning for this filtered, whole-book printout.
+    document.getElementById('save-layout-btn').disabled = true;
+
+    container.scrollIntoView({ behavior: 'smooth' });
+  } catch (err) {
+    console.error('Error printing lock', err);
+    alert('Error printing lock.');
+  }
+}
 
 
 
