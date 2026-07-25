@@ -21,10 +21,12 @@ if (!$input) {
 }
 
 $songbookId = intval($input["songbook_id"] ?? 0);
-$categoryId = intval($input["category_id"] ?? 0);
+// -1 default (not 0) so a missing category_id can be told apart from the
+// real "Uncategorized" category, whose id is 0.
+$categoryId = intval($input["category_id"] ?? -1);
 $orderedIds = $input["ordered_ids"] ?? [];
 
-if ($songbookId === 0 || $categoryId === 0 || !is_array($orderedIds)) {
+if ($songbookId === 0 || $categoryId < 0 || !is_array($orderedIds)) {
     echo json_encode(["success" => false, "message" => "Missing parameters."]);
     exit;
 }

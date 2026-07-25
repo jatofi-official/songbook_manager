@@ -10,9 +10,11 @@ if (!isset($_SESSION["user"])) {
 }
 
 $songbookId = intval($_GET["songbook_id"] ?? $_POST["songbook_id"] ?? 0);
-$categoryId = intval($_GET["category_id"] ?? $_POST["category_id"] ?? 0);
+// -1 default (not 0) so a missing category_id can be told apart from the
+// real "Uncategorized" category, whose id is 0.
+$categoryId = intval($_GET["category_id"] ?? $_POST["category_id"] ?? -1);
 
-if ($songbookId === 0 || $categoryId === 0) {
+if ($songbookId === 0 || $categoryId < 0) {
     echo json_encode(["success" => false, "message" => "Missing parameters."]);
     exit;
 }
