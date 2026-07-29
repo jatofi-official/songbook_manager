@@ -116,6 +116,43 @@ function check_is_fixed($data, $category = null) {
 
 
 
+function save_song_snapshot($mysqli, $songId, $action, $changedBy = null) {
+    $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
+    if (!$stmt) return;
+    $stmt->bind_param("i", $songId);
+    $stmt->execute();
+    $song = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$song) return;
+
+    $columns = ['category', 'title', 'artist', 'capo', 'capo_alt', 'owner', 'is_public',
+        'create_date', 'modified_date', 'tags', 'instruments', 'content', 'is_fixed',
+        'is_nsfw', 'youtube_link', 'views'];
+    $intColumns = ['category', 'capo', 'capo_alt', 'is_public', 'is_fixed', 'is_nsfw', 'views'];
+
+    $insertColumns = array_merge(['song_id', 'action', 'changed_by'], $columns);
+    $placeholders = implode(',', array_fill(0, count($insertColumns), '?'));
+    $sql = "INSERT INTO songs_history (" . implode(',', $insertColumns) . ") VALUES ($placeholders)";
+
+    $stmt = $mysqli->prepare($sql);
+    if (!$stmt) return;
+
+    $types = 'iss'; // song_id, action, changed_by
+    $params = [$songId, $action, $changedBy];
+    foreach ($columns as $col) {
+        $types .= in_array($col, $intColumns, true) ? 'i' : 's';
+        $params[] = $song[$col];
+    }
+
+    $bind = [&$types];
+    foreach ($params as $k => $v) {
+        $bind[] = &$params[$k];
+    }
+    call_user_func_array([$stmt, 'bind_param'], $bind);
+    $stmt->execute();
+    $stmt->close();
+}
+
 function add_song($mysqli, $data) {
     if ($mysqli->connect_errno) {
         return "Error connecting";
@@ -183,6 +220,8 @@ function add_song($mysqli, $data) {
         foreach ($tagsArray as $tag) {
             add_tag($mysqli, $tag);
         }
+
+        save_song_snapshot($mysqli, $insertedId, 'add', $owner);
 
         return $insertedId;
     } else {
@@ -362,6 +401,8 @@ function edit_song($mysqli, $id, $data) {
     foreach ($tagsToAdd as $tag) {
         add_tag($mysqli, $tag);
     }
+
+    save_song_snapshot($mysqli, $id, 'edit', $_SESSION["user"] ?? null);
 
     return true;
 }

@@ -27,6 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
             remove_tag($mysqli, $tag);
         }
 
+        // Snapshot before deleting so history retains the final state
+        save_song_snapshot($mysqli, $id, 'delete', $user);
+
         // Delete the song
         $deleteStmt = $mysqli->prepare("DELETE FROM songs WHERE id = ?");
         $deleteStmt->bind_param("i", $id);
