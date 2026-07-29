@@ -93,6 +93,13 @@ if (isset($_GET['id'])) {
                             </form>
                         <?php } ?>
 
+                        <?php if (($_SESSION["admin_view"] ?? false) === true): ?>
+                            <!-- History Button (admin only) -->
+                            <button type="button" class="btn btn-outline-secondary" data-song-history-id="<?= (int)$id ?>">
+                                History
+                            </button>
+                        <?php endif; ?>
+
                     </div>
 
                 </div>

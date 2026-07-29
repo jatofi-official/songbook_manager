@@ -175,6 +175,30 @@ document.addEventListener("click", function (e) {
 });
 
 
+document.addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-song-history-id]");
+    if (!btn) return;
+
+    const modalEl = document.getElementById("songHistoryModal");
+    const body = document.getElementById("songHistoryModalBody");
+    if (!modalEl || !body) return;
+
+    body.innerHTML = "<p>Loading history...</p>";
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    fetch("php/subpage/get_song_history.php?id=" + btn.dataset.songHistoryId)
+        .then(response => response.text())
+        .then(html => {
+            body.innerHTML = html;
+        })
+        .catch(err => {
+            body.innerHTML = "<p>Error loading history.</p>";
+            console.error(err);
+        });
+});
+
+
 function adjustFontSizeToFitWidth(el) {
     if (!el) return;
 
