@@ -159,6 +159,25 @@ if (isset($_GET['id'])) {
                 </div>
             </div>
         </div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+            <strong>Transposition:</strong>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-transpose="down" aria-label="Transpose down one semitone">-1</button>
+            <span data-transpose-label aria-live="polite">0</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-transpose="up" aria-label="Transpose up one semitone">+1</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-transpose="reset">Reset</button>
+        </div>
+
+        <?php if (!$isEmbedded): ?>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <button type="button" id="auto-scroll-toggle" class="btn btn-outline-primary btn-sm" aria-pressed="false">
+                    Start auto-scroll
+                </button>
+                <label for="auto-scroll-speed" class="form-label mb-0">Speed</label>
+                <input type="range" id="auto-scroll-speed" class="form-range" min="1" max="5" step="1" value="2"
+                       style="width: 9rem" aria-label="Auto-scroll speed">
+            </div>
+        <?php endif; ?>
+
         <div id="song-content-js" class="song-content mt-3" style="white-space: pre-wrap; font-family: monospace;"><?=
             htmlspecialchars($song['content'])
         ?></div>

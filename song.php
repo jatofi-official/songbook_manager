@@ -499,6 +499,7 @@ function goBackToSongs() {
                 document.getElementById("song-display").innerHTML = html;
 
                 enhanceSongView();
+                initAutoScroll();
                 const songEl = document.getElementById("song-content-js");
                 adjustFontSizeToFitWidth(songEl); // shrink to fit width
             })

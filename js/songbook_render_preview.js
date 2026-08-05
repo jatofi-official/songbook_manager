@@ -3,10 +3,20 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const category = options.category;
   const blackAndWhite = options.blackAndWhite || false;
   const allowClicking = options.allowClicking || false;  // default false
+  const transposeToCapoZero = options.transposeToCapoZero || false;
+  const showDifficulty = options.showDifficulty || false;
+  const showTags = options.showTags || false;
+  const showInstruments = options.showInstruments || false;
 
   const container = document.getElementById('a4-preview-container');
 
-  let processedSongs = songs.map(song => splitSongIfNeeded(song));
+  let processedSongs = songs.map(song => {
+    const capo = Number(song.capo) || 0;
+    const renderedSong = transposeToCapoZero && capo
+      ? { ...song, content: transposeContent(song.content, capo), transposedFromCapo: capo }
+      : song;
+    return splitSongIfNeeded(renderedSong);
+  });
   const tempContainer = createHiddenMeasureContainer();
   document.body.appendChild(tempContainer);
 
@@ -118,7 +128,12 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       }
 
       if (!partSong.continuation) {
-        const header = createSongHeader(partSong, { blackAndWhite });
+        const header = createSongHeader(partSong, {
+          blackAndWhite,
+          showDifficulty,
+          showTags,
+          showInstruments
+        });
         songDiv.appendChild(header);
       }
 
@@ -261,6 +276,16 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
 
 
+function createMetaBadge(text, blackAndWhite) {
+  const badge = document.createElement('span');
+  badge.className = 'badge rounded-pill';
+  badge.textContent = text;
+  badge.style.backgroundColor = blackAndWhite ? '#fff' : '#e9ecef';
+  badge.style.border = '1px solid #666';
+  badge.style.color = '#222';
+  return badge;
+}
+
 function createSongHeader(song, options = {}) {
   const header = document.createElement('div');
   const blackAndWhite = options.blackAndWhite || false;
@@ -277,6 +302,9 @@ function createSongHeader(song, options = {}) {
   const titleLine = document.createElement('div');
   titleLine.style.fontWeight = 'bold';
   titleLine.style.fontSize = '1.1rem';
+  titleLine.style.display = 'flex';
+  titleLine.style.alignItems = 'center';
+  titleLine.style.gap = '4px';
 
   const titleText = document.createElement('span');
   titleText.textContent = song.title;
@@ -284,7 +312,7 @@ function createSongHeader(song, options = {}) {
 
   if (song.artist && song.artist.trim() !== '') {
     const separator = document.createElement('span');
-    separator.textContent = ' – ';
+    separator.textContent = ' \u2013 ';
     separator.style.margin = '0 4px';
 
     const artistText = document.createElement('span');
@@ -297,10 +325,29 @@ function createSongHeader(song, options = {}) {
     titleLine.appendChild(artistText);
   }
 
+  const metadata = [];
+  if (options.showDifficulty && song.difficulty) metadata.push(song.difficulty);
+  if (options.showTags && song.tags) metadata.push(...song.tags.split(',').map(tag => tag.trim()).filter(Boolean));
+  if (options.showInstruments && song.instruments) metadata.push(...song.instruments.split(',').map(item => item.trim()).filter(Boolean));
+
+  if (metadata.length > 0) {
+    const metadataWrapper = document.createElement('span');
+    metadataWrapper.style.marginLeft = 'auto';
+    metadataWrapper.style.display = 'flex';
+    metadataWrapper.style.flexWrap = 'wrap';
+    metadataWrapper.style.justifyContent = 'flex-end';
+    metadataWrapper.style.gap = '4px';
+    metadata.forEach(item => metadataWrapper.appendChild(createMetaBadge(item, blackAndWhite)));
+    titleLine.appendChild(metadataWrapper);
+  }
+
   header.appendChild(titleLine);
 
   // Capo Display
-  if ((song.capo && song.capo !== 0) || (song.capo_alt && song.capo_alt !== 0)) {
+  const capo = Number(song.capo) || 0;
+  const alternativeCapo = song.capo_alt === null || song.capo_alt === '' ? null : Number(song.capo_alt);
+  const transposedFromCapo = Number(song.transposedFromCapo) || 0;
+  if (capo !== 0 || (alternativeCapo !== null && alternativeCapo !== 0) || transposedFromCapo !== 0) {
     const capoLine = document.createElement('div');
     capoLine.style.marginTop = '6px';
     capoLine.style.fontSize = '0.9rem';
@@ -314,10 +361,10 @@ function createSongHeader(song, options = {}) {
     capoLabel.style.fontWeight = '500';
     capoLine.appendChild(capoLabel);
 
-    if (song.capo && song.capo !== 0) {
+    if (capo !== 0 || transposedFromCapo !== 0) {
       const capoCircle = document.createElement('span');
       capoCircle.className = 'capo-circle';
-      capoCircle.textContent = song.capo;
+      capoCircle.textContent = transposedFromCapo ? `0 (from ${transposedFromCapo})` : capo;
 
     if (blackAndWhite) {
       // gray background fill for capo
@@ -334,13 +381,19 @@ function createSongHeader(song, options = {}) {
       capoCircle.style.justifyContent = 'center';    // horizontal center
     }
 
+      if (transposedFromCapo) {
+        capoCircle.style.width = 'auto';
+        capoCircle.style.borderRadius = '12px';
+        capoCircle.style.padding = '2px 8px';
+      }
+
       capoLine.appendChild(capoCircle);
     }
 
-    if (song.capo_alt && song.capo_alt !== 0) {
+    if (alternativeCapo !== null && alternativeCapo !== 0) {
       const capoAltCircle = document.createElement('span');
       capoAltCircle.className = 'capo-circle-alt';
-      capoAltCircle.textContent = song.capo_alt;
+      capoAltCircle.textContent = transposedFromCapo ? alternativeCapo - transposedFromCapo : alternativeCapo;
 
     if (blackAndWhite) {
       // outline only for capo_alt

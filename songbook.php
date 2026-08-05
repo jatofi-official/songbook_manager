@@ -196,6 +196,30 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </label>
             </div>
             <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="transpose-capo-zero-checkbox">
+              <label class="form-check-label" for="transpose-capo-zero-checkbox">
+                Transpose to Capo 0
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-difficulty-checkbox">
+              <label class="form-check-label" for="extra-difficulty-checkbox">
+                Show difficulty
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-tags-checkbox">
+              <label class="form-check-label" for="extra-tags-checkbox">
+                Show tags
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-instruments-checkbox">
+              <label class="form-check-label" for="extra-instruments-checkbox">
+                Show instruments
+              </label>
+            </div>
+            <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="allow-manual-ordering-checkbox">
               <label class="form-check-label" for="allow-manual-ordering-checkbox">
                 Allow manual Ordering
@@ -1079,6 +1103,10 @@ async function beginRender(orderedIds, category, clearPages = true) {
   const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
   const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
   const allowClicking = document.getElementById('allow-manual-ordering-checkbox')?.checked || false;
+  const transposeToCapoZero = document.getElementById('transpose-capo-zero-checkbox')?.checked || false;
+  const showDifficulty = document.getElementById('extra-difficulty-checkbox')?.checked || false;
+  const showTags = document.getElementById('extra-tags-checkbox')?.checked || false;
+  const showInstruments = document.getElementById('extra-instruments-checkbox')?.checked || false;
 
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
@@ -1091,7 +1119,11 @@ async function beginRender(orderedIds, category, clearPages = true) {
     debug: debugMode,
     category: categoryTitle,
     blackAndWhite: blackAndWhite,
-    allowClicking: allowClicking
+    allowClicking: allowClicking,
+    transposeToCapoZero: transposeToCapoZero,
+    showDifficulty: showDifficulty,
+    showTags: showTags,
+    showInstruments: showInstruments
   });
 
   console.log(`✅ Rendered ${pageCount} pages.`);
