@@ -178,9 +178,15 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 						<div class="tab-pane fade" id="v-pills-songbook" role="tabpanel">
 							<h4 class="section-title">Appearance</h4>
 							<div class="form-check form-switch mb-3">
-								<input class="form-check-input" type="checkbox" id="advancedSwitch" 
+								<input class="form-check-input" type="checkbox" id="advancedSwitch"
 									<?= !empty($_SESSION["advanced_view"]) && $_SESSION["advanced_view"] ? "checked" : "" ?>>
 								<label class="form-check-label" for="advancedSwitch">Advanced View</label>
+							</div>
+							<div class="form-check form-switch mb-3">
+								<input class="form-check-input" type="checkbox" id="importSwitch"
+									<?= !empty($_SESSION["import_enabled"]) ? "checked" : "" ?>>
+								<label class="form-check-label" for="importSwitch">Import feature</label>
+								<div class="form-text">Sprístupní stránku Import (piesne z internetu / linku / súboru).</div>
 							</div>
 							<button type="button" id="savePreferencesBtn" class="btn btn-primary">Save Preferences</button>
 							
@@ -337,11 +343,12 @@ document.getElementById("passwordForm").addEventListener("submit", function(e) {
 
 document.getElementById("savePreferencesBtn").addEventListener("click", function () {
     const advanced = document.getElementById("advancedSwitch").checked ? 1 : 0;
+    const importEnabled = document.getElementById("importSwitch").checked ? 1 : 0;
 
     fetch("php/update_preferences.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ advanced_view: advanced })
+        body: JSON.stringify({ advanced_view: advanced, import_enabled: importEnabled })
     })
     .then(res => res.json())
     .then(data => {

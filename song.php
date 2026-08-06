@@ -34,6 +34,7 @@ $song = [
     "tags" => "",
     "content" => "",
     "is_public" => 1,
+    "is_unchecked" => 0,
     "youtube_link" => "",
     "nsfw" => 0,
 ];
@@ -80,7 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $instruments = $_POST["instruments"] ?? [];
     $content   = $_POST["content"] ?? "";
-    $is_public = isset($_POST['is_public']) ? 1 : 0;
+    // 3-stavová viditeľnosť: public | private | bez_kontroly
+    $visibility = $_POST['visibility'] ?? 'public';
+    $is_public    = ($visibility === 'private') ? 0 : 1;
+    $is_unchecked = ($visibility === 'bez_kontroly') ? 1 : 0;
     $youtube_link = trim($_POST["youtube_link"] ?? "");
     $nsfw = isset($_POST["nsfw"]) ? 1 : 0;
 
@@ -99,10 +103,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "instruments" => implode(",", $instruments),
             "content"     => $content,
             "is_public"   => $is_public,
+            "is_unchecked" => $is_unchecked,
             "owner"       => $userId,
             "youtube_link" => $youtube_link,
-            "is_nsfw"         => $nsfw,
-
+            "is_nsfw"     => $nsfw,
         ];
 
         if ($id) {
@@ -470,12 +474,17 @@ if (!empty($song['title'])) {
                         class="form-control" required><?= htmlspecialchars($song["content"]) ?></textarea>
             </div>
 
-            <div class="mb-3 form-check">
-                <input type="checkbox" class="form-check-input" id="is_public" name="is_public" value="1"
-                       <?= $song["is_public"] ? "checked" : "" ?>>
-                <label class="form-check-label" for="is_public">
-                    Public (others can see this)
-                </label>
+            <div class="mb-3">
+                <label for="visibility" class="form-label">Viditeľnosť</label>
+                <?php
+                    $curVis = !empty($song["is_unchecked"]) ? 'bez_kontroly'
+                            : (!empty($song["is_public"]) ? 'public' : 'private');
+                ?>
+                <select class="form-select" id="visibility" name="visibility">
+                    <option value="public"       <?= $curVis==='public' ? 'selected' : '' ?>>Public (vidia ostatní)</option>
+                    <option value="private"      <?= $curVis==='private' ? 'selected' : '' ?>>Private (len ja)</option>
+                    <option value="bez_kontroly" <?= $curVis==='bez_kontroly' ? 'selected' : '' ?>>Bez kontroly (viditeľné, ale ráta sa ako nedokončené)</option>
+                </select>
             </div>
 
             <button type="submit" class="btn btn-primary">
