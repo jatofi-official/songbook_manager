@@ -36,6 +36,10 @@ $song = [
     "is_public" => 1,
     "youtube_link" => "",
     "nsfw" => 0,
+    "strumming_pattern" => "",
+    "chord_source" => "unknown",
+    "original_artist" => "",
+    "translator" => "",
 ];
 
 // Wishlist fulfillment params (only used when ?new=1)
@@ -83,6 +87,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $is_public = isset($_POST['is_public']) ? 1 : 0;
     $youtube_link = trim($_POST["youtube_link"] ?? "");
     $nsfw = isset($_POST["nsfw"]) ? 1 : 0;
+    $strummingPattern = trim($_POST["strumming_pattern"] ?? "");
+    $chordSource = $_POST["chord_source"] ?? "unknown";
+    $originalArtist = trim($_POST["original_artist"] ?? "");
+    $translator = trim($_POST["translator"] ?? "");
+
+    if (!in_array($chordSource, ['unknown', 'original', 'borrowed'], true)) {
+        $errors[] = "Invalid chord source.";
+    }
 
     // Validate
     if (!$title)   $errors[] = "Title is required.";
@@ -102,6 +114,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "owner"       => $userId,
             "youtube_link" => $youtube_link,
             "is_nsfw"         => $nsfw,
+            "strumming_pattern" => $strummingPattern,
+            "chord_source" => $chordSource,
+            "original_artist" => $originalArtist,
+            "translator" => $translator,
 
         ];
 
@@ -267,6 +283,37 @@ if (!empty($song['title'])) {
                 <input type="text" name="artist" id="artist"
                     class="form-control" maxlength="60"
                     value="<?= htmlspecialchars($song["artist"] ?? '') ?>">
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="original_artist" class="form-label">Original artist</label>
+                    <input type="text" name="original_artist" id="original_artist" class="form-control" maxlength="255"
+                           value="<?= htmlspecialchars($song["original_artist"] ?? '') ?>">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="translator" class="form-label">Translator</label>
+                    <input type="text" name="translator" id="translator" class="form-control" maxlength="255"
+                           value="<?= htmlspecialchars($song["translator"] ?? '') ?>">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="strumming_pattern" class="form-label">Strumming pattern</label>
+                    <input type="text" name="strumming_pattern" id="strumming_pattern" class="form-control" maxlength="255"
+                           placeholder="D-DU-UDU" value="<?= htmlspecialchars($song["strumming_pattern"] ?? '') ?>">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="chord_source" class="form-label">Chord source</label>
+                    <select name="chord_source" id="chord_source" class="form-select">
+                        <?php foreach (['unknown' => 'Unknown', 'original' => 'Original', 'borrowed' => 'Borrowed'] as $value => $label): ?>
+                            <option value="<?= $value ?>" <?= ($song['chord_source'] ?? 'unknown') === $value ? 'selected' : '' ?>>
+                                <?= $label ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
             <style>

@@ -20,6 +20,10 @@ CREATE TABLE `songs_history` (
   `is_nsfw` tinyint(1) NOT NULL DEFAULT 0,
   `youtube_link` varchar(255) DEFAULT NULL,
   `views` int(11) NOT NULL DEFAULT 0,
+  `strumming_pattern` varchar(255) DEFAULT NULL,
+  `chord_source` enum('unknown','original','borrowed') NOT NULL DEFAULT 'unknown',
+  `original_artist` varchar(255) DEFAULT NULL,
+  `translator` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`history_id`),
   KEY `song_id` (`song_id`),
   KEY `song_id_changed_at` (`song_id`,`changed_at`)

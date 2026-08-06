@@ -127,7 +127,8 @@ function save_song_snapshot($mysqli, $songId, $action, $changedBy = null) {
 
     $columns = ['category', 'title', 'artist', 'capo', 'capo_alt', 'owner', 'is_public',
         'create_date', 'modified_date', 'tags', 'instruments', 'content', 'is_fixed',
-        'is_nsfw', 'youtube_link', 'views'];
+        'is_nsfw', 'youtube_link', 'views', 'strumming_pattern', 'chord_source',
+        'original_artist', 'translator'];
     $intColumns = ['category', 'capo', 'capo_alt', 'is_public', 'is_fixed', 'is_nsfw', 'views'];
 
     $insertColumns = array_merge(['song_id', 'action', 'changed_by'], $columns);
@@ -182,19 +183,25 @@ function add_song($mysqli, $data) {
     $content = $data["content"] ?? null;
     $is_nsfw = isset($data["is_nsfw"]) ? (int)$data["is_nsfw"] : 0;
     $youtube_link = (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') ? $data["youtube_link"] : null;
+    $strumming_pattern = (isset($data["strumming_pattern"]) && trim($data["strumming_pattern"]) !== '') ? trim($data["strumming_pattern"]) : null;
+    $chord_source = in_array($data["chord_source"] ?? 'unknown', ['unknown', 'original', 'borrowed'], true)
+        ? $data["chord_source"] : 'unknown';
+    $original_artist = (isset($data["original_artist"]) && trim($data["original_artist"]) !== '') ? trim($data["original_artist"]) : null;
+    $translator = (isset($data["translator"]) && trim($data["translator"]) !== '') ? trim($data["translator"]) : null;
 
 
     $stmt = $mysqli->prepare("INSERT INTO songs (
         category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
-        tags, instruments, content, is_fixed, is_nsfw, youtube_link, views
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0)");
+        tags, instruments, content, is_fixed, is_nsfw, youtube_link, views,
+        strumming_pattern, chord_source, original_artist, translator
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)");
 
     if (!$stmt) {
         return "Prepare failed: " . $mysqli->error;
     }
 
     // Dynamic bind_param workaround for NULL support
-    $types = 'issiisssssiis';
+    $types = 'issiisssssiisssss';
     $params = [
         &$category,
         &$title,
@@ -208,7 +215,11 @@ function add_song($mysqli, $data) {
         &$content,
         &$is_fixed,
         &$is_nsfw,
-        &$youtube_link
+        &$youtube_link,
+        &$strumming_pattern,
+        &$chord_source,
+        &$original_artist,
+        &$translator
     ];
 
     $stmt->bind_param($types, ...$params);
@@ -354,6 +365,11 @@ function edit_song($mysqli, $id, $data) {
     $fields["artist"] = (isset($data["artist"]) && trim($data["artist"]) !== '') ? $data["artist"] : null;
     $fields["capo_alt"] = (isset($data["capo_alt"]) && trim($data["capo_alt"]) !== '') ? $data["capo_alt"] : null;
     $fields["youtube_link"] = (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') ? $data["youtube_link"] : null;
+    $fields["strumming_pattern"] = (isset($data["strumming_pattern"]) && trim($data["strumming_pattern"]) !== '') ? trim($data["strumming_pattern"]) : null;
+    $fields["chord_source"] = in_array($data["chord_source"] ?? 'unknown', ['unknown', 'original', 'borrowed'], true)
+        ? $data["chord_source"] : 'unknown';
+    $fields["original_artist"] = (isset($data["original_artist"]) && trim($data["original_artist"]) !== '') ? trim($data["original_artist"]) : null;
+    $fields["translator"] = (isset($data["translator"]) && trim($data["translator"]) !== '') ? trim($data["translator"]) : null;
 
     // Build the SQL dynamically:
     $setParts = [];

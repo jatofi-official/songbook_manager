@@ -528,6 +528,20 @@ function createSongHeader(song, options = {}) {
 
   header.appendChild(titleLine);
 
+  const songMetadata = [];
+  if (song.strumming_pattern) songMetadata.push(`Strumming: ${song.strumming_pattern}`);
+  if (song.chord_source && song.chord_source !== 'unknown') songMetadata.push(`Chords: ${song.chord_source}`);
+  if (song.original_artist) songMetadata.push(`Original: ${song.original_artist}`);
+  if (song.translator) songMetadata.push(`Translation: ${song.translator}`);
+  if (songMetadata.length) {
+    const metadataLine = document.createElement('div');
+    metadataLine.style.marginTop = '4px';
+    metadataLine.style.fontSize = '0.75rem';
+    metadataLine.style.color = '#555';
+    metadataLine.textContent = songMetadata.join(' · ');
+    header.appendChild(metadataLine);
+  }
+
   // Capo Display
   if ((song.capo && song.capo !== 0) || (song.capo_alt && song.capo_alt !== 0)) {
     const capoLine = document.createElement('div');
