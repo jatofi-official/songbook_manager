@@ -532,6 +532,9 @@ if (!empty($song['title'])) {
 
 <?php else: ?>
 
+<button type="button" class="btn btn-primary mb-3 me-2" data-export-song-pdf>
+    Download song PDF
+</button>
 <button type="button" 
         class="btn btn-outline-primary mb-3" 
         onclick="goBackToSongs()">
@@ -577,6 +580,8 @@ function goBackToSongs() {
     <?php endif; ?>
 
     <script src="js/song_render.js?v=<?= filemtime('js/song_render.js') ?>"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script>
     document.addEventListener("DOMContentLoaded", function () {

@@ -66,6 +66,12 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
     $groupHtml = $groupName !== '' ? "<span class=\"org-badge\">".htmlspecialchars($groupName)."</span>" : '';
 
+    $adminProfiles = [];
+    foreach ($songbook['admins'] as $adminId) {
+        $admin = get_user($mysqli, (int)$adminId);
+        if ($admin) $adminProfiles[] = $admin;
+    }
+
     $jsCategories = [];
     if (!empty($songbook["songs_categories"])) {
         foreach ($songbook["songs_categories"] as $category) {
@@ -132,6 +138,16 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           <p class="me-2 mb-0" id="description-text"><?php echo htmlspecialchars($description); ?></p>
         </div>
       </div>
+      <?php if ($adminProfiles): ?>
+        <div class="mt-2 d-flex flex-wrap align-items-center gap-1">
+          <span class="small text-muted me-1">Songbook admins:</span>
+          <?php foreach ($adminProfiles as $admin): ?>
+            <a href="user.php?id=<?= (int)$admin['id'] ?>" class="badge bg-primary text-decoration-none">
+              <?= htmlspecialchars($admin['name'] ?? $admin['username']) ?>
+            </a>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
     </div>
 
     <div class="row">
@@ -251,6 +267,25 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <label class="form-check-label" for="extra-instruments-checkbox">
                 Instruments
               </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
+              <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="two-column-guide-checkbox">
+              <label class="form-check-label" for="two-column-guide-checkbox">Two-column print guide</label>
+              <div class="form-text">Preview only; never included in PDF.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="content-sort-select">Content order</label>
+              <select id="content-sort-select" class="form-select form-select-sm">
+                <option value="manual">Manual / saved order</option>
+                <option value="artist">Artist</option>
+                <option value="tag">First tag</option>
+                <option value="instrument">First instrument</option>
+                <option value="difficulty">Difficulty</option>
+              </select>
             </div>
 
 
@@ -1344,12 +1379,27 @@ async function beginRender(orderedIds, category, clearPages = true) {
   const showDifficulty = document.getElementById('extra-difficulty-checkbox')?.checked || false;
   const showTags = document.getElementById('extra-tags-checkbox')?.checked || false;
   const showInstruments = document.getElementById('extra-instruments-checkbox')?.checked || false;
+  const showColumnGuide = document.getElementById('two-column-guide-checkbox')?.checked || false;
+  const sortMode = document.getElementById('content-sort-select')?.value || 'manual';
 
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
     : category.name;
 
   const songs = await fetchSongsByIds(orderedIds);
+  const sortValue = (song) => {
+    if (sortMode === 'artist') return song.artist || '';
+    if (sortMode === 'tag') return (song.tags || '').split(',')[0];
+    if (sortMode === 'instrument') return (song.instruments || '').split(',')[0];
+    if (sortMode === 'difficulty') return ({ easy: '1', normal: '2', hard: '3' })[song.difficulty] || '4';
+    return '';
+  };
+  const renderIds = sortMode === 'manual' ? orderedIds : [...orderedIds].sort((leftId, rightId) => {
+    const left = songs.find(song => song.id === leftId) || {};
+    const right = songs.find(song => song.id === rightId) || {};
+    return sortValue(left).localeCompare(sortValue(right), undefined, { sensitivity: 'base' })
+      || String(left.title || '').localeCompare(String(right.title || ''), undefined, { sensitivity: 'base' });
+  });
 
   // Locked-song info is needed both to mark locked songs as non-movable
   // (manual ordering) and to label pages with their lock name.
@@ -1365,15 +1415,16 @@ async function beginRender(orderedIds, category, clearPages = true) {
   }
 
   // Wait for rendering and get the total page count
-  const pageCount = await renderA4Preview(songs, orderedIds, {
+  const pageCount = await renderA4Preview(songs, renderIds, {
     debug: debugMode,
     category: categoryTitle,
     blackAndWhite: blackAndWhite,
-    allowClicking: allowClicking,
+    allowClicking: allowClicking && sortMode === 'manual',
     transposeToCapoZero: transposeToCapoZero,
     showDifficulty: showDifficulty,
     showTags: showTags,
     showInstruments: showInstruments,
+    showColumnGuide: showColumnGuide,
     showLockName: showLockName,
     lockNames: lockNames,
     categoryId: category.id
@@ -1420,6 +1471,12 @@ async function renderMultiple(categoryIds) {
     // just avoids wiping previously-rendered categories from the container).
     const pages = await handleRenderForCategory(category, false);
     console.log(`Category "${category.name}" rendered with ${pages} pages.`);
+  }
+
+  if (document.getElementById('render-toc-checkbox')?.checked) {
+    addTableOfContents(container);
+  } else {
+    renumberRenderedPages(container);
   }
 }
 

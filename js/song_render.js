@@ -178,6 +178,43 @@ function initAutoScroll() {
     });
 }
 
+async function exportCurrentSongToPDF(button) {
+    const source = document.getElementById("song-display");
+    if (!source || !window.html2canvas || !window.jspdf) return;
+
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = "Generating PDF...";
+    const clone = source.cloneNode(true);
+    clone.querySelector(".song-header > .d-flex > div:last-child")?.remove();
+    clone.querySelectorAll("form, .transpose-controls, .auto-scroll-controls").forEach(element => element.remove());
+
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "position:absolute;left:-9999px;top:0;width:794px;min-height:1123px;padding:48px;background:#fff;color:#111;box-sizing:border-box";
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    try {
+        const canvas = await window.html2canvas(wrapper, { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" });
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+        const width = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const height = canvas.height * width / canvas.width;
+        const image = canvas.toDataURL("image/jpeg", 0.9);
+        for (let offset = 0; offset < height; offset += pageHeight) {
+            if (offset > 0) pdf.addPage();
+            pdf.addImage(image, "JPEG", 0, -offset, width, height);
+        }
+        const title = clone.querySelector("h2")?.textContent?.trim() || "song";
+        pdf.save(`${title.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "") || "song"}.pdf`);
+    } finally {
+        wrapper.remove();
+        button.disabled = false;
+        button.textContent = originalLabel;
+    }
+}
+
 
 
 function enhanceSongView() {
@@ -260,6 +297,11 @@ if (typeof document !== "undefined") {
         const selection = window.getSelection();
         if (!field || !songContent || !selection || !selection.rangeCount || !songContent.contains(selection.anchorNode)) return;
         field.value = selection.toString().trim().slice(0, 2000);
+    });
+
+    document.addEventListener("click", function (e) {
+        const button = e.target.closest("[data-export-song-pdf]");
+        if (button) exportCurrentSongToPDF(button).catch(error => console.error("PDF export failed", error));
     });
 }
 
