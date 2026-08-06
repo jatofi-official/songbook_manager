@@ -251,6 +251,16 @@ if (typeof document !== "undefined") {
                 console.error(err);
             });
     });
+
+    document.addEventListener("click", function (e) {
+        const button = e.target.closest("[data-capture-song-selection]");
+        if (!button) return;
+        const field = document.getElementById("report-selected-text");
+        const songContent = document.getElementById("song-content-js");
+        const selection = window.getSelection();
+        if (!field || !songContent || !selection || !selection.rangeCount || !songContent.contains(selection.anchorNode)) return;
+        field.value = selection.toString().trim().slice(0, 2000);
+    });
 }
 
 

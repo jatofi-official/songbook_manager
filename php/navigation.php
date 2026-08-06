@@ -32,6 +32,11 @@ if (!isset($projectUrl)) {
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="about") echo "active"?>" href="<?= $projectUrl ?>/about.php">About</a>
                 </li>
+                <?php if (isset($_SESSION['id'])): ?>
+                    <li class="nav-item">
+                        <a class="nav-link <?php if($website=="reports") echo "active"?>" href="<?= $projectUrl ?>/song_reports.php">Reports</a>
+                    </li>
+                <?php endif; ?>
 
                 <?php if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){ ?>
                     <li class="nav-item">

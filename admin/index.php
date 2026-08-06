@@ -114,6 +114,11 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
         </div>
     </div>
 
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="songs.php" class="btn btn-outline-primary">Song catalog &amp; CSV</a>
+        <a href="../song_reports.php" class="btn btn-outline-warning">Song reports</a>
+    </div>
+
     <!-- Graphs -->
     <div class="row">
         <!-- Activity Last Week -->

@@ -2772,6 +2772,43 @@ function songbook_contains_song($mysqli, $songbookId, $songId) {
     return false;
 }
 
+function get_visible_songbooks_for_song($mysqli, $songId) {
+    $stmt = $mysqli->prepare("SELECT id, name, owner, admins, group_id, is_public, songs FROM songbooks WHERE songs IS NOT NULL AND songs <> '' ORDER BY name");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $userId = isset($_SESSION['id']) ? (int)$_SESSION['id'] : null;
+    $currentUser = $userId !== null ? get_user($mysqli, $userId) : null;
+    $userGroupId = isset($currentUser['group_id']) ? (int)$currentUser['group_id'] : null;
+    $isAdmin = !empty($_SESSION['admin']);
+    $songId = (string)(int)$songId;
+    $visible = [];
+
+    // ponytail: scan the legacy catId-songId string until storage gets a relation table.
+    while ($songbook = $result->fetch_assoc()) {
+        $containsSong = false;
+        foreach (explode(',', $songbook['songs']) as $pair) {
+            $parts = explode('-', $pair, 2);
+            if (($parts[1] ?? null) === $songId) {
+                $containsSong = true;
+                break;
+            }
+        }
+        if (!$containsSong) continue;
+
+        $admins = array_filter(array_map('intval', explode(',', $songbook['admins'] ?? '')));
+        $canSee = $isAdmin || (int)$songbook['is_public'] === 2;
+        if ($userId !== null) {
+            $canSee = $canSee
+                || (int)$songbook['owner'] === $userId
+                || in_array($userId, $admins, true)
+                || ((int)$songbook['is_public'] === 1 && $userGroupId !== null && (int)$songbook['group_id'] === $userGroupId);
+        }
+        if ($canSee) $visible[] = ['id' => (int)$songbook['id'], 'name' => $songbook['name']];
+    }
+    $stmt->close();
+    return $visible;
+}
+
 // Attaches an existing song to a songbook category, mirroring the client-side
 // logic in songbook.php's "Add Song" modal so wishlist fulfillment can do the
 // same thing from the server.
