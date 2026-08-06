@@ -33,7 +33,7 @@ if (!$stmt) {
 $stmt->bind_param("ii", $adminView, $userId);
 
 if ($stmt->execute()) {
-    $_SESSION["admin_view"] = $adminView;
+    $_SESSION["admin_view"] = (bool)$adminView;
     echo json_encode(["success" => true]);
 } else {
     echo json_encode(["success" => false, "error" => "Failed to update settings"]);
