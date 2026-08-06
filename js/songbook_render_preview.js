@@ -6,7 +6,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const transposeToCapoZero = options.transposeToCapoZero || false;
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
-  const showInstruments = false; // instruments extra-display is still in development
+  const showInstruments = options.showInstruments || false;
   const showLockName = options.showLockName || false;
   const lockNames = options.lockNames || {}; // song_id (string) -> { lock_id, name, locked_at }
 
@@ -414,9 +414,9 @@ function createSongHeader(song, options = {}) {
   const blackAndWhite = options.blackAndWhite || false;
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
+  const showInstruments = options.showInstruments || false;
   const locked = options.locked || false;
   const lockedName = options.lockedName || null;
-  // showInstruments intentionally unused for now - feature still in development
 
 
   header.classList.add('song-header');
@@ -485,10 +485,10 @@ function createSongHeader(song, options = {}) {
 
   titleLine.appendChild(titleTextWrapper);
 
-  // Extra Display: difficulty + tags, rendered to the right of the title.
+  // Extra Display: difficulty, tags and instruments, rendered to the right of the title.
   // Rendered into a fixed-shrink, overflow-hidden, single-line wrapper so it
   // can never make the header (and therefore the whole song block) taller.
-  if (showDifficulty || showTags) {
+  if (showDifficulty || showTags || showInstruments) {
     const extraWrapper = document.createElement('span');
     extraWrapper.style.display = 'flex';
     extraWrapper.style.alignItems = 'center';
@@ -504,6 +504,17 @@ function createSongHeader(song, options = {}) {
       .map(t => t.trim())
       .filter(Boolean)
       .forEach(tag => extraWrapper.appendChild(buildTagBadge(tag, blackAndWhite)));
+    }
+
+    if (showInstruments && song.instruments) {
+      song.instruments.split(',')
+      .map(instrument => instrument.trim())
+      .filter(Boolean)
+      .forEach(instrument => {
+        const badge = buildTagBadge(instrument, blackAndWhite);
+        badge.title = 'Instrument';
+        extraWrapper.appendChild(badge);
+      });
     }
     
     if (showDifficulty) {

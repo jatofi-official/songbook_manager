@@ -246,9 +246,9 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 Tags
               </label>
             </div>
-            <div class="form-check mb-3" title="In development">
-              <input class="form-check-input" type="checkbox" value="" id="extra-instruments-checkbox" disabled>
-              <label class="form-check-label text-muted" for="extra-instruments-checkbox">
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-instruments-checkbox">
+              <label class="form-check-label" for="extra-instruments-checkbox">
                 Instruments
               </label>
             </div>
