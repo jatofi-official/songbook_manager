@@ -51,6 +51,7 @@ if (isset($_SESSION['user'])) {
             $stmtInsert->bind_param("sss", $username, $activityType, $activityDescription);
             $stmtInsert->execute();
             $stmtInsert->close();
+            add_xp_event($mysqli, (int)$_SESSION['id'], 250, 'survey', 'survey-2025:' . (int)$_SESSION['id']);
         }
 
         $stmt->close();

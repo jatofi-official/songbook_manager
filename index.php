@@ -37,6 +37,7 @@ include_once('php/navigation.php');
 
     // Total songs
     $totalSongs = $songsCounts['total'];
+    $dashboardLeaders = get_xp_leaderboard($mysqli, 'week', 5);
 
     ?>
     <!-- Stats Cards -->
@@ -145,6 +146,35 @@ include_once('php/navigation.php');
                 <div class="fs-6">Click here to request a song or vote for songs others want added</div>
             </div>
         </a>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-7 mb-3">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Weekly XP leaderboard</strong>
+                <a href="leaderboard.php" class="btn btn-sm btn-outline-primary">Full leaderboard</a>
+            </div>
+            <div class="list-group list-group-flush">
+                <?php foreach ($dashboardLeaders as $index => $leader): ?>
+                    <a class="list-group-item list-group-item-action d-flex justify-content-between" href="user.php?id=<?= (int)$leader['id'] ?>">
+                        <span><?= $index + 1 ?>. <?= htmlspecialchars($leader['name']) ?></span>
+                        <strong><?= number_format((int)$leader['xp']) ?> XP</strong>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 mb-3">
+        <div class="card h-100">
+            <div class="card-header"><strong>Activities</strong></div>
+            <div class="card-body d-grid gap-2">
+                <a class="btn btn-outline-primary" href="wishlist.php">Song wishlist</a>
+                <?php if (isset($_SESSION['id'])): ?><a class="btn btn-outline-warning" href="song_reports.php">Song reports</a><?php endif; ?>
+                <a class="btn btn-outline-secondary" href="users.php?sort=xp">Users by XP</a>
+            </div>
+        </div>
     </div>
 </div>
 

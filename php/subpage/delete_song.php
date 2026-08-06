@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
     $stmt->close();
 
     if ($song && ($isAdmin || $song['owner'] === $user)) {
+        $ownerUser = get_user_by_username($mysqli, $song['owner']);
         // Remove tags usage counts
         $tagsArray = array_filter(array_map('trim', explode(',', $song['tags'])));
         foreach ($tagsArray as $tag) {
@@ -35,6 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
         $deleteStmt->bind_param("i", $id);
         $deleteStmt->execute();
         $deleteStmt->close();
+
+        if ($ownerUser) {
+            revoke_song_add_xp($mysqli, (int)$ownerUser['id'], $id);
+        }
 
         add_activity(
             $mysqli,

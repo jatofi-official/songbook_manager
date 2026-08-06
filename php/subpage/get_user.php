@@ -38,6 +38,7 @@ $progress = $xp['progress'] * 100; // For progress bar width %
 
 $nextLevelAt = $xp['next_level_xp']; // XP needed for next level absolute
 $xpToNextLevel = $nextLevelAt - $xpTotal; // How much XP left to next level
+$mostXpInDay = get_most_xp_in_day($mysqli, $id);
 
 
 
@@ -158,6 +159,12 @@ $songsEdited = get_activities_user($mysqli, "edit",$user["username"]);
                     <div class="stats-card">
                         <div class="stat-number"><?= $songsEdited ?></div>
                         <div class="stat-label">Edits</div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="stats-card">
+                        <div class="stat-number"><?= number_format($mostXpInDay) ?></div>
+                        <div class="stat-label">Most XP in a day</div>
                     </div>
                 </div>
             </div>

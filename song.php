@@ -13,8 +13,6 @@ include_once('php/data.php');
 $website = "songs";
 
 include_once('php/functions.php');
-include("php/header.php");
-include('php/navigation.php');
 include("php/categories.php");
 
 $userId = $_SESSION["user"] ?? null;  // null if not logged in
@@ -22,6 +20,7 @@ $isAdmin = $_SESSION["admin_view"] ?? false;
 
 $errors = [];
 $successMessage = "";
+$xpNotice = max(0, (int)($_GET['xp'] ?? 0));
 
 $song = [
     "id" => null,
@@ -143,7 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         "Edited '{$title}' - {$artist}",
                         $is_public
                     );
-                    $successMessage = "Song updated successfully.";
+                    $xpAwarded = award_song_edit_xp($mysqli, (int)$_SESSION['id'], $id);
+                    $successMessage = "Song updated successfully." . ($xpAwarded ? " +{$xpAwarded} XP" : '');
                     // reload for display
                     $song = get_song($mysqli, $id);
                     $song['instruments'] = explode(',', $song['instruments']);
@@ -163,6 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     "Added '{$title}' by {$artist}",
                     $is_public
                 );
+                $xpAwarded = add_xp_event($mysqli, (int)$_SESSION['id'], ADD_XP_AMOUNT, 'song_add', "song-add:$newId", $newId);
 
                 // Fulfilling a wishlist request: attach to the songbook it was
                 // wished for (if any), then remove the wishlist entry/entries.
@@ -175,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     delete_wishlist_song($mysqli, $postedWishlistSongId);
                 }
 
-                header("Location: song.php?id=$newId");
+                header("Location: song.php?id=$newId&xp=$xpAwarded");
                 exit;
             } else {
                 $errors[] = $newId;  // error message
@@ -229,6 +230,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 }
 
+include("php/header.php");
+include('php/navigation.php');
+
 ?>
 
 <div class="container mt-4">
@@ -246,6 +250,9 @@ if (!empty($song['title'])) {
 
     <?php if ($successMessage): ?>
         <div class="alert alert-success"><?= htmlspecialchars($successMessage) ?></div>
+    <?php endif; ?>
+    <?php if ($xpNotice): ?>
+        <div class="alert alert-success">You earned <?= $xpNotice ?> XP for adding this song.</div>
     <?php endif; ?>
 
     <?php if (!empty($errors)): ?>

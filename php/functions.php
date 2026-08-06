@@ -1039,56 +1039,86 @@ function calculate_level(int $xp): array {
 
 
 function get_xp(mysqli $mysqli, int $id): ?array {
-    $stmt = $mysqli->prepare("SELECT * FROM user_xp WHERE user_id = ?");
-    if (!$stmt) return null;
-
+    $stmt = $mysqli->prepare("SELECT id FROM users WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows === 0) {
-        $stmt->close();
-        return null;
-    }
-
-    $row = $result->fetch_assoc();
+    $exists = (bool)$stmt->get_result()->fetch_assoc();
     $stmt->close();
+    if (!$exists) return null;
 
-    // $xp_add = (int)$row["xp_add_song"];
-    // $xp_edit = (int)$row["xp_edit_song"];
-    $xp_special = (int)$row["special_xp"];
-
-
-    // Instead calculate this manually
-    $stmt = $mysqli->prepare("SELECT username FROM users WHERE id = ?");
-    $stmt->bind_param("i", $id);
+    $stmt = $mysqli->prepare("SELECT
+        COALESCE(SUM(amount), 0) AS total_xp,
+        COALESCE(SUM(CASE WHEN event_type IN ('song_add','song_delete') THEN amount ELSE 0 END), 0) AS add_xp,
+        COALESCE(SUM(CASE WHEN event_type = 'song_edit' THEN amount ELSE 0 END), 0) AS edit_xp
+        FROM xp_events WHERE user_id = ?");
+    $stmt->bind_param('i', $id);
     $stmt->execute();
-    $username = $stmt->get_result()->fetch_assoc()['username'] ?? null;
+    $totals = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-    
-    if($username ===null){
-        return null;
-    }
-
-    $xp_add = get_number_of_songs($mysqli,$username)["total"]*ADD_XP_AMOUNT;
-    $xp_edit = get_activities_user($mysqli, "edit",$username)*EDIT_XP_AMOUNT;
-    $xp_special += get_activities_user($mysqli,"Anketa",$username)*250;
-
-
-
-    // continue normally
-    $xp_total = $xp_add + $xp_edit + $xp_special;
+    $xp_total = (int)$totals['total_xp'];
 
     $levelInfo = calculate_level($xp_total);
 
     return [
         'total_xp' => $xp_total,
-        'add_xp' => $xp_add,
-        'xp_edit' => $xp_edit,
+        'add_xp' => (int)$totals['add_xp'],
+        'xp_edit' => (int)$totals['edit_xp'],
         'level' => $levelInfo['level'],
         'progress' => $levelInfo['progress'],
         'next_level_xp' => $levelInfo['next_level_xp']
     ];
+}
+
+function add_xp_event(mysqli $mysqli, int $userId, int $amount, string $eventType, string $sourceKey, ?int $referenceId = null): int {
+    $stmt = $mysqli->prepare("INSERT IGNORE INTO xp_events (user_id, amount, event_type, source_key, reference_id) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param('iissi', $userId, $amount, $eventType, $sourceKey, $referenceId);
+    $stmt->execute();
+    $awarded = $stmt->affected_rows > 0 ? $amount : 0;
+    $stmt->close();
+    return $awarded;
+}
+
+function award_song_edit_xp(mysqli $mysqli, int $userId, int $songId): int {
+    $stmt = $mysqli->prepare("SELECT history_id FROM songs_history WHERE song_id = ? AND action = 'edit' ORDER BY history_id DESC LIMIT 1");
+    $stmt->bind_param('i', $songId);
+    $stmt->execute();
+    $historyId = (int)($stmt->get_result()->fetch_assoc()['history_id'] ?? 0);
+    $stmt->close();
+    return $historyId ? add_xp_event($mysqli, $userId, EDIT_XP_AMOUNT, 'song_edit', "song-edit:$historyId", $songId) : 0;
+}
+
+function revoke_song_add_xp(mysqli $mysqli, int $userId, int $songId): int {
+    $stmt = $mysqli->prepare("SELECT COALESCE(SUM(amount), 0) AS earned FROM xp_events WHERE user_id = ? AND event_type = 'song_add' AND reference_id = ?");
+    $stmt->bind_param('ii', $userId, $songId);
+    $stmt->execute();
+    $earned = (int)$stmt->get_result()->fetch_assoc()['earned'];
+    $stmt->close();
+    return $earned > 0 ? add_xp_event($mysqli, $userId, -min(ADD_XP_AMOUNT, $earned), 'song_delete', "song-delete:$songId", $songId) : 0;
+}
+
+function get_most_xp_in_day(mysqli $mysqli, int $userId): int {
+    $stmt = $mysqli->prepare("SELECT COALESCE(MAX(day_xp), 0) AS most FROM (SELECT SUM(amount) AS day_xp FROM xp_events WHERE user_id = ? GROUP BY DATE(created_at)) daily");
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $most = (int)$stmt->get_result()->fetch_assoc()['most'];
+    $stmt->close();
+    return $most;
+}
+
+function get_xp_leaderboard(mysqli $mysqli, string $period = 'total', int $limit = 10): array {
+    $dateFilter = match ($period) {
+        'week' => "AND x.created_at >= NOW() - INTERVAL 7 DAY",
+        'month' => "AND x.created_at >= NOW() - INTERVAL 1 MONTH",
+        default => ''
+    };
+    $stmt = $mysqli->prepare("SELECT u.id, u.name, u.username, COALESCE(SUM(x.amount), 0) AS xp
+        FROM users u LEFT JOIN xp_events x ON x.user_id = u.id $dateFilter
+        GROUP BY u.id, u.name, u.username ORDER BY xp DESC, u.name LIMIT ?");
+    $stmt->bind_param('i', $limit);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    return $rows;
 }
 
 function get_all_groups(mysqli $mysqli) {
@@ -1283,7 +1313,7 @@ function get_all_categories($mysqli) {
     $result->free();
     return $categories;
 }
-function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
+function get_all_users($mysqli, $limit, $page, $search = '', $group = '', $sort = 'name') {
     $where = [];
     $params = [];
     $types = '';
@@ -1314,12 +1344,14 @@ function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
     $params[] = $offset;
     $types .= 'ii';
 
+    $orderBy = $sort === 'xp' ? 'ledger_xp DESC, u.name' : 'u.name';
     $sql = "
-        SELECT SQL_CALC_FOUND_ROWS u.*, g.name AS group_name
+        SELECT SQL_CALC_FOUND_ROWS u.*, g.name AS group_name, COALESCE(x.total_xp, 0) AS ledger_xp
         FROM users u
         LEFT JOIN group_list g ON u.group_id = g.id
+        LEFT JOIN (SELECT user_id, SUM(amount) AS total_xp FROM xp_events GROUP BY user_id) x ON x.user_id = u.id
         $whereSQL
-        ORDER BY u.name
+        ORDER BY $orderBy
         LIMIT ? OFFSET ?
     ";
 
