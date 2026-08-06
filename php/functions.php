@@ -2269,7 +2269,7 @@ function load_user_settings_into_session($mysqli) {
 
     $userId = $_SESSION["id"];
 
-    $stmt = $mysqli->prepare("SELECT advanced_view, admin_view FROM user_settings WHERE user_id = ?");
+    $stmt = $mysqli->prepare("SELECT advanced_view, admin_view, theme FROM user_settings WHERE user_id = ?");
     if (!$stmt) {
         error_log("DB error: " . $mysqli->error);
         return false;
@@ -2277,11 +2277,12 @@ function load_user_settings_into_session($mysqli) {
 
     $stmt->bind_param("i", $userId);
     $stmt->execute();
-    $stmt->bind_result($advancedView, $adminView);
+    $stmt->bind_result($advancedView, $adminView, $theme);
 
     if ($stmt->fetch()) {
         $_SESSION["advanced_view"] = (bool)$advancedView;
         $_SESSION["admin_view"] = (bool)$adminView;
+        $_SESSION["theme"] = in_array($theme, ['light', 'dark', 'system'], true) ? $theme : 'light';
         $stmt->close();
         return true;
     }
@@ -2292,8 +2293,8 @@ function load_user_settings_into_session($mysqli) {
 
 function create_default_user_settings($mysqli, $userId) {
     $stmt = $mysqli->prepare("
-        INSERT INTO user_settings (user_id, advanced_view, admin_view)
-        VALUES (?, 0, 0)
+        INSERT INTO user_settings (user_id, advanced_view, admin_view, theme)
+        VALUES (?, 0, 0, 'light')
     ");
     if (!$stmt) {
         error_log("DB error in create_default_user_settings: " . $mysqli->error);
