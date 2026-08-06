@@ -1135,8 +1135,8 @@ function get_all_groups(mysqli $mysqli) {
     return $groups;
 }
 
-function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id): bool {
-    $hashedPassword = hash('sha256', $password);
+function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id): int|false {
+    $hashedPassword = $password !== null && $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : null;
     $admin_ids = (string) $user_id;
 
     $stmt = $mysqli->prepare("INSERT INTO group_list (name, password, admin_ids, owner) VALUES (?, ?, ?, ?)");
@@ -1146,9 +1146,21 @@ function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id
 
     $stmt->bind_param("sssi", $name, $hashedPassword, $admin_ids, $user_id);
     $success = $stmt->execute();
+    $groupId = $success ? (int)$stmt->insert_id : 0;
     $stmt->close();
+    if (!$groupId) return false;
 
-    return $success;
+    $stmt = $mysqli->prepare("UPDATE users SET group_id = ? WHERE id = ?");
+    $stmt->bind_param('ii', $groupId, $user_id);
+    $stmt->execute();
+    $stmt->close();
+    return $groupId;
+}
+
+function verify_group_password(string $password, ?string $storedHash): bool {
+    if ($storedHash === null || $storedHash === '') return true;
+    if (password_get_info($storedHash)['algo'] !== null) return password_verify($password, $storedHash);
+    return hash_equals($storedHash, hash('sha256', $password));
 }
 
 function add_group_admin(mysqli $mysqli, int $group_id, array $user_ids): bool {

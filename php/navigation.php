@@ -27,6 +27,9 @@ if (!isset($projectUrl)) {
                     <a class="nav-link <?php if($website=="songbooks") echo "active"?>" href="<?= $projectUrl ?>/songbooks.php">Songbooks</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link <?php if($website=="groups") echo "active"?>" href="<?= $projectUrl ?>/groups.php">Groups</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link <?php if($website=="users") echo "active"?>" href="<?= $projectUrl ?>/users.php">Users</a>
                 </li>
                 <li class="nav-item">

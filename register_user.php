@@ -43,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
         if ($selectedGroup && !empty($selectedGroup['password'])) {
-            if (hash('sha256', $group_password) !== $selectedGroup['password']) {
+            if (!verify_group_password($group_password, $selectedGroup['password'])) {
                 $error = "Incorrect password for selected group.";
             }
         }

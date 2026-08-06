@@ -474,6 +474,12 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                 <p class="text-muted">Choose a songbook above to see and add wishlist requests for it.</p>
             <?php else: ?>
 
+                <div class="d-flex justify-content-end mb-3">
+                    <a class="btn btn-outline-success" href="php/export_wishlist_csv.php?songbook_id=<?= (int)$selectedSongbookId ?>">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Export checklist CSV
+                    </a>
+                </div>
+
                 <div class="card mb-4">
                     <div class="card-header">
                         <button class="btn btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#songbookAddForm">
@@ -521,6 +527,7 @@ $canVoteOnSelectedSongbook = $selectedSongbook ? can_vote_on_wishlist_songbook($
                         <div class="card wishlist-card mb-2">
                             <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
+                                    <span class="badge bg-warning text-dark me-2">Open</span>
                                     <strong><?= htmlspecialchars($item['name']) ?></strong>
                                     <?php if (!empty($item['artist'])): ?>
                                         <span class="text-muted">- <?= htmlspecialchars($item['artist']) ?></span>

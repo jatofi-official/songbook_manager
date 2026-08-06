@@ -25,7 +25,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
     // --- Visibility check ---
     $userId = $_SESSION['id'] ?? null;
-    $userGroupId = $_SESSION['group_id'] ?? null;
+    $userGroupId = $userId ? get_user_group($mysqli, (int)$userId) : null;
 
     if (empty($_SESSION['admin_view'])) { // admin override off
         if (
@@ -36,8 +36,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             ($userId && (
                 // Group-access songbooks (is_public = 1)
                 ($songbook['is_public'] == 1 &&
-                    // either not in same group OR not admin
-                    (!is_null($userGroupId) && $userGroupId != $songbook['group_id'] && !in_array($userId, $songbook['admins']))
+                    (is_null($userGroupId) || (int)$userGroupId !== (int)$songbook['group_id']) &&
+                    !in_array($userId, $songbook['admins'])
                 )
                 ||
                 // Private songbooks (is_public = 0)
