@@ -1075,6 +1075,73 @@ function get_xp(mysqli $mysqli, int $id): ?array {
     ];
 }
 
+// Mirrors the xp formula in get_xp(), but aggregated over all users at once so a
+// leaderboard doesn't need one get_xp() query set per user. When $days is given,
+// only songs/activity created within that window count; the manually-granted
+// special_xp lump sum has no timestamp so it's only included in the all-time board.
+function get_leaderboard(mysqli $mysqli, ?int $days = null, int $limit = 10): array {
+    $songWhere = "";
+    $activityWhere = "";
+    if ($days !== null) {
+        $days = max(1, $days);
+        $songWhere = "WHERE create_date >= DATE_SUB(NOW(), INTERVAL $days DAY)";
+        $activityWhere = "AND time >= DATE_SUB(NOW(), INTERVAL $days DAY)";
+    }
+    $specialXpSelect = $days === null ? "COALESCE(ux.special_xp, 0)" : "0";
+
+    $sql = "
+        SELECT
+            u.id,
+            u.name,
+            u.username,
+            g.name AS group_name,
+            COALESCE(s.song_count, 0) AS song_count,
+            COALESCE(e.edit_count, 0) AS edit_count,
+            COALESCE(a.anketa_count, 0) AS anketa_count,
+            $specialXpSelect AS special_xp
+        FROM users u
+        LEFT JOIN group_list g ON g.id = u.group_id
+        LEFT JOIN (
+            SELECT owner, COUNT(*) AS song_count FROM songs $songWhere GROUP BY owner
+        ) s ON s.owner = u.username
+        LEFT JOIN (
+            SELECT username, COUNT(*) AS edit_count FROM activity_log WHERE type = 'edit' $activityWhere GROUP BY username
+        ) e ON e.username = u.username
+        LEFT JOIN (
+            SELECT username, COUNT(*) AS anketa_count FROM activity_log WHERE type = 'Anketa' $activityWhere GROUP BY username
+        ) a ON a.username = u.username
+        LEFT JOIN user_xp ux ON ux.user_id = u.id
+    ";
+
+    $result = $mysqli->query($sql);
+    if (!$result) {
+        error_log("MySQL Error in get_leaderboard: " . $mysqli->error);
+        return [];
+    }
+
+    $entries = [];
+    while ($row = $result->fetch_assoc()) {
+        $xp = ((int)$row['song_count']) * ADD_XP_AMOUNT
+            + ((int)$row['edit_count']) * EDIT_XP_AMOUNT
+            + ((int)$row['anketa_count']) * 250
+            + (int)$row['special_xp'];
+
+        if ($xp <= 0) continue;
+
+        $entries[] = [
+            'id' => (int)$row['id'],
+            'name' => $row['name'],
+            'username' => $row['username'],
+            'group_name' => $row['group_name'],
+            'xp' => $xp,
+        ];
+    }
+
+    usort($entries, fn($a, $b) => $b['xp'] <=> $a['xp']);
+
+    return array_slice($entries, 0, $limit);
+}
+
 function get_all_groups(mysqli $mysqli) {
     $sql = "SELECT id, name, password FROM group_list ORDER BY name ASC";
     $result = $mysqli->query($sql);

@@ -77,10 +77,60 @@ include('php/navigation.php');
     });
     </script>
 
+    <!-- Leaderboard -->
     <div class="users-list mb-4 container pt-4">
+        <h5 class="section-title">Leaderboard</h5>
+        <div class="row">
+            <?php
+            function render_leaderboard(array $entries, string $unitLabel) {
+                if (empty($entries)) {
+                    echo "<p class='text-muted'>No XP earned yet.</p>";
+                    return;
+                }
+                $rank = 0;
+                foreach ($entries as $entry) {
+                    $rank++;
+                    $name = htmlspecialchars($entry['name']);
+                    $username = htmlspecialchars($entry['username']);
+                    $userId = $entry['id'];
+                    $xp = number_format($entry['xp']);
+                    $rankClass = $rank <= 3 ? "leaderboard-rank leaderboard-rank--top" : "leaderboard-rank";
 
+                    $profilePicPath = __DIR__ . "/profile_pics/{$userId}.png";
+                    if (file_exists($profilePicPath)) {
+                        $mtime = filemtime($profilePicPath);
+                        $avatarUrl = "profile_pics/{$userId}.png?v={$mtime}";
+                    } else {
+                        $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($name) . "&background=random";
+                    }
 
-</div>
+                    echo <<<HTML
+                    <a href="user.php?id=$userId" class="leaderboard-row text-decoration-none text-reset">
+                        <div class="$rankClass">$rank</div>
+                        <img src="$avatarUrl" class="leaderboard-avatar me-3" alt="$name">
+                        <div class="d-flex flex-column flex-grow-1">
+                            <div class="user-name">$name</div>
+                            <div class="username">@$username</div>
+                        </div>
+                        <div class="xp-value">$xp $unitLabel</div>
+                    </a>
+                    HTML;
+                }
+            }
+
+            $topTotal = get_leaderboard($mysqli, null, 10);
+            $topWeek = get_leaderboard($mysqli, 7, 10);
+            ?>
+            <div class="col-md-6 mb-4 mb-md-0">
+                <h6 class="leaderboard-subtitle"><i class="bi bi-trophy-fill me-2"></i>All-Time XP</h6>
+                <?php render_leaderboard($topTotal, "XP"); ?>
+            </div>
+            <div class="col-md-6">
+                <h6 class="leaderboard-subtitle"><i class="bi bi-lightning-fill me-2"></i>Last 7 Days</h6>
+                <?php render_leaderboard($topWeek, "XP"); ?>
+            </div>
+        </div>
+    </div>
     <!-- Users List -->
     <!-- Users List -->
 <div class="users-list mb-4 container pt-4">
