@@ -13,7 +13,9 @@ if (empty($ids) || !is_array($ids)) {
 $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $types = str_repeat('i', count($ids));
 
-$stmt = $mysqli->prepare("SELECT id, title, artist, content, capo, capo_alt, owner, tags, instruments FROM songs WHERE id IN ($placeholders)");
+$stmt = $mysqli->prepare("SELECT id, title, artist, content, capo, capo_alt, owner, tags, instruments,
+    strumming_pattern, chord_source, original_artist, translator
+    FROM songs WHERE id IN ($placeholders)");
 $stmt->bind_param($types, ...$ids);
 $stmt->execute();
 

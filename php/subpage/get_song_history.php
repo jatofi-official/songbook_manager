@@ -64,6 +64,10 @@ $actionClass = [
                             <div><strong>Public:</strong> <?= $row['is_public'] ? 'Yes' : 'No' ?></div>
                             <div><strong>Tags:</strong> <?= htmlspecialchars($row['tags'] ?? '') ?></div>
                             <div><strong>Instruments:</strong> <?= htmlspecialchars($row['instruments'] ?? '') ?></div>
+                            <div><strong>Chord source:</strong> <?= htmlspecialchars(ucfirst($row['chord_source'] ?? 'unknown')) ?></div>
+                            <div><strong>Strumming:</strong> <?= htmlspecialchars($row['strumming_pattern'] ?? '') ?></div>
+                            <div><strong>Original artist:</strong> <?= htmlspecialchars($row['original_artist'] ?? '') ?></div>
+                            <div><strong>Translator:</strong> <?= htmlspecialchars($row['translator'] ?? '') ?></div>
                         </div>
                     </div>
                     <strong>Content:</strong>

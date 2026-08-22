@@ -27,11 +27,22 @@ if (!isset($projectUrl)) {
                     <a class="nav-link <?php if($website=="songbooks") echo "active"?>" href="<?= $projectUrl ?>/songbooks.php">Songbooks</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link <?php if($website=="groups") echo "active"?>" href="<?= $projectUrl ?>/groups.php">Groups</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link <?php if($website=="users") echo "active"?>" href="<?= $projectUrl ?>/users.php">Users</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php if($website=="leaderboard") echo "active"?>" href="<?= $projectUrl ?>/leaderboard.php">Leaderboard</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?php if($website=="about") echo "active"?>" href="<?= $projectUrl ?>/about.php">About</a>
                 </li>
+                <?php if (isset($_SESSION['id'])): ?>
+                    <li class="nav-item">
+                        <a class="nav-link <?php if($website=="reports") echo "active"?>" href="<?= $projectUrl ?>/song_reports.php">Reports</a>
+                    </li>
+                <?php endif; ?>
 
                 <?php if(isset($_SESSION["admin_view"])&&$_SESSION["admin_view"]==true){ ?>
                     <li class="nav-item">
@@ -40,7 +51,11 @@ if (!isset($projectUrl)) {
                 <?php } ?>
                 <li class="nav-item">
                     <a href="<?= $projectUrl ?>/user_settings.php" class="nav-link <?php if($website=="user") echo "active"?>">
-                        <?= isset($_SESSION["name"]) ? $_SESSION["name"] : "Log in"; ?>
+                        <?php if (isset($_SESSION['id']) && function_exists('get_xp')): ?>
+                            <?= htmlspecialchars($_SESSION["name"]) ?> · <?= number_format(get_xp($mysqli, (int)$_SESSION['id'])['total_xp'] ?? 0) ?> XP
+                        <?php else: ?>
+                            Log in
+                        <?php endif; ?>
                     </a>
                 </li>
             </ul>

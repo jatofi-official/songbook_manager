@@ -4,10 +4,30 @@
 --accent: #4cc9f0;
 --light: #f8f9fa;
 --dark: #212529;
+--page-bg: #f5f7fb;
+--surface: #ffffff;
+--surface-muted: #f8f9fa;
+--text: #212529;
+--muted: #6c757d;
+--border: #dee2e6;
+--hover: #f0f5ff;
+}
+
+[data-theme="dark"] {
+--page-bg: #10131a;
+--surface: #1b202b;
+--surface-muted: #252b37;
+--text: #edf1f7;
+--muted: #aab3c2;
+--border: #3b4352;
+--hover: #283247;
+--dark: #edf1f7;
+color-scheme: dark;
 }
 
 body {
-background-color: #f5f7fb;
+background-color: var(--page-bg);
+color: var(--text);
 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -171,4 +191,125 @@ margin-bottom: 0;
 .songbook-subtitle {
 color: #6c757d;
 font-size: 0.9rem;
+}
+
+/* Shared theme layer. Page-specific styles load later, so the theme selector
+   deliberately adds enough specificity to override their legacy colours. */
+[data-theme="dark"] body,
+[data-theme="dark"] .song-detail-container {
+    background-color: var(--page-bg);
+    color: var(--text);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .card-body,
+[data-theme="dark"] .list-group-item,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .dropdown-menu,
+[data-theme="dark"] .accordion-item,
+[data-theme="dark"] .accordion-button,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .song-detail,
+[data-theme="dark"] .song-list-container,
+[data-theme="dark"] .song-header,
+[data-theme="dark"] .song-content,
+[data-theme="dark"] .search-box,
+[data-theme="dark"] .user-card,
+[data-theme="dark"] .search-container,
+[data-theme="dark"] .user-list-header,
+[data-theme="dark"] .profile-card,
+[data-theme="dark"] .xp-card,
+[data-theme="dark"] .stats-card,
+[data-theme="dark"] .form-card,
+[data-theme="dark"] .settings-card,
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-light {
+    background-color: var(--surface) !important;
+    color: var(--text);
+    border-color: var(--border);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .input-group-text,
+[data-theme="dark"] textarea {
+    background-color: var(--surface-muted);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+[data-theme="dark"] .form-control::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: var(--muted);
+}
+
+[data-theme="dark"] .table {
+    --bs-table-bg: var(--surface);
+    --bs-table-color: var(--text);
+    --bs-table-border-color: var(--border);
+    --bs-table-striped-bg: var(--surface-muted);
+    --bs-table-hover-bg: var(--hover);
+}
+
+[data-theme="dark"] .text-muted,
+[data-theme="dark"] .song-artist,
+[data-theme="dark"] .songbook-subtitle,
+[data-theme="dark"] .xp-label,
+[data-theme="dark"] .username,
+[data-theme="dark"] .stat-card .label {
+    color: var(--muted) !important;
+}
+
+[data-theme="dark"] .text-dark,
+[data-theme="dark"] .page-title,
+[data-theme="dark"] .section-title,
+[data-theme="dark"] .song-title,
+[data-theme="dark"] .user-name,
+[data-theme="dark"] .xp-category {
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] .song-list-item,
+[data-theme="dark"] .nav-tabs,
+[data-theme="dark"] .border,
+[data-theme="dark"] .border-top,
+[data-theme="dark"] .border-bottom {
+    border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .song-list-item:hover,
+[data-theme="dark"] .list-group-item-action:hover,
+[data-theme="dark"] .song-list-item.active {
+    background-color: var(--hover);
+    color: var(--text);
+}
+
+[data-theme="dark"] .lyrics-container,
+[data-theme="dark"] pre,
+[data-theme="dark"] code {
+    background-color: var(--surface-muted);
+    color: var(--text);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:not(.active),
+[data-theme="dark"] a.text-reset {
+    color: var(--text) !important;
+}
+
+@media print {
+    :root {
+        --page-bg: #ffffff;
+        --surface: #ffffff;
+        --surface-muted: #f8f9fa;
+        --text: #000000;
+        --muted: #4b4b4b;
+        --border: #d9d9d9;
+        color-scheme: light !important;
+    }
+
+    html, body, .card, .song-content, .song-header, .song-detail-container, .a4-page {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
 }

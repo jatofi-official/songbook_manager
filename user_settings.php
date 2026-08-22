@@ -182,6 +182,14 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 									<?= !empty($_SESSION["advanced_view"]) && $_SESSION["advanced_view"] ? "checked" : "" ?>>
 								<label class="form-check-label" for="advancedSwitch">Advanced View</label>
 							</div>
+							<div class="mb-3">
+								<label class="form-label" for="themeSelect">Colour theme</label>
+								<select class="form-select" id="themeSelect">
+									<?php foreach (['light' => 'Light', 'dark' => 'Dark', 'system' => 'Use system setting'] as $value => $label): ?>
+										<option value="<?= $value ?>" <?= ($_SESSION['theme'] ?? 'light') === $value ? 'selected' : '' ?>><?= $label ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
 							<button type="button" id="savePreferencesBtn" class="btn btn-primary">Save Preferences</button>
 							
 							<div id="preferencesMessage" class="mt-3"></div>
@@ -337,16 +345,18 @@ document.getElementById("passwordForm").addEventListener("submit", function(e) {
 
 document.getElementById("savePreferencesBtn").addEventListener("click", function () {
     const advanced = document.getElementById("advancedSwitch").checked ? 1 : 0;
+    const theme = document.getElementById("themeSelect").value;
 
     fetch("php/update_preferences.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ advanced_view: advanced })
+        body: JSON.stringify({ advanced_view: advanced, theme: theme })
     })
     .then(res => res.json())
     .then(data => {
 
         if (data.success) {
+			window.applyThemePreference(data.theme);
 			showMessage("preferencesMessage", "success", "Preferences updated successfully!");
         } else {
 			showMessage("preferencesMessage", "danger", data.error);

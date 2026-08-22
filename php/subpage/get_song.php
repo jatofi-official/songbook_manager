@@ -15,12 +15,15 @@ $isEmbedded = isset($_GET['embedded']) && $_GET['embedded'] == 1;
 
 if (isset($_GET['id'])) {
     $id = intval($_GET['id']);
-    $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
-    $stmt->bind_param("i", $id);
+    $currentUsername = $_SESSION['user'] ?? '';
+    $isSiteAdmin = !empty($_SESSION['admin']) ? 1 : 0;
+    $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ? AND (is_public = 1 OR owner = ? OR ? = 1)");
+    $stmt->bind_param("isi", $id, $currentUsername, $isSiteAdmin);
     $stmt->execute();
     $song = $stmt->get_result()->fetch_assoc();
 
     if ($song) {
+        $visibleSongbooks = get_visible_songbooks_for_song($mysqli, $id);
         // Fetch the creator's user info by owner ID
         $stmtUser = $mysqli->prepare("SELECT id, name FROM users WHERE username = ?");
         $stmtUser->bind_param("s", $song['owner']);
@@ -167,11 +170,34 @@ if (isset($_GET['id'])) {
                                 <?= $song['is_public'] ? 'Public' : 'Private' ?>
                             </span>
                         </div>
+                        <div class="mb-2"><strong>Chord source:</strong>
+                            <?= htmlspecialchars(ucfirst($song['chord_source'] ?? 'unknown')) ?>
+                        </div>
+                        <?php if (!empty($song['strumming_pattern'])): ?>
+                            <div class="mb-2"><strong>Strumming:</strong> <?= htmlspecialchars($song['strumming_pattern']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($song['original_artist'])): ?>
+                            <div class="mb-2"><strong>Original artist:</strong> <?= htmlspecialchars($song['original_artist']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($song['translator'])): ?>
+                            <div class="mb-2"><strong>Translator:</strong> <?= htmlspecialchars($song['translator']) ?></div>
+                        <?php endif; ?>
+                        <div class="mb-2"><strong>Songbooks:</strong>
+                            <?php if (!$visibleSongbooks): ?>
+                                None visible
+                            <?php else: ?>
+                                <?php foreach ($visibleSongbooks as $book): ?>
+                                    <a href="songbook.php?id=<?= $book['id'] ?>" class="badge bg-secondary text-decoration-none">
+                                        <?= htmlspecialchars($book['name']) ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="d-flex align-items-center gap-2 mt-3 transpose-controls">
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-3 transpose-controls">
             <strong>Transposition:</strong>
             <button type="button" class="btn btn-outline-secondary btn-sm" data-transpose="down">-1</button>
             <span data-transpose-label>0</span>
@@ -179,9 +205,38 @@ if (isset($_GET['id'])) {
             <button type="button" class="btn btn-outline-secondary btn-sm" data-transpose="reset">Reset</button>
         </div>
 
+        <?php if (!$isEmbedded): ?>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3 auto-scroll-controls">
+                <button type="button" id="auto-scroll-toggle" class="btn btn-outline-primary btn-sm" aria-pressed="false">
+                    Start auto-scroll
+                </button>
+                <label for="auto-scroll-speed" class="mb-0">Speed</label>
+                <input type="range" id="auto-scroll-speed" class="form-range" min="1" max="5" step="1" value="2"
+                       aria-label="Auto-scroll speed" style="width: 9rem;">
+            </div>
+        <?php endif; ?>
+
         <div id="song-content-js" class="song-content mt-3" style="white-space: pre-wrap; font-family: monospace;"><?=
             htmlspecialchars($song['content'])
         ?></div>
+
+        <?php if (!$isEmbedded && !empty($_SESSION['id'])): ?>
+            <?php $_SESSION['csrf_token'] ??= bin2hex(random_bytes(32)); ?>
+            <form method="post" action="song_reports.php" class="card card-body mt-4">
+                <h3 class="h6">Report incorrect lyrics or chords</h3>
+                <input type="hidden" name="action" value="create">
+                <input type="hidden" name="song_id" value="<?= (int)$song['id'] ?>">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+                <label for="report-selected-text" class="form-label">Selected part</label>
+                <textarea id="report-selected-text" name="selected_text" class="form-control mb-2" rows="2" maxlength="2000" readonly></textarea>
+                <button type="button" class="btn btn-outline-secondary btn-sm align-self-start mb-2" data-capture-song-selection>
+                    Use current text selection
+                </button>
+                <label for="report-text" class="form-label">What is wrong?</label>
+                <textarea id="report-text" name="report_text" class="form-control mb-2" rows="3" maxlength="4000" required></textarea>
+                <button type="submit" class="btn btn-warning align-self-start">Send report</button>
+            </form>
+        <?php endif; ?>
 
         <?php
         echo ob_get_clean();

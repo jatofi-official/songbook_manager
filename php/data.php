@@ -1,4 +1,3 @@
-
 <?php
 define("AUTHOR", "Jakub Hlavatý");
 define("VERSION", "Alpha 1.4");

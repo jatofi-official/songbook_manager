@@ -6,7 +6,8 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const transposeToCapoZero = options.transposeToCapoZero || false;
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
-  const showInstruments = false; // instruments extra-display is still in development
+  const showInstruments = options.showInstruments || false;
+  const showColumnGuide = options.showColumnGuide || false;
   const showLockName = options.showLockName || false;
   const lockNames = options.lockNames || {}; // song_id (string) -> { lock_id, name, locked_at }
 
@@ -41,6 +42,8 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
   let currentPage = createPage(currentPageNum, category);
   if (options.categoryId !== undefined) currentPage.dataset.categoryId = options.categoryId;
+  currentPage.dataset.categoryLabel = category || '';
+  if (showColumnGuide) addPreviewColumnGuide(currentPage);
   pageRow.appendChild(currentPage);
   pagesCreatedThisCall.push({ page: currentPage, pageNumber: currentPageNum });
 
@@ -72,6 +75,8 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       const songDiv = document.createElement('div');
       songDiv.className = 'song-block mb-4';
       songDiv.dataset.songId = partSong.id;
+      songDiv.dataset.songTitle = partSong.title || '';
+      songDiv.dataset.songArtist = partSong.artist || '';
 
       const isLocked = !!lockNames[String(partSong.id)];
 
@@ -229,6 +234,8 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
         currentPage = createPage(currentPageNum, category);
         if (options.categoryId !== undefined) currentPage.dataset.categoryId = options.categoryId;
+        currentPage.dataset.categoryLabel = category || '';
+        if (showColumnGuide) addPreviewColumnGuide(currentPage);
         pageRow.appendChild(currentPage);
         pagesCreatedThisCall.push({ page: currentPage, pageNumber: currentPageNum });
 
@@ -285,6 +292,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
     // Create the blank page with no content
     const blankPage = createPage(currentPageNum, category);
     if (options.categoryId !== undefined) blankPage.dataset.categoryId = options.categoryId;
+    blankPage.dataset.categoryLabel = category || '';
     pageRow.appendChild(blankPage);
   }
 
@@ -296,6 +304,89 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
   return currentPageNum;
 
+}
+
+function addPreviewColumnGuide(page) {
+  const guide = document.createElement('div');
+  guide.className = 'preview-only';
+  guide.style.cssText = 'position:absolute;top:32px;bottom:32px;left:50%;border-left:1px dashed #dc3545;pointer-events:none;z-index:20';
+  guide.title = 'Two-column print boundary';
+  page.appendChild(guide);
+}
+
+function renumberRenderedPages(container) {
+  Array.from(container.querySelectorAll('.a4-page')).forEach((page, index) => {
+    const pageNumber = index + 1;
+    let label = page.querySelector('.page-number');
+    if (!label) {
+      label = document.createElement('div');
+      label.className = 'page-number';
+      label.style.cssText = 'position:absolute;bottom:20px;font-size:12px;color:#555';
+      page.appendChild(label);
+    }
+    const category = page.dataset.categoryLabel || '';
+    label.textContent = category ? `${category} · ${pageNumber}` : String(pageNumber);
+    label.style.left = pageNumber % 2 === 0 ? '30px' : 'auto';
+    label.style.right = pageNumber % 2 === 0 ? 'auto' : '30px';
+    label.style.textAlign = pageNumber % 2 === 0 ? 'left' : 'right';
+  });
+}
+
+function addTableOfContents(container) {
+  const contentPages = Array.from(container.querySelectorAll('.a4-page'));
+  const seen = new Set();
+  const entries = [];
+
+  contentPages.forEach((page, pageIndex) => {
+    page.querySelectorAll('.song-block[data-song-id]').forEach(song => {
+      const key = `${page.dataset.categoryId || ''}:${song.dataset.songId}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      entries.push({
+        category: page.dataset.categoryLabel || '',
+        title: song.dataset.songTitle || '',
+        artist: song.dataset.songArtist || '',
+        contentPageIndex: pageIndex
+      });
+    });
+  });
+
+  const entriesPerPage = 35;
+  const tocPageCount = Math.max(1, Math.ceil(entries.length / entriesPerPage));
+  const fragment = document.createDocumentFragment();
+
+  for (let pageIndex = 0; pageIndex < tocPageCount; pageIndex += 2) {
+    const pair = document.createElement('div');
+    pair.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+
+    for (let side = 0; side < 2 && pageIndex + side < tocPageCount; side++) {
+      const tocIndex = pageIndex + side;
+      const page = createPage(tocIndex + 1, 'Contents');
+      page.dataset.categoryLabel = 'Contents';
+      const heading = document.createElement('h2');
+      heading.textContent = 'Contents';
+      page.appendChild(heading);
+
+      entries.slice(tocIndex * entriesPerPage, (tocIndex + 1) * entriesPerPage).forEach(entry => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;border-bottom:1px dotted #bbb;padding:3px 0;font-family:system-ui,sans-serif;font-size:13px';
+        const text = document.createElement('span');
+        text.textContent = `${entry.category} · ${entry.title}${entry.artist ? ` — ${entry.artist}` : ''}`;
+        text.style.overflow = 'hidden';
+        text.style.textOverflow = 'ellipsis';
+        text.style.whiteSpace = 'nowrap';
+        const number = document.createElement('span');
+        number.textContent = String(tocPageCount + entry.contentPageIndex + 1);
+        row.append(text, number);
+        page.appendChild(row);
+      });
+      pair.appendChild(page);
+    }
+    fragment.appendChild(pair);
+  }
+
+  container.prepend(fragment);
+  renumberRenderedPages(container);
 }
 
 // Labels a page with the newest lock covering the songs on it (skips pages
@@ -414,9 +505,9 @@ function createSongHeader(song, options = {}) {
   const blackAndWhite = options.blackAndWhite || false;
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
+  const showInstruments = options.showInstruments || false;
   const locked = options.locked || false;
   const lockedName = options.lockedName || null;
-  // showInstruments intentionally unused for now - feature still in development
 
 
   header.classList.add('song-header');
@@ -485,10 +576,10 @@ function createSongHeader(song, options = {}) {
 
   titleLine.appendChild(titleTextWrapper);
 
-  // Extra Display: difficulty + tags, rendered to the right of the title.
+  // Extra Display: difficulty, tags and instruments, rendered to the right of the title.
   // Rendered into a fixed-shrink, overflow-hidden, single-line wrapper so it
   // can never make the header (and therefore the whole song block) taller.
-  if (showDifficulty || showTags) {
+  if (showDifficulty || showTags || showInstruments) {
     const extraWrapper = document.createElement('span');
     extraWrapper.style.display = 'flex';
     extraWrapper.style.alignItems = 'center';
@@ -505,6 +596,17 @@ function createSongHeader(song, options = {}) {
       .filter(Boolean)
       .forEach(tag => extraWrapper.appendChild(buildTagBadge(tag, blackAndWhite)));
     }
+
+    if (showInstruments && song.instruments) {
+      song.instruments.split(',')
+      .map(instrument => instrument.trim())
+      .filter(Boolean)
+      .forEach(instrument => {
+        const badge = buildTagBadge(instrument, blackAndWhite);
+        badge.title = 'Instrument';
+        extraWrapper.appendChild(badge);
+      });
+    }
     
     if (showDifficulty) {
       const diffBadge = buildDifficultyBadge(song.difficulty, blackAndWhite);
@@ -516,6 +618,20 @@ function createSongHeader(song, options = {}) {
   }
 
   header.appendChild(titleLine);
+
+  const songMetadata = [];
+  if (song.strumming_pattern) songMetadata.push(`Strumming: ${song.strumming_pattern}`);
+  if (song.chord_source && song.chord_source !== 'unknown') songMetadata.push(`Chords: ${song.chord_source}`);
+  if (song.original_artist) songMetadata.push(`Original: ${song.original_artist}`);
+  if (song.translator) songMetadata.push(`Translation: ${song.translator}`);
+  if (songMetadata.length) {
+    const metadataLine = document.createElement('div');
+    metadataLine.style.marginTop = '4px';
+    metadataLine.style.fontSize = '0.75rem';
+    metadataLine.style.color = '#555';
+    metadataLine.textContent = songMetadata.join(' · ');
+    header.appendChild(metadataLine);
+  }
 
   // Capo Display
   if ((song.capo && song.capo !== 0) || (song.capo_alt && song.capo_alt !== 0)) {
@@ -718,6 +834,7 @@ async function doExportLogic() {
 
     // Clone and style page for accurate rendering
     const clone = page.cloneNode(true);
+    clone.querySelectorAll('.preview-only').forEach(element => element.remove());
     clone.style.width = '794px';
     clone.style.height = '1123px';
     clone.style.padding = '0';

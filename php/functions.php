@@ -127,7 +127,8 @@ function save_song_snapshot($mysqli, $songId, $action, $changedBy = null) {
 
     $columns = ['category', 'title', 'artist', 'capo', 'capo_alt', 'owner', 'is_public',
         'create_date', 'modified_date', 'tags', 'instruments', 'content', 'is_fixed',
-        'is_nsfw', 'youtube_link', 'views'];
+        'is_nsfw', 'youtube_link', 'views', 'strumming_pattern', 'chord_source',
+        'original_artist', 'translator'];
     $intColumns = ['category', 'capo', 'capo_alt', 'is_public', 'is_fixed', 'is_nsfw', 'views'];
 
     $insertColumns = array_merge(['song_id', 'action', 'changed_by'], $columns);
@@ -182,19 +183,25 @@ function add_song($mysqli, $data) {
     $content = $data["content"] ?? null;
     $is_nsfw = isset($data["is_nsfw"]) ? (int)$data["is_nsfw"] : 0;
     $youtube_link = (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') ? $data["youtube_link"] : null;
+    $strumming_pattern = (isset($data["strumming_pattern"]) && trim($data["strumming_pattern"]) !== '') ? trim($data["strumming_pattern"]) : null;
+    $chord_source = in_array($data["chord_source"] ?? 'unknown', ['unknown', 'original', 'borrowed'], true)
+        ? $data["chord_source"] : 'unknown';
+    $original_artist = (isset($data["original_artist"]) && trim($data["original_artist"]) !== '') ? trim($data["original_artist"]) : null;
+    $translator = (isset($data["translator"]) && trim($data["translator"]) !== '') ? trim($data["translator"]) : null;
 
 
     $stmt = $mysqli->prepare("INSERT INTO songs (
         category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
-        tags, instruments, content, is_fixed, is_nsfw, youtube_link, views
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0)");
+        tags, instruments, content, is_fixed, is_nsfw, youtube_link, views,
+        strumming_pattern, chord_source, original_artist, translator
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)");
 
     if (!$stmt) {
         return "Prepare failed: " . $mysqli->error;
     }
 
     // Dynamic bind_param workaround for NULL support
-    $types = 'issiisssssiis';
+    $types = 'issiisssssiisssss';
     $params = [
         &$category,
         &$title,
@@ -208,7 +215,11 @@ function add_song($mysqli, $data) {
         &$content,
         &$is_fixed,
         &$is_nsfw,
-        &$youtube_link
+        &$youtube_link,
+        &$strumming_pattern,
+        &$chord_source,
+        &$original_artist,
+        &$translator
     ];
 
     $stmt->bind_param($types, ...$params);
@@ -354,6 +365,11 @@ function edit_song($mysqli, $id, $data) {
     $fields["artist"] = (isset($data["artist"]) && trim($data["artist"]) !== '') ? $data["artist"] : null;
     $fields["capo_alt"] = (isset($data["capo_alt"]) && trim($data["capo_alt"]) !== '') ? $data["capo_alt"] : null;
     $fields["youtube_link"] = (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') ? $data["youtube_link"] : null;
+    $fields["strumming_pattern"] = (isset($data["strumming_pattern"]) && trim($data["strumming_pattern"]) !== '') ? trim($data["strumming_pattern"]) : null;
+    $fields["chord_source"] = in_array($data["chord_source"] ?? 'unknown', ['unknown', 'original', 'borrowed'], true)
+        ? $data["chord_source"] : 'unknown';
+    $fields["original_artist"] = (isset($data["original_artist"]) && trim($data["original_artist"]) !== '') ? trim($data["original_artist"]) : null;
+    $fields["translator"] = (isset($data["translator"]) && trim($data["translator"]) !== '') ? trim($data["translator"]) : null;
 
     // Build the SQL dynamically:
     $setParts = [];
@@ -1023,123 +1039,86 @@ function calculate_level(int $xp): array {
 
 
 function get_xp(mysqli $mysqli, int $id): ?array {
-    $stmt = $mysqli->prepare("SELECT * FROM user_xp WHERE user_id = ?");
-    if (!$stmt) return null;
-
+    $stmt = $mysqli->prepare("SELECT id FROM users WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows === 0) {
-        $stmt->close();
-        return null;
-    }
-
-    $row = $result->fetch_assoc();
+    $exists = (bool)$stmt->get_result()->fetch_assoc();
     $stmt->close();
+    if (!$exists) return null;
 
-    // $xp_add = (int)$row["xp_add_song"];
-    // $xp_edit = (int)$row["xp_edit_song"];
-    $xp_special = (int)$row["special_xp"];
-
-
-    // Instead calculate this manually
-    $stmt = $mysqli->prepare("SELECT username FROM users WHERE id = ?");
-    $stmt->bind_param("i", $id);
+    $stmt = $mysqli->prepare("SELECT
+        COALESCE(SUM(amount), 0) AS total_xp,
+        COALESCE(SUM(CASE WHEN event_type IN ('song_add','song_delete') THEN amount ELSE 0 END), 0) AS add_xp,
+        COALESCE(SUM(CASE WHEN event_type = 'song_edit' THEN amount ELSE 0 END), 0) AS edit_xp
+        FROM xp_events WHERE user_id = ?");
+    $stmt->bind_param('i', $id);
     $stmt->execute();
-    $username = $stmt->get_result()->fetch_assoc()['username'] ?? null;
+    $totals = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-    
-    if($username ===null){
-        return null;
-    }
-
-    $xp_add = get_number_of_songs($mysqli,$username)["total"]*ADD_XP_AMOUNT;
-    $xp_edit = get_activities_user($mysqli, "edit",$username)*EDIT_XP_AMOUNT;
-    $xp_special += get_activities_user($mysqli,"Anketa",$username)*250;
-
-
-
-    // continue normally
-    $xp_total = $xp_add + $xp_edit + $xp_special;
+    $xp_total = (int)$totals['total_xp'];
 
     $levelInfo = calculate_level($xp_total);
 
     return [
         'total_xp' => $xp_total,
-        'add_xp' => $xp_add,
-        'xp_edit' => $xp_edit,
+        'add_xp' => (int)$totals['add_xp'],
+        'xp_edit' => (int)$totals['edit_xp'],
         'level' => $levelInfo['level'],
         'progress' => $levelInfo['progress'],
         'next_level_xp' => $levelInfo['next_level_xp']
     ];
 }
 
-// Mirrors the xp formula in get_xp(), but aggregated over all users at once so a
-// leaderboard doesn't need one get_xp() query set per user. When $days is given,
-// only songs/activity created within that window count; the manually-granted
-// special_xp lump sum has no timestamp so it's only included in the all-time board.
-function get_leaderboard(mysqli $mysqli, ?int $days = null, int $limit = 10): array {
-    $songWhere = "";
-    $activityWhere = "";
-    if ($days !== null) {
-        $days = max(1, $days);
-        $songWhere = "WHERE create_date >= DATE_SUB(NOW(), INTERVAL $days DAY)";
-        $activityWhere = "AND time >= DATE_SUB(NOW(), INTERVAL $days DAY)";
-    }
-    $specialXpSelect = $days === null ? "COALESCE(ux.special_xp, 0)" : "0";
+function add_xp_event(mysqli $mysqli, int $userId, int $amount, string $eventType, string $sourceKey, ?int $referenceId = null): int {
+    $stmt = $mysqli->prepare("INSERT IGNORE INTO xp_events (user_id, amount, event_type, source_key, reference_id) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param('iissi', $userId, $amount, $eventType, $sourceKey, $referenceId);
+    $stmt->execute();
+    $awarded = $stmt->affected_rows > 0 ? $amount : 0;
+    $stmt->close();
+    return $awarded;
+}
 
-    $sql = "
-        SELECT
-            u.id,
-            u.name,
-            u.username,
-            g.name AS group_name,
-            COALESCE(s.song_count, 0) AS song_count,
-            COALESCE(e.edit_count, 0) AS edit_count,
-            COALESCE(a.anketa_count, 0) AS anketa_count,
-            $specialXpSelect AS special_xp
-        FROM users u
-        LEFT JOIN group_list g ON g.id = u.group_id
-        LEFT JOIN (
-            SELECT owner, COUNT(*) AS song_count FROM songs $songWhere GROUP BY owner
-        ) s ON s.owner = u.username
-        LEFT JOIN (
-            SELECT username, COUNT(*) AS edit_count FROM activity_log WHERE type = 'edit' $activityWhere GROUP BY username
-        ) e ON e.username = u.username
-        LEFT JOIN (
-            SELECT username, COUNT(*) AS anketa_count FROM activity_log WHERE type = 'Anketa' $activityWhere GROUP BY username
-        ) a ON a.username = u.username
-        LEFT JOIN user_xp ux ON ux.user_id = u.id
-    ";
+function award_song_edit_xp(mysqli $mysqli, int $userId, int $songId): int {
+    $stmt = $mysqli->prepare("SELECT history_id FROM songs_history WHERE song_id = ? AND action = 'edit' ORDER BY history_id DESC LIMIT 1");
+    $stmt->bind_param('i', $songId);
+    $stmt->execute();
+    $historyId = (int)($stmt->get_result()->fetch_assoc()['history_id'] ?? 0);
+    $stmt->close();
+    return $historyId ? add_xp_event($mysqli, $userId, EDIT_XP_AMOUNT, 'song_edit', "song-edit:$historyId", $songId) : 0;
+}
 
-    $result = $mysqli->query($sql);
-    if (!$result) {
-        error_log("MySQL Error in get_leaderboard: " . $mysqli->error);
-        return [];
-    }
+function revoke_song_add_xp(mysqli $mysqli, int $userId, int $songId): int {
+    $stmt = $mysqli->prepare("SELECT COALESCE(SUM(amount), 0) AS earned FROM xp_events WHERE user_id = ? AND event_type = 'song_add' AND reference_id = ?");
+    $stmt->bind_param('ii', $userId, $songId);
+    $stmt->execute();
+    $earned = (int)$stmt->get_result()->fetch_assoc()['earned'];
+    $stmt->close();
+    return $earned > 0 ? add_xp_event($mysqli, $userId, -min(ADD_XP_AMOUNT, $earned), 'song_delete', "song-delete:$songId", $songId) : 0;
+}
 
-    $entries = [];
-    while ($row = $result->fetch_assoc()) {
-        $xp = ((int)$row['song_count']) * ADD_XP_AMOUNT
-            + ((int)$row['edit_count']) * EDIT_XP_AMOUNT
-            + ((int)$row['anketa_count']) * 250
-            + (int)$row['special_xp'];
+function get_most_xp_in_day(mysqli $mysqli, int $userId): int {
+    $stmt = $mysqli->prepare("SELECT COALESCE(MAX(day_xp), 0) AS most FROM (SELECT SUM(amount) AS day_xp FROM xp_events WHERE user_id = ? GROUP BY DATE(created_at)) daily");
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $most = (int)$stmt->get_result()->fetch_assoc()['most'];
+    $stmt->close();
+    return $most;
+}
 
-        if ($xp <= 0) continue;
-
-        $entries[] = [
-            'id' => (int)$row['id'],
-            'name' => $row['name'],
-            'username' => $row['username'],
-            'group_name' => $row['group_name'],
-            'xp' => $xp,
-        ];
-    }
-
-    usort($entries, fn($a, $b) => $b['xp'] <=> $a['xp']);
-
-    return array_slice($entries, 0, $limit);
+function get_xp_leaderboard(mysqli $mysqli, string $period = 'total', int $limit = 10): array {
+    $dateFilter = match ($period) {
+        'week' => "AND x.created_at >= NOW() - INTERVAL 7 DAY",
+        'month' => "AND x.created_at >= NOW() - INTERVAL 1 MONTH",
+        default => ''
+    };
+    $stmt = $mysqli->prepare("SELECT u.id, u.name, u.username, COALESCE(SUM(x.amount), 0) AS xp
+        FROM users u LEFT JOIN xp_events x ON x.user_id = u.id $dateFilter
+        GROUP BY u.id, u.name, u.username ORDER BY xp DESC, u.name LIMIT ?");
+    $stmt->bind_param('i', $limit);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    return $rows;
 }
 
 function get_all_groups(mysqli $mysqli) {
@@ -1156,8 +1135,8 @@ function get_all_groups(mysqli $mysqli) {
     return $groups;
 }
 
-function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id): bool {
-    $hashedPassword = hash('sha256', $password);
+function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id): int|false {
+    $hashedPassword = $password !== null && $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : null;
     $admin_ids = (string) $user_id;
 
     $stmt = $mysqli->prepare("INSERT INTO group_list (name, password, admin_ids, owner) VALUES (?, ?, ?, ?)");
@@ -1167,9 +1146,21 @@ function add_group(mysqli $mysqli, string $name, ?string $password, int $user_id
 
     $stmt->bind_param("sssi", $name, $hashedPassword, $admin_ids, $user_id);
     $success = $stmt->execute();
+    $groupId = $success ? (int)$stmt->insert_id : 0;
     $stmt->close();
+    if (!$groupId) return false;
 
-    return $success;
+    $stmt = $mysqli->prepare("UPDATE users SET group_id = ? WHERE id = ?");
+    $stmt->bind_param('ii', $groupId, $user_id);
+    $stmt->execute();
+    $stmt->close();
+    return $groupId;
+}
+
+function verify_group_password(string $password, ?string $storedHash): bool {
+    if ($storedHash === null || $storedHash === '') return true;
+    if (password_get_info($storedHash)['algo'] !== null) return password_verify($password, $storedHash);
+    return hash_equals($storedHash, hash('sha256', $password));
 }
 
 function add_group_admin(mysqli $mysqli, int $group_id, array $user_ids): bool {
@@ -1334,7 +1325,7 @@ function get_all_categories($mysqli) {
     $result->free();
     return $categories;
 }
-function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
+function get_all_users($mysqli, $limit, $page, $search = '', $group = '', $sort = 'name') {
     $where = [];
     $params = [];
     $types = '';
@@ -1365,12 +1356,14 @@ function get_all_users($mysqli, $limit, $page, $search = '', $group = '') {
     $params[] = $offset;
     $types .= 'ii';
 
+    $orderBy = $sort === 'xp' ? 'ledger_xp DESC, u.name' : 'u.name';
     $sql = "
-        SELECT SQL_CALC_FOUND_ROWS u.*, g.name AS group_name
+        SELECT SQL_CALC_FOUND_ROWS u.*, g.name AS group_name, COALESCE(x.total_xp, 0) AS ledger_xp
         FROM users u
         LEFT JOIN group_list g ON u.group_id = g.id
+        LEFT JOIN (SELECT user_id, SUM(amount) AS total_xp FROM xp_events GROUP BY user_id) x ON x.user_id = u.id
         $whereSQL
-        ORDER BY u.name
+        ORDER BY $orderBy
         LIMIT ? OFFSET ?
     ";
 
@@ -2276,7 +2269,7 @@ function load_user_settings_into_session($mysqli) {
 
     $userId = $_SESSION["id"];
 
-    $stmt = $mysqli->prepare("SELECT advanced_view, admin_view FROM user_settings WHERE user_id = ?");
+    $stmt = $mysqli->prepare("SELECT advanced_view, admin_view, theme FROM user_settings WHERE user_id = ?");
     if (!$stmt) {
         error_log("DB error: " . $mysqli->error);
         return false;
@@ -2284,11 +2277,12 @@ function load_user_settings_into_session($mysqli) {
 
     $stmt->bind_param("i", $userId);
     $stmt->execute();
-    $stmt->bind_result($advancedView, $adminView);
+    $stmt->bind_result($advancedView, $adminView, $theme);
 
     if ($stmt->fetch()) {
         $_SESSION["advanced_view"] = (bool)$advancedView;
         $_SESSION["admin_view"] = (bool)$adminView;
+        $_SESSION["theme"] = in_array($theme, ['light', 'dark', 'system'], true) ? $theme : 'light';
         $stmt->close();
         return true;
     }
@@ -2299,8 +2293,8 @@ function load_user_settings_into_session($mysqli) {
 
 function create_default_user_settings($mysqli, $userId) {
     $stmt = $mysqli->prepare("
-        INSERT INTO user_settings (user_id, advanced_view, admin_view)
-        VALUES (?, 0, 0)
+        INSERT INTO user_settings (user_id, advanced_view, admin_view, theme)
+        VALUES (?, 0, 0, 'light')
     ");
     if (!$stmt) {
         error_log("DB error in create_default_user_settings: " . $mysqli->error);
@@ -2821,6 +2815,43 @@ function songbook_contains_song($mysqli, $songbookId, $songId) {
         }
     }
     return false;
+}
+
+function get_visible_songbooks_for_song($mysqli, $songId) {
+    $stmt = $mysqli->prepare("SELECT id, name, owner, admins, group_id, is_public, songs FROM songbooks WHERE songs IS NOT NULL AND songs <> '' ORDER BY name");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $userId = isset($_SESSION['id']) ? (int)$_SESSION['id'] : null;
+    $currentUser = $userId !== null ? get_user($mysqli, $userId) : null;
+    $userGroupId = isset($currentUser['group_id']) ? (int)$currentUser['group_id'] : null;
+    $isAdmin = !empty($_SESSION['admin']);
+    $songId = (string)(int)$songId;
+    $visible = [];
+
+    // ponytail: scan the legacy catId-songId string until storage gets a relation table.
+    while ($songbook = $result->fetch_assoc()) {
+        $containsSong = false;
+        foreach (explode(',', $songbook['songs']) as $pair) {
+            $parts = explode('-', $pair, 2);
+            if (($parts[1] ?? null) === $songId) {
+                $containsSong = true;
+                break;
+            }
+        }
+        if (!$containsSong) continue;
+
+        $admins = array_filter(array_map('intval', explode(',', $songbook['admins'] ?? '')));
+        $canSee = $isAdmin || (int)$songbook['is_public'] === 2;
+        if ($userId !== null) {
+            $canSee = $canSee
+                || (int)$songbook['owner'] === $userId
+                || in_array($userId, $admins, true)
+                || ((int)$songbook['is_public'] === 1 && $userGroupId !== null && (int)$songbook['group_id'] === $userGroupId);
+        }
+        if ($canSee) $visible[] = ['id' => (int)$songbook['id'], 'name' => $songbook['name']];
+    }
+    $stmt->close();
+    return $visible;
 }
 
 // Attaches an existing song to a songbook category, mirroring the client-side

@@ -43,7 +43,7 @@ include('php/navigation.php');
             </div>
         </div>
 
-        <div class="col-md-4 mt-3 mt-md-0">
+        <div class="col-md-2 mt-3 mt-md-0">
             <select class="form-select" name="group">
                 <option value="">All Groups</option>
                 <?php foreach ($groupList as $group): 
@@ -52,6 +52,12 @@ include('php/navigation.php');
                 ?>
                     <option value="<?= $gName ?>" <?= $selected ?>><?= $gName ?></option>
                 <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-2 mt-3 mt-md-0">
+            <select class="form-select" name="sort" onchange="this.form.submit()">
+                <option value="name">Name</option>
+                <option value="xp" <?= ($_GET['sort'] ?? '') === 'xp' ? 'selected' : '' ?>>XP</option>
             </select>
         </div>
     </form>
@@ -143,9 +149,10 @@ include('php/navigation.php');
     // Get filters from query params
     $searchQuery = $_GET['search'] ?? '';
     $group = $_GET['group'] ?? '';
+    $sort = $_GET['sort'] ?? 'name';
 
     // Fetch user data
-    $userData = get_all_users($mysqli, $perPage, $page, $searchQuery, $group);
+    $userData = get_all_users($mysqli, $perPage, $page, $searchQuery, $group, $sort);
     $users = $userData['users'];
     $totalPages = $userData['totalPages'];
 
@@ -199,7 +206,7 @@ HTML;
 
         // XP info
         $xpInfo = get_xp($mysqli, $userId);
-        $totalXP = $xpInfo['total_xp'] ?? '—';
+        $totalXP = $user['ledger_xp'] ?? 0;
         $level = $xpInfo['level'] ?? '—';
 
         $selectedUserId = $_GET['selectedUser'] ?? null;

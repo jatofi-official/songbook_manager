@@ -27,6 +27,11 @@ if (empty($title)) {
     $title = "Songbook manager";
 }
 
+$themePreference = $_SESSION['theme'] ?? 'light';
+if (!in_array($themePreference, ['light', 'dark', 'system'], true)) {
+    $themePreference = 'light';
+}
+
 ?>
 
 
@@ -34,11 +39,22 @@ if (empty($title)) {
 
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<?= $themePreference === 'dark' ? 'dark' : 'light' ?>" data-theme-preference="<?= htmlspecialchars($themePreference) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $title; ?></title>
+    <title><?= htmlspecialchars($title) ?></title>
+    <script>
+    window.applyThemePreference = function (preference) {
+        var useDark = preference === 'dark' || (preference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.dataset.theme = useDark ? 'dark' : 'light';
+    };
+    window.applyThemePreference(<?= json_encode($themePreference) ?>);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+        if (document.documentElement.dataset.themePreference === 'system') window.applyThemePreference('system');
+    });
+    </script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -77,5 +93,5 @@ if ($website == "songs") {
 
 </head>
 
-<body class="d-flex flex-column min-vh-100"> 
-    <div class="container-fluid p-0"> 
+<body class="d-flex flex-column min-vh-100">
+    <div class="container-fluid p-0">
