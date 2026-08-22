@@ -12,6 +12,8 @@ include_once('../db.php');
 include_once('../categories.php');
 
 $isEmbedded = isset($_GET['embedded']) && $_GET['embedded'] == 1;
+$isAdvancedView = (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] == true)
+    || (isset($_SESSION["advanced_view"]) && $_SESSION["advanced_view"] == true);
 
 if (isset($_GET['id'])) {
     $id = intval($_GET['id']);
@@ -48,14 +50,14 @@ if (isset($_GET['id'])) {
                     $canEditDelete = (($_SESSION["admin_view"] ?? false) == true) || ($song['owner'] === ($_SESSION["user"] ?? ''));
                     ?>
 
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
                         <?php if (!empty($song['youtube_link'])): ?>
                             <a href="<?= htmlspecialchars(
                                 preg_match('/^(http|https):\/\//', $song['youtube_link']) 
                                     ? $song['youtube_link'] 
                                     : 'https://www.youtube.com/watch?v=' . $song['youtube_link']
                             ) ?>" 
-                            target="_blank" class="btn btn-outline-danger mb-3" title="Watch on YouTube">
+                            target="_blank" class="btn btn-outline-danger" title="Watch on YouTube">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
                                     class="bi bi-youtube" viewBox="0 0 16 16">
                                     <path d="M8.051 1.999h-.002C4.42 1.996 1.582 2.167 1.151 2.226 0.51 2.312 0 2.847 0 3.49v9.021c0 .643.51 1.178 1.151 1.264.431.059 3.27.229 6.899.227h.002c3.63 0 6.468-.168 6.898-.227.641-.086 1.15-.62 1.15-1.263V3.49c0-.643-.51-1.178-1.15-1.264-.43-.059-3.268-.23-6.898-.227zM6.545 10.568V5.432l4.273 2.568-4.273 2.568z"/>
@@ -65,7 +67,7 @@ if (isset($_GET['id'])) {
 
 
                         <?php if ($isEmbedded): ?>
-                            <a href="song.php?id=<?= (int)$id ?>" class="btn btn-primary mb-3">
+                            <a href="song.php?id=<?= (int)$id ?>" class="btn btn-primary">
                                 Fullscreen
                             </a>
                         <?php endif; ?>
@@ -120,7 +122,7 @@ if (isset($_GET['id'])) {
                             <?php endif; ?>
                         </div>
                         <div class="mb-2"><strong>Added:</strong> <?= htmlspecialchars(time_elapsed_string($song['create_date'])) ?></div>
-                        <?php if (!empty($song['modified_date'])): ?>
+                        <?php if (!empty($song['modified_date']) && $isAdvancedView): ?>
                             <div class="mb-2"><strong>Last modified:</strong> <?= htmlspecialchars(time_elapsed_string($song['modified_date'])) ?></div>
                         <?php endif; ?>
                         <div class="mb-2"><strong>Views:</strong> <?= (int)($song['views'] ?? 0) ?></div>
@@ -165,6 +167,7 @@ if (isset($_GET['id'])) {
                                 <?php endforeach;
                             } ?>
                         </div>
+                        <?php if ($isAdvancedView): ?>
                         <div class="mb-2"><strong>Visibility:</strong>
                             <span class="badge <?= $song['is_public'] ? 'bg-success' : 'bg-secondary' ?>">
                                 <?= $song['is_public'] ? 'Public' : 'Private' ?>
@@ -173,6 +176,7 @@ if (isset($_GET['id'])) {
                         <div class="mb-2"><strong>Chord source:</strong>
                             <?= htmlspecialchars(ucfirst($song['chord_source'] ?? 'unknown')) ?>
                         </div>
+                        <?php endif; ?>
                         <?php if (!empty($song['strumming_pattern'])): ?>
                             <div class="mb-2"><strong>Strumming:</strong> <?= htmlspecialchars($song['strumming_pattern']) ?></div>
                         <?php endif; ?>
@@ -182,6 +186,7 @@ if (isset($_GET['id'])) {
                         <?php if (!empty($song['translator'])): ?>
                             <div class="mb-2"><strong>Translator:</strong> <?= htmlspecialchars($song['translator']) ?></div>
                         <?php endif; ?>
+                        <?php if ($isAdvancedView): ?>
                         <div class="mb-2"><strong>Songbooks:</strong>
                             <?php if (!$visibleSongbooks): ?>
                                 None visible
@@ -193,6 +198,7 @@ if (isset($_GET['id'])) {
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
