@@ -28,6 +28,9 @@ SELECT u.id, 250, 'survey', CONCAT('legacy-survey:', a.id), NULL, a.time
 FROM activity_log a JOIN users u ON u.username = a.username
 WHERE a.type = 'Anketa';
 
+-- No real "earned on" date exists for this lump sum, so it's backdated well
+-- outside any week/month window rather than stamped with NOW() (which would
+-- make it look like it was earned today, inflating time-windowed leaderboards).
 INSERT IGNORE INTO xp_events (user_id, amount, event_type, source_key, reference_id, created_at)
-SELECT ux.user_id, ux.special_xp, 'legacy_special', CONCAT('legacy-special:', ux.user_id), ux.user_id, NOW()
+SELECT ux.user_id, ux.special_xp, 'legacy_special', CONCAT('legacy-special:', ux.user_id), ux.user_id, DATE_SUB(NOW(), INTERVAL 10 YEAR)
 FROM user_xp ux WHERE COALESCE(ux.special_xp, 0) <> 0;

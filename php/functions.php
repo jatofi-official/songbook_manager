@@ -1106,14 +1106,17 @@ function get_most_xp_in_day(mysqli $mysqli, int $userId): int {
 }
 
 function get_xp_leaderboard(mysqli $mysqli, string $period = 'total', int $limit = 10): array {
+    // legacy_special has no real "earned on" date (it's a one-time backfill of old
+    // manually-granted XP, stamped at migration time) so it can only ever count
+    // toward the all-time total, never toward a time-windowed period.
     $dateFilter = match ($period) {
-        'week' => "AND x.created_at >= NOW() - INTERVAL 7 DAY",
-        'month' => "AND x.created_at >= NOW() - INTERVAL 1 MONTH",
+        'week' => "AND x.event_type != 'legacy_special' AND x.created_at >= NOW() - INTERVAL 7 DAY",
+        'month' => "AND x.event_type != 'legacy_special' AND x.created_at >= NOW() - INTERVAL 1 MONTH",
         default => ''
     };
     $stmt = $mysqli->prepare("SELECT u.id, u.name, u.username, COALESCE(SUM(x.amount), 0) AS xp
         FROM users u LEFT JOIN xp_events x ON x.user_id = u.id $dateFilter
-        GROUP BY u.id, u.name, u.username ORDER BY xp DESC, u.name LIMIT ?");
+        GROUP BY u.id, u.name, u.username HAVING xp > 0 ORDER BY xp DESC, u.name LIMIT ?");
     $stmt->bind_param('i', $limit);
     $stmt->execute();
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
