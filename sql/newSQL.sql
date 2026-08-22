@@ -10,17 +10,47 @@
 -- already ran when song history first shipped, every song already has a row,
 -- so re-running it is a guaranteed no-op on production; the new columns on
 -- old rows simply default to NULL/'unknown', which is correct.
+--
+-- NOTE: `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` (the per-column clause)
+-- only works on MySQL 8.0.29+ / recent MariaDB. Production hit a syntax
+-- error on it, so the two ALTERs below use the universal
+-- information_schema + PREPARE/EXECUTE pattern instead, which works on any
+-- MySQL/MariaDB version and needs no stored routines or DELIMITER changes.
 
 
 -- ============================================================
 -- 1. sql/song_metadata.sql (songs table only — songs_history done manually)
 -- New song fields: strumming pattern, chord source, original artist, translator.
 -- ============================================================
-ALTER TABLE songs
-  ADD COLUMN IF NOT EXISTS strumming_pattern VARCHAR(255) DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS chord_source ENUM('unknown','original','borrowed') NOT NULL DEFAULT 'unknown',
-  ADD COLUMN IF NOT EXISTS original_artist VARCHAR(255) DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS translator VARCHAR(255) DEFAULT NULL;
+SET @dbname = DATABASE();
+
+SET @sql = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'songs' AND COLUMN_NAME = 'strumming_pattern') > 0,
+  'SELECT 1',
+  'ALTER TABLE songs ADD COLUMN strumming_pattern VARCHAR(255) DEFAULT NULL'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'songs' AND COLUMN_NAME = 'chord_source') > 0,
+  'SELECT 1',
+  'ALTER TABLE songs ADD COLUMN chord_source ENUM(''unknown'',''original'',''borrowed'') NOT NULL DEFAULT ''unknown'''
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'songs' AND COLUMN_NAME = 'original_artist') > 0,
+  'SELECT 1',
+  'ALTER TABLE songs ADD COLUMN original_artist VARCHAR(255) DEFAULT NULL'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'songs' AND COLUMN_NAME = 'translator') > 0,
+  'SELECT 1',
+  'ALTER TABLE songs ADD COLUMN translator VARCHAR(255) DEFAULT NULL'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 
 -- ============================================================
@@ -30,8 +60,12 @@ ALTER TABLE songs
 -- column exists anywhere else in the codebase/history, so that clause is
 -- dropped here to avoid an "Unknown column 'dark_mode'" error.
 -- ============================================================
-ALTER TABLE user_settings
-    ADD COLUMN IF NOT EXISTS theme VARCHAR(10) NOT NULL DEFAULT 'light';
+SET @sql = (SELECT IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'user_settings' AND COLUMN_NAME = 'theme') > 0,
+  'SELECT 1',
+  'ALTER TABLE user_settings ADD COLUMN theme VARCHAR(10) NOT NULL DEFAULT ''light'''
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 UPDATE user_settings
 SET theme = 'light'
@@ -43,7 +77,8 @@ WHERE theme NOT IN ('light', 'dark', 'system') OR theme IS NULL;
 -- New XP ledger table backing the leaderboard, plus a one-time backfill of
 -- legacy XP (song adds, edits, surveys, manual special_xp) into ledger rows.
 -- The backfill uses INSERT IGNORE against a UNIQUE source_key, so it is
--- also safe to re-run.
+-- also safe to re-run. (CREATE TABLE IF NOT EXISTS is fine on every MySQL
+-- version - unlike ADD COLUMN IF NOT EXISTS, it's not a recent addition.)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS xp_events (
   id BIGINT NOT NULL AUTO_INCREMENT,

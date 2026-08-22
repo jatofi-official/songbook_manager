@@ -14,6 +14,14 @@ $songOwnerUsernames = get_song_owner_usernames($mysqli);
 <?php include('php/navigation.php');?>
 <?php include("php/categories.php");?>
 
+<!-- Needed so the "Download song PDF" button (rendered inside the embedded
+     php/subpage/get_song.php partial) works here too: it renders the song
+     through the same A4-page pipeline used for full songbooks. -->
+<link href="<?= 'styles/a4_page.css?v=' . filemtime('styles/a4_page.css') ?>" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/songbook_render_preview.js?v=<?= filemtime('js/songbook_render_preview.js') ?>"></script>
+<script src="js/song_ordering.js?v=<?= filemtime('js/song_ordering.js') ?>"></script>
 <script src="js/song_render.js?v=<?= filemtime('js/song_render.js') ?>"></script>
 
 <script>
@@ -399,5 +407,44 @@ document.addEventListener("DOMContentLoaded", () => {
         ?>
     </div>
 </div>
+
+<!-- Simplified options for the PDF export, which runs the song through the
+     same A4-page renderer/export path used for full songbooks. Shared by
+     whichever song is currently loaded into .song-detail-container. -->
+<div class="modal fade" id="songPdfOptionsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Download Song PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="song-pdf-opt-tags">
+                    <label class="form-check-label" for="song-pdf-opt-tags">Tags</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="song-pdf-opt-instruments">
+                    <label class="form-check-label" for="song-pdf-opt-instruments">Instruments</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="song-pdf-opt-difficulty">
+                    <label class="form-check-label" for="song-pdf-opt-difficulty">Difficulty</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="song-pdf-opt-bw">
+                    <label class="form-check-label" for="song-pdf-opt-bw">Black and White</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="song-pdf-options-confirm">Download</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Off-screen container the shared A4-page renderer draws into for PDF export. -->
+<div id="a4-preview-container" style="position:absolute; left:-9999px; top:0;"></div>
 
 <?php include("php/footer.php"); ?>

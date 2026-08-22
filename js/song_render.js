@@ -335,13 +335,19 @@ if (typeof document !== "undefined") {
         if (!button) return;
         const modalEl = document.getElementById("songPdfOptionsModal");
         if (!modalEl) return;
+        // The trigger button carries the id of whichever song is currently
+        // shown. On pages like songs.php the modal is a single shared
+        // element while the embedded song detail changes via AJAX, so the
+        // id has to be captured here rather than baked into the modal markup.
+        modalEl.dataset.songId = button.dataset.songId || "";
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     });
 
     document.addEventListener("click", function (e) {
         const confirmBtn = e.target.closest("#song-pdf-options-confirm");
         if (!confirmBtn) return;
-        const songId = parseInt(confirmBtn.dataset.songId, 10);
+        const modalEl = document.getElementById("songPdfOptionsModal");
+        const songId = parseInt(modalEl?.dataset.songId, 10);
         const options = {
             showTags: document.getElementById("song-pdf-opt-tags")?.checked || false,
             showInstruments: document.getElementById("song-pdf-opt-instruments")?.checked || false,

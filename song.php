@@ -612,7 +612,7 @@ function goBackToSongs() {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="song-pdf-options-confirm" data-song-id="<?= (int)$song['id'] ?>">Download</button>
+                    <button type="button" class="btn btn-primary" id="song-pdf-options-confirm">Download</button>
                 </div>
             </div>
         </div>

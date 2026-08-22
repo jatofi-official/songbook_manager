@@ -65,7 +65,7 @@ if (isset($_GET['id'])) {
                             </a>
                         <?php endif; ?>
 
-                        <button type="button" class="btn btn-primary" data-export-song-pdf title="Download song PDF">
+                        <button type="button" class="btn btn-primary" data-export-song-pdf data-song-id="<?= (int)$id ?>" title="Download song PDF">
                             <i class="bi bi-printer"></i>
                         </button>
 
