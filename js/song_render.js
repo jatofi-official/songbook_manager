@@ -138,19 +138,30 @@ function initAutoScroll() {
 
     let frameId = null;
     let previousTime = null;
+    let scrollRemainder = 0;
 
     const stop = () => {
         if (frameId !== null) cancelAnimationFrame(frameId);
         frameId = null;
         previousTime = null;
+        scrollRemainder = 0;
         toggle.textContent = "Start auto-scroll";
         toggle.setAttribute("aria-pressed", "false");
     };
 
     const scrollFrame = (time) => {
         if (previousTime !== null) {
-            const pixelsPerSecond = 12 + Number(speedInput.value) * 12;
-            window.scrollBy(0, pixelsPerSecond * (time - previousTime) / 1000);
+            const pixelsPerSecond = 6 + (Number(speedInput.value) - 1) * 15;
+            // scrollBy rounds/truncates to whole pixels, so at low speeds the
+            // per-frame amount (well under 1px) would otherwise be dropped
+            // every frame and the page would never move. Accumulate the
+            // fractional remainder across frames instead.
+            const distance = pixelsPerSecond * (time - previousTime) / 1000 + scrollRemainder;
+            const wholePixels = Math.trunc(distance);
+            scrollRemainder = distance - wholePixels;
+            if (wholePixels !== 0) {
+                window.scrollBy(0, wholePixels);
+            }
         }
         previousTime = time;
 

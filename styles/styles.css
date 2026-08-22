@@ -83,6 +83,34 @@ font-size: 0.9rem;
     border-radius: 8px;
 }
 
+/* Bootstrap's default range track/thumb are pale gray and barely visible
+   against either theme's background. accent-color handles the thumb (and the
+   filled portion of the track) in modern browsers; the explicit track/thumb
+   rules are a fallback for browsers that don't support accent-color. */
+.form-range {
+    accent-color: var(--primary);
+}
+
+.form-range::-webkit-slider-runnable-track {
+    background-color: var(--border);
+}
+
+.form-range::-moz-range-track {
+    background-color: var(--border);
+}
+
+.form-range::-webkit-slider-thumb {
+    background-color: var(--primary);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--primary);
+}
+
+.form-range::-moz-range-thumb {
+    background-color: var(--primary);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--primary);
+}
+
 .song-text {
     background-color: var(--surface-muted);
     color: var(--text);
