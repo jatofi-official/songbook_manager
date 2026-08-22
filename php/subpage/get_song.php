@@ -220,24 +220,6 @@ if (isset($_GET['id'])) {
             htmlspecialchars($song['content'])
         ?></div>
 
-        <?php if (!$isEmbedded && !empty($_SESSION['id'])): ?>
-            <?php $_SESSION['csrf_token'] ??= bin2hex(random_bytes(32)); ?>
-            <form method="post" action="song_reports.php" class="card card-body mt-4">
-                <h3 class="h6">Report incorrect lyrics or chords</h3>
-                <input type="hidden" name="action" value="create">
-                <input type="hidden" name="song_id" value="<?= (int)$song['id'] ?>">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-                <label for="report-selected-text" class="form-label">Selected part</label>
-                <textarea id="report-selected-text" name="selected_text" class="form-control mb-2" rows="2" maxlength="2000" readonly></textarea>
-                <button type="button" class="btn btn-outline-secondary btn-sm align-self-start mb-2" data-capture-song-selection>
-                    Use current text selection
-                </button>
-                <label for="report-text" class="form-label">What is wrong?</label>
-                <textarea id="report-text" name="report_text" class="form-control mb-2" rows="3" maxlength="4000" required></textarea>
-                <button type="submit" class="btn btn-warning align-self-start">Send report</button>
-            </form>
-        <?php endif; ?>
-
         <?php
         echo ob_get_clean();
     } else {

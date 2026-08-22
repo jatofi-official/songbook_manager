@@ -154,7 +154,7 @@ include_once('php/navigation.php');
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>Weekly XP leaderboard</strong>
-                <a href="leaderboard.php" class="btn btn-sm btn-outline-primary">Full leaderboard</a>
+                <a href="users.php" class="btn btn-sm btn-outline-primary">Full leaderboard</a>
             </div>
             <div class="list-group list-group-flush">
                 <?php foreach ($dashboardLeaders as $index => $leader): ?>
@@ -171,7 +171,6 @@ include_once('php/navigation.php');
             <div class="card-header"><strong>Activities</strong></div>
             <div class="card-body d-grid gap-2">
                 <a class="btn btn-outline-primary" href="wishlist.php">Song wishlist</a>
-                <?php if (isset($_SESSION['id'])): ?><a class="btn btn-outline-warning" href="song_reports.php">Song reports</a><?php endif; ?>
                 <a class="btn btn-outline-secondary" href="users.php?sort=xp">Users by XP</a>
             </div>
         </div>

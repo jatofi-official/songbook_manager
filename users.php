@@ -124,8 +124,8 @@ include('php/navigation.php');
                 }
             }
 
-            $topTotal = get_leaderboard($mysqli, null, 10);
-            $topWeek = get_leaderboard($mysqli, 7, 10);
+            $topTotal = get_xp_leaderboard($mysqli, 'total', 10);
+            $topWeek = get_xp_leaderboard($mysqli, 'week', 10);
             ?>
             <div class="col-md-6 mb-4 mb-md-0">
                 <h6 class="leaderboard-subtitle"><i class="bi bi-trophy-fill me-2"></i>All-Time XP</h6>
