@@ -330,7 +330,7 @@ function addTableOfContents(container) {
   const seen = new Set();
   const entries = [];
 
-  contentPages.forEach((page, pageIndex) => {
+  contentPages.forEach(page => {
     page.querySelectorAll('.song-block[data-song-id]').forEach(song => {
       const key = `${page.dataset.categoryId || ''}:${song.dataset.songId}`;
       if (seen.has(key)) return;
@@ -339,13 +339,63 @@ function addTableOfContents(container) {
         category: page.dataset.categoryLabel || '',
         title: song.dataset.songTitle || '',
         artist: song.dataset.songArtist || '',
-        contentPageIndex: pageIndex
+        // Each category restarts its own page numbering at 1 (see createPage),
+        // and that's the number actually printed at the bottom of this page -
+        // so that's what the contents entry should point to, not this song's
+        // absolute position across the whole rendered book.
+        pageNumber: page.dataset.pageNumber || ''
       });
     });
   });
 
-  const entriesPerPage = 35;
-  const tocPageCount = Math.max(1, Math.ceil(entries.length / entriesPerPage));
+  entries.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+
+  function buildTocRow(entry) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;border-bottom:1px dotted #bbb;padding:3px 0;font-family:system-ui,sans-serif;font-size:13px';
+    const text = document.createElement('span');
+    text.textContent = `${entry.title}${entry.artist ? ` — ${entry.artist}` : ''}`;
+    text.style.overflow = 'hidden';
+    text.style.textOverflow = 'ellipsis';
+    text.style.whiteSpace = 'nowrap';
+    const location = document.createElement('span');
+    location.textContent = entry.category ? `${entry.category} ${entry.pageNumber}` : String(entry.pageNumber);
+    location.style.whiteSpace = 'nowrap';
+    row.append(text, location);
+    return row;
+  }
+
+  // createPage() pages are 1123px tall with 24px padding on every side
+  // (Bootstrap's .p-4) and a page-number footer absolutely positioned near
+  // the bottom, which doesn't take up flow height but does need clearance so
+  // the listing doesn't run into it.
+  const pageContentHeight = 1123 - 2 * 24 - 40;
+  const tempContainer = createHiddenMeasureContainer();
+  document.body.appendChild(tempContainer);
+  const heading = document.createElement('h2');
+  heading.textContent = 'Contents';
+  const headingHeight = measureBlockHeight(heading, tempContainer);
+  const rowHeight = entries.length
+    ? measureBlockHeight(buildTocRow(entries[0]), tempContainer)
+    : 20;
+  document.body.removeChild(tempContainer);
+
+  // The first contents page has less room than continuation pages, since it
+  // also carries the heading (see below for why only the first page gets one).
+  const firstPageCapacity = Math.max(1, Math.floor((pageContentHeight - headingHeight) / rowHeight));
+  const otherPageCapacity = Math.max(1, Math.floor(pageContentHeight / rowHeight));
+
+  const pageEntrySlices = [];
+  if (entries.length) {
+    pageEntrySlices.push(entries.slice(0, firstPageCapacity));
+    for (let i = firstPageCapacity; i < entries.length; i += otherPageCapacity) {
+      pageEntrySlices.push(entries.slice(i, i + otherPageCapacity));
+    }
+  } else {
+    pageEntrySlices.push([]);
+  }
+
+  const tocPageCount = pageEntrySlices.length;
   const fragment = document.createDocumentFragment();
 
   for (let pageIndex = 0; pageIndex < tocPageCount; pageIndex += 2) {
@@ -356,30 +406,27 @@ function addTableOfContents(container) {
       const tocIndex = pageIndex + side;
       const page = createPage(tocIndex + 1, 'Contents');
       page.dataset.categoryLabel = 'Contents';
-      const heading = document.createElement('h2');
-      heading.textContent = 'Contents';
-      page.appendChild(heading);
 
-      entries.slice(tocIndex * entriesPerPage, (tocIndex + 1) * entriesPerPage).forEach(entry => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;border-bottom:1px dotted #bbb;padding:3px 0;font-family:system-ui,sans-serif;font-size:13px';
-        const text = document.createElement('span');
-        text.textContent = `${entry.category} · ${entry.title}${entry.artist ? ` — ${entry.artist}` : ''}`;
-        text.style.overflow = 'hidden';
-        text.style.textOverflow = 'ellipsis';
-        text.style.whiteSpace = 'nowrap';
-        const number = document.createElement('span');
-        number.textContent = String(tocPageCount + entry.contentPageIndex + 1);
-        row.append(text, number);
-        page.appendChild(row);
-      });
+      // Only the first contents page gets the heading - long songbooks can
+      // spill the listing onto several pages, and repeating a big "Contents"
+      // heading on every one of them just eats space without adding anything.
+      if (tocIndex === 0) {
+        page.appendChild(heading.cloneNode(true));
+      }
+
+      pageEntrySlices[tocIndex].forEach(entry => page.appendChild(buildTocRow(entry)));
       pair.appendChild(page);
     }
     fragment.appendChild(pair);
   }
 
+  // Content pages already carry their real, per-category page numbers from
+  // createPage (matching what addTableOfContents just referenced above), and
+  // the Contents pages number themselves correctly since they're always
+  // inserted at the very front - so no renumbering pass is needed (and
+  // running one would flatten everything to an absolute count, breaking the
+  // per-category references this contents listing relies on).
   container.prepend(fragment);
-  renumberRenderedPages(container);
 }
 
 // Labels a page with the newest lock covering the songs on it (skips pages
@@ -764,6 +811,10 @@ function createPage(pageNumber = null,category="") {
   const sideDistance="30px";
 
   if (pageNumber !== null) {
+    // Exposed so the table of contents can reference the exact page number
+    // printed on this page (each category restarts its own numbering at 1).
+    page.dataset.pageNumber = pageNumber;
+
     const pageNumberDiv = document.createElement('div');
     pageNumberDiv.className = 'page-number';
     pageNumberDiv.textContent = `${category} ${pageNumber}`;

@@ -246,6 +246,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 Transpose to Capo 0
               </label>
             </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
+              <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
+            </div>
 
             <hr>
             <p class="text-muted small mb-2"><strong>Extra Display</strong></p>
@@ -267,10 +271,6 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <label class="form-check-label" for="extra-instruments-checkbox">
                 Instruments
               </label>
-            </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
-              <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
             </div>
             <div class="mb-3">
               <label class="form-label" for="content-sort-select">Content order</label>
