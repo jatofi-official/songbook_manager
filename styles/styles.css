@@ -77,6 +77,18 @@ font-size: 0.9rem;
     display: block;
 }
 
+.chart-placeholder {
+    background-color: var(--surface-muted);
+    color: var(--muted);
+    border-radius: 8px;
+}
+
+.song-text {
+    background-color: var(--surface-muted);
+    color: var(--text);
+    border-radius: 8px;
+}
+
 .all_songs_card
 .card {
 border-radius: 10px;
@@ -257,6 +269,7 @@ font-size: 0.9rem;
 [data-theme="dark"] .songbook-subtitle,
 [data-theme="dark"] .xp-label,
 [data-theme="dark"] .username,
+[data-theme="dark"] .stat-label,
 [data-theme="dark"] .stat-card .label {
     color: var(--muted) !important;
 }
@@ -268,6 +281,7 @@ font-size: 0.9rem;
 [data-theme="dark"] .user-name,
 [data-theme="dark"] .xp-category {
     color: var(--text) !important;
+    border-color: var(--border);
 }
 
 [data-theme="dark"] .song-list-item,
@@ -295,6 +309,54 @@ font-size: 0.9rem;
 [data-theme="dark"] .nav-tabs .nav-link:not(.active),
 [data-theme="dark"] a.text-reset {
     color: var(--text) !important;
+}
+
+/* Page-specific badges/pills that hardcode a light background+text pair.
+   Each one needs an explicit dark pairing rather than inheriting var(--text),
+   since a light background with light (inherited) text is unreadable. */
+[data-theme="dark"] .tag,
+[data-theme="dark"] .instrument-badge,
+[data-theme="dark"] .capo-circle-muted {
+    background-color: var(--surface-muted);
+    color: var(--text);
+}
+
+[data-theme="dark"] .org-badge {
+    background-color: rgba(24, 144, 255, 0.18);
+    color: #7dc4ff;
+}
+
+[data-theme="dark"] .xp-badge,
+[data-theme="dark"] .admin-badge {
+    background-color: rgba(67, 97, 238, 0.2);
+    color: #b7c3ff;
+}
+
+[data-theme="dark"] .leaderboard-row {
+    background-color: var(--surface) !important;
+    color: var(--text);
+}
+
+[data-theme="dark"] .leaderboard-subtitle {
+    color: var(--text) !important;
+}
+
+[data-theme="dark"] .leaderboard-rank {
+    color: var(--muted) !important;
+}
+
+[data-theme="dark"] .user-avatar,
+[data-theme="dark"] .leaderboard-avatar {
+    border-color: var(--border);
+}
+
+[data-theme="dark"] .selected-category {
+    background-color: rgba(0, 123, 255, 0.18);
+    border-left-color: var(--primary);
+}
+
+[data-theme="dark"] .song-block.selected {
+    background-color: rgba(0, 123, 255, 0.15);
 }
 
 @media print {

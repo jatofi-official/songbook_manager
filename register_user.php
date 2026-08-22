@@ -218,7 +218,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     .container-wide {
         max-width: 900px;
         margin: 20px auto 60px;
-        background: white;
+        background: var(--surface);
+        color: var(--text);
         padding: 30px 40px;
         border-radius: 10px;
         box-shadow: 0 0 15px rgba(0,0,0,0.1);

@@ -174,7 +174,7 @@ if (!isset($_SESSION['user'])): ?>
 
                         <!-- Container for song content (empty initially) -->
                         <div id="song-text-<?= $song['id'] ?>" class="mb-3 song-text d-none"
-                            style="white-space: pre-wrap; background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: 'Fira Mono', monospace; text-align: left;">
+                            style="white-space: pre-wrap; padding: 10px; border-radius: 5px; font-family: 'Fira Mono', monospace; text-align: left;">
                         </div>
 
                         <!-- Feedback questions (dropdown + rating) -->

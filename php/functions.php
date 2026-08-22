@@ -1461,7 +1461,7 @@ function display_tag_selector($mysqli, $selectedTags = '', $allow_new = True) {
         .tag-selector.compact-inline .search-results {
             max-height: 150px;
             overflow-y: auto;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border);
             border-radius: 0.25rem;
             padding: 0.3rem;
             z-index: 100;
@@ -1471,7 +1471,7 @@ function display_tag_selector($mysqli, $selectedTags = '', $allow_new = True) {
             display: flex;
             flex-wrap: wrap;
             gap: 0.3rem;
-            background-color: white;
+            background-color: var(--surface);
         }
 
         .tag-selector.compact-inline .popular-tags {

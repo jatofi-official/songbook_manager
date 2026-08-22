@@ -250,7 +250,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 <style>
-.table-hover tbody tr:hover { background-color: #f0f8ff; }
+.table-hover tbody tr:hover { background-color: var(--hover); }
 .sortable { cursor: pointer; min-width: 100px; }
 .table-header button.btn-sm { border-radius: 0.375rem; }
 </style>

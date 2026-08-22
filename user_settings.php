@@ -386,7 +386,7 @@ document.getElementById("savePreferencesBtn").addEventListener("click", function
 		background-color: #6c5ce7;
 	}
 	.nav-pills .nav-link {
-		color: #495057;
+		color: var(--text);
 	}
 	.section-title {
 		border-bottom: 2px solid #6c5ce7;
@@ -438,7 +438,8 @@ else: ?>
     .container-wide {
         max-width: 900px;
         margin: 20px auto 60px;
-        background: white;
+        background: var(--surface);
+        color: var(--text);
         padding: 30px 40px;
         border-radius: 10px;
         box-shadow: 0 0 15px rgba(0,0,0,0.1);

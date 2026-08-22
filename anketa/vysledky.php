@@ -220,8 +220,8 @@ document.getElementById("detailPanel").addEventListener("click", function(e) {
 
 /* Table header background lighter and rounded */
 .table-header {
-    background-color: #f0f0f0; /* very light gray */
-    color: #333;
+    background-color: var(--surface-muted);
+    color: var(--text);
     padding: 0.5rem 0.75rem;
     border-radius: 0.25rem;
     margin-bottom: 0.5rem;
@@ -252,19 +252,21 @@ document.getElementById("detailPanel").addEventListener("click", function(e) {
 
 /* Highlight selected user in the list */
 .user-item.active {
-    background-color: #d6d8db; /* soft light gray */
-    color: #000;
-    border-color: #d6d8db;
+    background-color: var(--hover);
+    color: var(--text);
+    border-color: var(--border);
 }
 .user-item.active .fw-bold,
 .user-item.active small {
-    color: #000;
+    color: var(--text);
 }
 
-/* Softer but more visible frequency badge colors */
-.bg-danger-light { background-color: #f5c6cb; }   /* soft red */
-.bg-warning-light { background-color: #ffe08a; }  /* soft yellow */
-.bg-success-light { background-color: #c8f2c0; }  /* lighter pastel green */
+/* Softer but more visible frequency badge colors. These pastel tints are
+   always paired with dark text, regardless of theme, since the badge carries
+   its own light background rather than adapting to the page. */
+.bg-danger-light { background-color: #f5c6cb; color: #212529; }   /* soft red */
+.bg-warning-light { background-color: #ffe08a; color: #212529; }  /* soft yellow */
+.bg-success-light { background-color: #c8f2c0; color: #212529; }  /* lighter pastel green */
 .bg-success-dark { background-color: #28a745; color: #fff; } /* vivid green */
 
 

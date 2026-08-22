@@ -59,19 +59,19 @@ include $phpBase . 'auth.php';
 .roadmap-link {
     display: inline-block;
     padding: 8px 14px;
-    background-color: #f0f4f8; /* jemný svetlý box */
-    border: 1px solid #ddd;
+    background-color: var(--surface-muted);
+    border: 1px solid var(--border);
     border-radius: 8px;
     text-decoration: none;
-    color: #333; /* tmavá neutrálná farba */
+    color: var(--text);
     font-weight: 500;
     transition: background 0.2s, transform 0.2s;
 }
 
 .roadmap-link:hover {
-    background-color: #e2e8f0; /* jemné ztmavenie pri hover */
+    background-color: var(--hover);
     transform: translateY(-2px);
-    color: #0077cc; /* jemné zvýraznenie textu pri hover */
+    color: var(--primary);
 }
 </style>
 
@@ -83,8 +83,8 @@ include $phpBase . 'auth.php';
   }
   .about-card {
     max-width: 800px;
-    background: #fff;
-    border: 1px solid #ddd;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 30px 40px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.05);
@@ -92,27 +92,27 @@ include $phpBase . 'auth.php';
   .about-card h1 {
     margin-top: 0;
     font-size: 2rem;
-    color: #333;
+    color: var(--text);
   }
   .about-card h2 {
     margin-top: 1.5em;
     font-size: 1.3rem;
-    color: #444;
+    color: var(--text);
   }
   .about-card p {
-    color: #555;
+    color: var(--muted);
     line-height: 1.6;
   }
   .about-card ul {
     margin: 0.5em 0 0 1.2em;
-    color: #555;
+    color: var(--muted);
     padding: 0;
   }
   .about-card li {
     margin: 0.3em 0;
   }
   .highlight {
-    color: #0077cc;
+    color: var(--primary);
   }
 </style>
 

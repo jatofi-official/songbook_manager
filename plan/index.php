@@ -213,14 +213,15 @@ cancelBtn.addEventListener('click', () => {
       max-width: 800px;
       margin: 40px auto;
       padding: 20px 30px;
-      background: #fff;
-      border: 1px solid #ddd;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
       border-radius: 12px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
     .plan-container .last-edited {
       font-size: 0.85rem;
-      color: #777;
+      color: var(--muted);
       margin-bottom: 1em;
       text-align: left;
     }
@@ -229,13 +230,15 @@ cancelBtn.addEventListener('click', () => {
       line-height: 1.6;
     }
     #content pre {
-      background: #f4f4f4;
+      background: var(--surface-muted);
+      color: var(--text);
       padding: 10px;
       border-radius: 6px;
       overflow-x: auto;
     }
     #content code {
-      background: #f4f4f4;
+      background: var(--surface-muted);
+      color: var(--text);
       padding: 2px 4px;
       border-radius: 4px;
     }

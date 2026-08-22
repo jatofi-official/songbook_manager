@@ -362,7 +362,7 @@ if (isset($_SESSION['admin']) && $_SESSION["admin"] == true) {
     }
 
     .song-row { cursor: pointer; }
-    .song-detail-row td { background-color: #f8f9fa; }
+    .song-detail-row td { background-color: var(--surface-muted); color: var(--text); }
     </style>
 
 <?php

@@ -125,7 +125,7 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
             <div class="card">
                 <div class="card-header">Activity past week</div>
                 <div class="card-body">
-                    <div class="chart-placeholder" style="height:250px; background:#f0f0f0; display:flex; align-items:center; justify-content:center;">
+                    <div class="chart-placeholder d-flex align-items-center justify-content-center" style="height:250px;">
                         Graph Placeholder
                     </div>
                 </div>
@@ -137,7 +137,7 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
             <div class="card">
                 <div class="card-header">Logins pasts week</div>
                 <div class="card-body">
-                    <div class="chart-placeholder" style="height:250px; background:#f0f0f0; display:flex; align-items:center; justify-content:center;">
+                    <div class="chart-placeholder d-flex align-items-center justify-content-center" style="height:250px;">
                         Graph Placeholder
                     </div>
                 </div>
