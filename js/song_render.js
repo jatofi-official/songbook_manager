@@ -189,38 +189,68 @@ function initAutoScroll() {
     });
 }
 
-async function exportCurrentSongToPDF(button) {
-    const source = document.getElementById("song-display");
-    if (!source || !window.html2canvas || !window.jspdf) return;
+// Keeps Unicode letters/diacritics (e.g. "Škoda", "café") intact and only
+// strips characters that are actually illegal in filenames, instead of the
+// old ASCII-only allowlist that mangled any non-English title into hyphens.
+function sanitizeFilename(name, fallback = "song") {
+    const cleaned = String(name ?? "")
+        .normalize("NFC")
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+        .trim()
+        .replace(/\s+/g, " ");
+    return cleaned || fallback;
+}
+
+async function fetchSongForExport(songId) {
+    const res = await fetch("php/get_songs_by_ids_extended.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [songId] })
+    });
+    const songs = await res.json();
+    return songs[0] || null;
+}
+
+// Renders the single song through the exact same A4-page pipeline used for
+// full songbooks (js/songbook_render_preview.js + js/song_ordering.js) into
+// the hidden #a4-preview-container, then exports it with the same
+// html2canvas/jsPDF routine, instead of screenshotting the visible page.
+async function exportSongToPDFViaA4Renderer(songId, options, button) {
+    const container = document.getElementById("a4-preview-container");
+    if (!container || typeof renderA4Preview !== "function" || typeof doExportLogic !== "function") {
+        console.error("A4 renderer is not available on this page.");
+        return;
+    }
 
     const originalLabel = button.textContent;
     button.disabled = true;
     button.textContent = "Generating PDF...";
-    const clone = source.cloneNode(true);
-    clone.querySelector(".song-header > .d-flex > div:last-child")?.remove();
-    clone.querySelectorAll("form, .transpose-controls, .auto-scroll-controls").forEach(element => element.remove());
-
-    const wrapper = document.createElement("div");
-    wrapper.style.cssText = "position:absolute;left:-9999px;top:0;width:794px;min-height:1123px;padding:48px;background:#fff;color:#111;box-sizing:border-box";
-    wrapper.appendChild(clone);
-    document.body.appendChild(wrapper);
 
     try {
-        const canvas = await window.html2canvas(wrapper, { scale: 1.5, useCORS: true, backgroundColor: "#ffffff" });
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-        const width = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const height = canvas.height * width / canvas.width;
-        const image = canvas.toDataURL("image/jpeg", 0.9);
-        for (let offset = 0; offset < height; offset += pageHeight) {
-            if (offset > 0) pdf.addPage();
-            pdf.addImage(image, "JPEG", 0, -offset, width, height);
-        }
-        const title = clone.querySelector("h2")?.textContent?.trim() || "song";
-        pdf.save(`${title.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "") || "song"}.pdf`);
+        const song = await fetchSongForExport(songId);
+        if (!song) throw new Error("Song not found");
+
+        const title = song.title || "song";
+        container.innerHTML = "";
+        await renderA4Preview([song], [song.id], {
+            category: title,
+            blackAndWhite: options.blackAndWhite,
+            showDifficulty: options.showDifficulty,
+            showTags: options.showTags,
+            showInstruments: options.showInstruments,
+            padToEvenPages: false
+        });
+
+        const filename = `${sanitizeFilename(title)}.pdf`;
+        await doExportLogic(filename);
+
+        const modalEl = document.getElementById("songPdfOptionsModal");
+        if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
+    } catch (error) {
+        console.error("PDF export failed", error);
+        alert("Failed to export PDF. See console for details.");
     } finally {
-        wrapper.remove();
+        container.innerHTML = "";
         button.disabled = false;
         button.textContent = originalLabel;
     }
@@ -302,7 +332,24 @@ if (typeof document !== "undefined") {
 
     document.addEventListener("click", function (e) {
         const button = e.target.closest("[data-export-song-pdf]");
-        if (button) exportCurrentSongToPDF(button).catch(error => console.error("PDF export failed", error));
+        if (!button) return;
+        const modalEl = document.getElementById("songPdfOptionsModal");
+        if (!modalEl) return;
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    });
+
+    document.addEventListener("click", function (e) {
+        const confirmBtn = e.target.closest("#song-pdf-options-confirm");
+        if (!confirmBtn) return;
+        const songId = parseInt(confirmBtn.dataset.songId, 10);
+        const options = {
+            showTags: document.getElementById("song-pdf-opt-tags")?.checked || false,
+            showInstruments: document.getElementById("song-pdf-opt-instruments")?.checked || false,
+            showDifficulty: document.getElementById("song-pdf-opt-difficulty")?.checked || false,
+            blackAndWhite: document.getElementById("song-pdf-opt-bw")?.checked || false
+        };
+        exportSongToPDFViaA4Renderer(songId, options, confirmBtn)
+            .catch(error => console.error("PDF export failed", error));
     });
 }
 

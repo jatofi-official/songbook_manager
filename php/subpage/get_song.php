@@ -65,6 +65,9 @@ if (isset($_GET['id'])) {
                             </a>
                         <?php endif; ?>
 
+                        <button type="button" class="btn btn-primary" data-export-song-pdf title="Download song PDF">
+                            <i class="bi bi-printer"></i>
+                        </button>
 
                         <?php if ($isEmbedded): ?>
                             <a href="song.php?id=<?= (int)$id ?>" class="btn btn-primary">

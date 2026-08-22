@@ -272,11 +272,6 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
               <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
             </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="two-column-guide-checkbox">
-              <label class="form-check-label" for="two-column-guide-checkbox">Two-column print guide</label>
-              <div class="form-text">Preview only; never included in PDF.</div>
-            </div>
             <div class="mb-3">
               <label class="form-label" for="content-sort-select">Content order</label>
               <select id="content-sort-select" class="form-select form-select-sm">
@@ -1379,7 +1374,6 @@ async function beginRender(orderedIds, category, clearPages = true) {
   const showDifficulty = document.getElementById('extra-difficulty-checkbox')?.checked || false;
   const showTags = document.getElementById('extra-tags-checkbox')?.checked || false;
   const showInstruments = document.getElementById('extra-instruments-checkbox')?.checked || false;
-  const showColumnGuide = document.getElementById('two-column-guide-checkbox')?.checked || false;
   const sortMode = document.getElementById('content-sort-select')?.value || 'manual';
 
   const categoryTitle = includeRoman
@@ -1424,7 +1418,6 @@ async function beginRender(orderedIds, category, clearPages = true) {
     showDifficulty: showDifficulty,
     showTags: showTags,
     showInstruments: showInstruments,
-    showColumnGuide: showColumnGuide,
     showLockName: showLockName,
     lockNames: lockNames,
     categoryId: category.id
@@ -1564,42 +1557,7 @@ async function printSongbookLock(lockId) {
 </script>
 
 
-<style>
-
-.a4-page {
-  font-family: 'Fira Mono', monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #111;
-  background: white;
-  page-break-after: always;
-}
-
-.song-block {
-  /* margin-bottom handled by JS */
-}
-
-.split-song {
-  display: flex;
-  justify-content: space-between;
-}
-
-.left-column, .right-column {
-  width: 48%; /* just under half to fit nicely */
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-pre {
-  font-family: inherit;
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0;
-}
-
-
-
-</style>
+<link href="<?= 'styles/a4_page.css?v=' . filemtime('styles/a4_page.css') ?>" rel="stylesheet">
 <div id="a4-preview-container" class="d-print-none mt-5"></div>
 
 

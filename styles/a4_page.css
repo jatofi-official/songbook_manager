@@ -1,0 +1,57 @@
+/* Shared print-preview page styling for the A4 renderer (js/songbook_render_preview.js
+   + js/song_ordering.js). Used by songbook.php (full songbook export) and song.php
+   (single-song PDF export) so both go through the exact same rendering/export path. */
+
+.a4-page {
+  font-family: 'Fira Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111;
+  background: white;
+  page-break-after: always;
+
+  /* Printed/exported pages must always look light, regardless of the site's
+     active theme. styles.css's dark-mode layer re-styles shared classes used
+     inside a rendered page (e.g. .song-header) via var(--surface)/var(--text)
+     with !important. Fighting that with more !important rules would mean
+     tracking every shared class that might ever end up inside a page.
+     Instead, redefine the theme variables here: custom properties resolve by
+     inheritance from the nearest ancestor that defines them, so any
+     descendant's var(--surface)/var(--text)/etc. resolves to these light
+     values, regardless of [data-theme="dark"] on <html>. This also survives
+     doExportLogic() cloning the page into a detached wrapper for html2canvas,
+     since the variables travel with the .a4-page element itself. */
+  --page-bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-muted: #f8f9fa;
+  --text: #212529;
+  --muted: #6c757d;
+  --border: #dee2e6;
+  --hover: #f0f5ff;
+  color-scheme: light;
+}
+
+.split-song {
+  display: flex;
+  justify-content: space-between;
+}
+
+.left-column, .right-column {
+  width: 48%; /* just under half to fit nicely */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.a4-page pre {
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  /* styles.css has an unscoped `[data-theme="dark"] pre { background-color:
+     var(--surface-muted) }` rule with no !important. Since the variable
+     redefinition above only changes what that resolves to (not whether it
+     applies), pre still ended up a shade off from the page's white
+     background. Same specificity + declared later here wins outright. */
+  background-color: white;
+  color: #111;
+}

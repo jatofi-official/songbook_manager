@@ -7,7 +7,6 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
   const showInstruments = options.showInstruments || false;
-  const showColumnGuide = options.showColumnGuide || false;
   const showLockName = options.showLockName || false;
   const lockNames = options.lockNames || {}; // song_id (string) -> { lock_id, name, locked_at }
 
@@ -43,7 +42,6 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   let currentPage = createPage(currentPageNum, category);
   if (options.categoryId !== undefined) currentPage.dataset.categoryId = options.categoryId;
   currentPage.dataset.categoryLabel = category || '';
-  if (showColumnGuide) addPreviewColumnGuide(currentPage);
   pageRow.appendChild(currentPage);
   pagesCreatedThisCall.push({ page: currentPage, pageNumber: currentPageNum });
 
@@ -235,7 +233,6 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         currentPage = createPage(currentPageNum, category);
         if (options.categoryId !== undefined) currentPage.dataset.categoryId = options.categoryId;
         currentPage.dataset.categoryLabel = category || '';
-        if (showColumnGuide) addPreviewColumnGuide(currentPage);
         pageRow.appendChild(currentPage);
         pagesCreatedThisCall.push({ page: currentPage, pageNumber: currentPageNum });
 
@@ -273,9 +270,13 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   }
 
   document.body.removeChild(tempContainer);
-  
+
+  // Songbooks print double-sided, so pages are padded to an even count.
+  // A standalone single-song export has no such constraint.
+  const padToEvenPages = options.padToEvenPages !== false;
+
   // Check if total pages is odd, add blank page if so
-  if (currentPageNum % 2 === 1) {
+  if (padToEvenPages && currentPageNum % 2 === 1) {
     // If last page is odd-numbered, we add a blank page to make total even
 
     // Check if last pageRow is the correct one
@@ -304,14 +305,6 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
   return currentPageNum;
 
-}
-
-function addPreviewColumnGuide(page) {
-  const guide = document.createElement('div');
-  guide.className = 'preview-only';
-  guide.style.cssText = 'position:absolute;top:32px;bottom:32px;left:50%;border-left:1px dashed #dc3545;pointer-events:none;z-index:20';
-  guide.title = 'Two-column print boundary';
-  page.appendChild(guide);
 }
 
 function renumberRenderedPages(container) {
@@ -449,8 +442,12 @@ function buildDifficultyBadge(difficulty, blackAndWhite) {
 
   const span = document.createElement('span');
   span.textContent = diff.charAt(0).toUpperCase() + diff.slice(1);
-  span.style.display = 'inline-flex';
-  span.style.alignItems = 'center';
+  // inline-block + lineHeight (not inline-flex + align-items) so the text
+  // centers via the box model instead of flex alignment: html2canvas doesn't
+  // reliably vertically-center text inside flex containers, which left this
+  // text sitting off-center in the exported/rendered PDF even though it
+  // looked fine in a real browser.
+  span.style.display = 'inline-block';
   span.style.fontSize = '0.65rem';
   span.style.fontWeight = '600';
   span.style.padding = '3px 8px';
@@ -480,8 +477,9 @@ function buildDifficultyBadge(difficulty, blackAndWhite) {
 function buildTagBadge(text, blackAndWhite) {
   const span = document.createElement('span');
   span.textContent = text;
-  span.style.display = 'inline-flex';
-  span.style.alignItems = 'center';
+  // See buildDifficultyBadge for why this is inline-block + lineHeight
+  // rather than inline-flex + align-items.
+  span.style.display = 'inline-block';
   span.style.fontSize = '0.65rem';
   span.style.padding = '3px 8px';
   span.style.borderRadius = '10px'; // pill-shaped, matching the tag look in get_song.php
@@ -547,8 +545,9 @@ function createSongHeader(song, options = {}) {
     lockLabel.style.padding = '3px 8px';
     lockLabel.style.borderRadius = '4px';
     lockLabel.style.lineHeight = '1';
-    lockLabel.style.display = 'inline-flex';
-    lockLabel.style.alignItems = 'center';
+    // inline-block + lineHeight, not inline-flex + align-items — see
+    // buildDifficultyBadge for why (html2canvas mis-centers flex text).
+    lockLabel.style.display = 'inline-block';
     lockLabel.style.backgroundColor = blackAndWhite ? 'transparent' : '#dc3545';
     lockLabel.style.color = blackAndWhite ? '#222' : '#fff';
     if (blackAndWhite) lockLabel.style.border = '1px solid #222';
@@ -817,7 +816,7 @@ async function exportToPDF() {
   }
 }
 
-async function doExportLogic() {
+async function doExportLogic(filename = 'songbook.pdf') {
   const { jsPDF } = window.jspdf;
 
   const container = document.getElementById('a4-preview-container');
@@ -834,7 +833,6 @@ async function doExportLogic() {
 
     // Clone and style page for accurate rendering
     const clone = page.cloneNode(true);
-    clone.querySelectorAll('.preview-only').forEach(element => element.remove());
     clone.style.width = '794px';
     clone.style.height = '1123px';
     clone.style.padding = '0';
@@ -872,7 +870,7 @@ async function doExportLogic() {
     document.body.removeChild(wrapper);
   }
 
-  pdf.save('songbook.pdf');
+  pdf.save(filename);
 }
 
 
