@@ -110,7 +110,7 @@ include('php/navigation.php');
                 <div class="input-group">
                     <input type="text" name="search" class="form-control"
                         value="<?= htmlspecialchars($searchQuery) ?>"
-                        placeholder="Search users by name, username or organization...">
+                        placeholder="Search users by name or username...">
                     <button class="btn btn-primary" type="submit">
                         <i class="bi bi-search"></i> Search
                     </button>

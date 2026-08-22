@@ -687,9 +687,9 @@ function get_all_songs($mysqli, $perPage, $page, $searchQuery, $category, $instr
         $types .= "s";
     }
 
-    // User filter (partial match on owner)
+    // User filter (partial match on owner, case-insensitive)
     if (!empty($owner)) {
-        $conditions[] = "owner LIKE ?";
+        $conditions[] = "owner COLLATE utf8mb4_general_ci LIKE ?";
         $params[] = "%" . $owner . "%";
         $types .= "s";
     }
@@ -1333,9 +1333,9 @@ function get_all_users($mysqli, $limit, $page, $search = '', $group = '', $sort 
     $params = [];
     $types = '';
 
-    // Search by name or username
+    // Search by name or username, case-insensitive
     if (!empty($search)) {
-        $where[] = "(u.name LIKE ? OR u.username LIKE ?)";
+        $where[] = "(u.name COLLATE utf8mb4_general_ci LIKE ? OR u.username COLLATE utf8mb4_general_ci LIKE ?)";
         $params[] = '%' . $search . '%';
         $params[] = '%' . $search . '%';
         $types .= 'ss';
