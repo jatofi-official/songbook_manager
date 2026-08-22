@@ -341,8 +341,12 @@ font-size: 0.9rem;
 
 /* Page-specific badges/pills that hardcode a light background+text pair.
    Each one needs an explicit dark pairing rather than inheriting var(--text),
-   since a light background with light (inherited) text is unreadable. */
-[data-theme="dark"] .tag,
+   since a light background with light (inherited) text is unreadable.
+   Difficulty badges (.tag.tag-success/.tag-secondary/.tag-danger) are
+   excluded: they already have their own solid, theme-agnostic colours
+   (green/gray/red with white text) which this rule would otherwise
+   override in dark mode, since it's more specific than .tag-success etc. */
+[data-theme="dark"] .tag:not(.tag-success):not(.tag-secondary):not(.tag-danger),
 [data-theme="dark"] .instrument-badge,
 [data-theme="dark"] .capo-circle-muted {
     background-color: var(--surface-muted);
