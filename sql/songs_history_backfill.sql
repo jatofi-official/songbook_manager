@@ -12,7 +12,7 @@ INSERT INTO songs_history (
     category, title, artist, capo, capo_alt, owner, is_public,
     create_date, modified_date, tags, instruments, content,
     is_fixed, is_nsfw, youtube_link, views,
-    strumming_pattern, chord_source, original_artist, translator
+    chord_source, original_artist, translator
 )
 SELECT
     s.id,
@@ -30,7 +30,7 @@ SELECT
     s.category, s.title, s.artist, s.capo, s.capo_alt, s.owner, s.is_public,
     s.create_date, s.modified_date, s.tags, s.instruments, s.content,
     s.is_fixed, s.is_nsfw, s.youtube_link, s.views,
-    s.strumming_pattern, s.chord_source, s.original_artist, s.translator
+    s.chord_source, s.original_artist, s.translator
 FROM songs s
 WHERE NOT EXISTS (
     SELECT 1 FROM songs_history h WHERE h.song_id = s.id

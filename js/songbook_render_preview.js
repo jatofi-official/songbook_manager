@@ -665,11 +665,14 @@ function createSongHeader(song, options = {}) {
 
   header.appendChild(titleLine);
 
+  // Chord source/translator only matter for spiritual/parody songs (typically
+  // translations or adaptations of an original) - hidden for every other category.
+  const isSpiritualOrParody = ['Duchovné', 'Paródie'].includes(song.category_name);
+
   const songMetadata = [];
-  if (song.strumming_pattern) songMetadata.push(`Strumming: ${song.strumming_pattern}`);
-  if (song.chord_source && song.chord_source !== 'unknown') songMetadata.push(`Chords: ${song.chord_source}`);
+  if (isSpiritualOrParody && song.chord_source && song.chord_source !== 'unknown') songMetadata.push(`Chords: ${song.chord_source}`);
   if (song.original_artist) songMetadata.push(`Original: ${song.original_artist}`);
-  if (song.translator) songMetadata.push(`Translation: ${song.translator}`);
+  if (isSpiritualOrParody && song.translator) songMetadata.push(`Translation: ${song.translator}`);
   if (songMetadata.length) {
     const metadataLine = document.createElement('div');
     metadataLine.style.marginTop = '4px';

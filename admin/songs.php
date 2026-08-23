@@ -10,7 +10,7 @@ if (empty($_SESSION['admin'])) {
 }
 
 $result = $mysqli->query("SELECT id, title, artist, owner, category, capo, capo_alt, is_public, tags, instruments,
-    content, is_fixed, is_nsfw, youtube_link, chord_source, strumming_pattern, original_artist, translator,
+    content, is_fixed, is_nsfw, youtube_link, chord_source, original_artist, translator,
     views, create_date, modified_date
     FROM songs ORDER BY title, artist");
 $songs = $result->fetch_all(MYSQLI_ASSOC);
@@ -21,13 +21,13 @@ if (($_GET['format'] ?? '') === 'csv') {
     header('Content-Disposition: attachment; filename="songs-catalog.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");
-    fputcsv($out, ['ID', 'Title', 'Artist', 'Owner', 'Category', 'Capo', 'Alternative capo', 'Visibility', 'Tags', 'Difficulty', 'Instruments', 'Chord source', 'Strumming', 'Original artist', 'Translator', 'Fixed', 'NSFW', 'YouTube', 'Views', 'Created', 'Modified', 'Content']);
+    fputcsv($out, ['ID', 'Title', 'Artist', 'Owner', 'Category', 'Capo', 'Alternative capo', 'Visibility', 'Tags', 'Difficulty', 'Instruments', 'Chord source', 'Original artist', 'Translator', 'Fixed', 'NSFW', 'YouTube', 'Views', 'Created', 'Modified', 'Content']);
     foreach ($songs as $song) {
         $filtered = filter_difficulty_tags($song['tags']);
         fputcsv($out, [
             $song['id'], $song['title'], $song['artist'], $song['owner'], $categories[$song['category']] ?? $song['category'],
             $song['capo'], $song['capo_alt'], $song['is_public'] ? 'Public' : 'Private', $filtered['tags'], $filtered['difficulty'], $song['instruments'],
-            $song['chord_source'], $song['strumming_pattern'], $song['original_artist'], $song['translator'], $song['is_fixed'], $song['is_nsfw'],
+            $song['chord_source'], $song['original_artist'], $song['translator'], $song['is_fixed'], $song['is_nsfw'],
             $song['youtube_link'], $song['views'], $song['create_date'], $song['modified_date'], $song['content']
         ]);
     }
@@ -55,7 +55,7 @@ include '../php/navigation.php';
                     <td><a href="../song.php?id=<?= (int)$song['id'] ?>"><?= htmlspecialchars($song['title']) ?></a><br><small><?= htmlspecialchars($song['artist'] ?? '') ?></small></td>
                     <td><?= htmlspecialchars($song['owner']) ?></td>
                     <td><?= htmlspecialchars($categories[$song['category']] ?? $song['category']) ?></td>
-                    <td><small><?= htmlspecialchars(implode(' · ', array_filter(['Capo ' . ($song['capo'] ?? 0), $difficulty, $song['tags'], $song['instruments'], $song['chord_source'], $song['strumming_pattern']]))) ?></small></td>
+                    <td><small><?= htmlspecialchars(implode(' · ', array_filter(['Capo ' . ($song['capo'] ?? 0), $difficulty, $song['tags'], $song['instruments'], $song['chord_source']]))) ?></small></td>
                     <td><?= $song['is_public'] ? 'Public' : 'Private' ?></td>
                     <td><?= (int)$song['views'] ?></td>
                 </tr>

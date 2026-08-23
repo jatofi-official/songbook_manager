@@ -170,23 +170,28 @@ if (isset($_GET['id'])) {
                                 <?php endforeach;
                             } ?>
                         </div>
+                        <?php
+                        // Translator/Chord source only matter for spiritual/parody
+                        // songs (typically translations or adaptations of an
+                        // original) - hidden for every other category.
+                        $isSpiritualOrParody = in_array($categories[$song['category']] ?? '', ['Duchovné', 'Paródie'], true);
+                        ?>
                         <?php if ($isAdvancedView): ?>
                         <div class="mb-2"><strong>Visibility:</strong>
                             <span class="badge <?= $song['is_public'] ? 'bg-success' : 'bg-secondary' ?>">
                                 <?= $song['is_public'] ? 'Public' : 'Private' ?>
                             </span>
                         </div>
+                        <?php if ($isSpiritualOrParody): ?>
                         <div class="mb-2"><strong>Chord source:</strong>
                             <?= htmlspecialchars(ucfirst($song['chord_source'] ?? 'unknown')) ?>
                         </div>
                         <?php endif; ?>
-                        <?php if (!empty($song['strumming_pattern'])): ?>
-                            <div class="mb-2"><strong>Strumming:</strong> <?= htmlspecialchars($song['strumming_pattern']) ?></div>
                         <?php endif; ?>
                         <?php if (!empty($song['original_artist'])): ?>
                             <div class="mb-2"><strong>Original artist:</strong> <?= htmlspecialchars($song['original_artist']) ?></div>
                         <?php endif; ?>
-                        <?php if (!empty($song['translator'])): ?>
+                        <?php if ($isSpiritualOrParody && !empty($song['translator'])): ?>
                             <div class="mb-2"><strong>Translator:</strong> <?= htmlspecialchars($song['translator']) ?></div>
                         <?php endif; ?>
                         <?php if ($isAdvancedView): ?>

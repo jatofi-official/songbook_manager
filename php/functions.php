@@ -127,7 +127,7 @@ function save_song_snapshot($mysqli, $songId, $action, $changedBy = null) {
 
     $columns = ['category', 'title', 'artist', 'capo', 'capo_alt', 'owner', 'is_public',
         'create_date', 'modified_date', 'tags', 'instruments', 'content', 'is_fixed',
-        'is_nsfw', 'youtube_link', 'views', 'strumming_pattern', 'chord_source',
+        'is_nsfw', 'youtube_link', 'views', 'chord_source',
         'original_artist', 'translator'];
     $intColumns = ['category', 'capo', 'capo_alt', 'is_public', 'is_fixed', 'is_nsfw', 'views'];
 
@@ -183,7 +183,6 @@ function add_song($mysqli, $data) {
     $content = $data["content"] ?? null;
     $is_nsfw = isset($data["is_nsfw"]) ? (int)$data["is_nsfw"] : 0;
     $youtube_link = (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') ? $data["youtube_link"] : null;
-    $strumming_pattern = (isset($data["strumming_pattern"]) && trim($data["strumming_pattern"]) !== '') ? trim($data["strumming_pattern"]) : null;
     $chord_source = in_array($data["chord_source"] ?? 'unknown', ['unknown', 'original', 'borrowed'], true)
         ? $data["chord_source"] : 'unknown';
     $original_artist = (isset($data["original_artist"]) && trim($data["original_artist"]) !== '') ? trim($data["original_artist"]) : null;
@@ -193,15 +192,15 @@ function add_song($mysqli, $data) {
     $stmt = $mysqli->prepare("INSERT INTO songs (
         category, title, artist, capo, capo_alt, owner, is_public, create_date, modified_date,
         tags, instruments, content, is_fixed, is_nsfw, youtube_link, views,
-        strumming_pattern, chord_source, original_artist, translator
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)");
+        chord_source, original_artist, translator
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)");
 
     if (!$stmt) {
         return "Prepare failed: " . $mysqli->error;
     }
 
     // Dynamic bind_param workaround for NULL support
-    $types = 'issiisssssiisssss';
+    $types = 'issiisssssiissss';
     $params = [
         &$category,
         &$title,
@@ -216,7 +215,6 @@ function add_song($mysqli, $data) {
         &$is_fixed,
         &$is_nsfw,
         &$youtube_link,
-        &$strumming_pattern,
         &$chord_source,
         &$original_artist,
         &$translator
@@ -365,7 +363,6 @@ function edit_song($mysqli, $id, $data) {
     $fields["artist"] = (isset($data["artist"]) && trim($data["artist"]) !== '') ? $data["artist"] : null;
     $fields["capo_alt"] = (isset($data["capo_alt"]) && trim($data["capo_alt"]) !== '') ? $data["capo_alt"] : null;
     $fields["youtube_link"] = (isset($data["youtube_link"]) && trim($data["youtube_link"]) !== '') ? $data["youtube_link"] : null;
-    $fields["strumming_pattern"] = (isset($data["strumming_pattern"]) && trim($data["strumming_pattern"]) !== '') ? trim($data["strumming_pattern"]) : null;
     $fields["chord_source"] = in_array($data["chord_source"] ?? 'unknown', ['unknown', 'original', 'borrowed'], true)
         ? $data["chord_source"] : 'unknown';
     $fields["original_artist"] = (isset($data["original_artist"]) && trim($data["original_artist"]) !== '') ? trim($data["original_artist"]) : null;
@@ -1040,6 +1037,10 @@ function calculate_level(int $xp): array {
 
 function get_xp(mysqli $mysqli, int $id): ?array {
     $stmt = $mysqli->prepare("SELECT id FROM users WHERE id = ?");
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_xp: " . $mysqli->error);
+        return null;
+    }
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $exists = (bool)$stmt->get_result()->fetch_assoc();
@@ -1051,6 +1052,10 @@ function get_xp(mysqli $mysqli, int $id): ?array {
         COALESCE(SUM(CASE WHEN event_type IN ('song_add','song_delete') THEN amount ELSE 0 END), 0) AS add_xp,
         COALESCE(SUM(CASE WHEN event_type = 'song_edit' THEN amount ELSE 0 END), 0) AS edit_xp
         FROM xp_events WHERE user_id = ?");
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_xp: " . $mysqli->error);
+        return null;
+    }
     $stmt->bind_param('i', $id);
     $stmt->execute();
     $totals = $stmt->get_result()->fetch_assoc();
@@ -1071,6 +1076,13 @@ function get_xp(mysqli $mysqli, int $id): ?array {
 
 function add_xp_event(mysqli $mysqli, int $userId, int $amount, string $eventType, string $sourceKey, ?int $referenceId = null): int {
     $stmt = $mysqli->prepare("INSERT IGNORE INTO xp_events (user_id, amount, event_type, source_key, reference_id) VALUES (?, ?, ?, ?, ?)");
+    if (!$stmt) {
+        // XP is a side effect, not the primary action (e.g. adding/editing a
+        // song) - a broken/missing xp_events table shouldn't crash whatever
+        // just called this and lose the user's actual submission.
+        error_log("MySQL prepare error in add_xp_event: " . $mysqli->error);
+        return 0;
+    }
     $stmt->bind_param('iissi', $userId, $amount, $eventType, $sourceKey, $referenceId);
     $stmt->execute();
     $awarded = $stmt->affected_rows > 0 ? $amount : 0;
@@ -1080,6 +1092,10 @@ function add_xp_event(mysqli $mysqli, int $userId, int $amount, string $eventTyp
 
 function award_song_edit_xp(mysqli $mysqli, int $userId, int $songId): int {
     $stmt = $mysqli->prepare("SELECT history_id FROM songs_history WHERE song_id = ? AND action = 'edit' ORDER BY history_id DESC LIMIT 1");
+    if (!$stmt) {
+        error_log("MySQL prepare error in award_song_edit_xp: " . $mysqli->error);
+        return 0;
+    }
     $stmt->bind_param('i', $songId);
     $stmt->execute();
     $historyId = (int)($stmt->get_result()->fetch_assoc()['history_id'] ?? 0);
@@ -1089,6 +1105,10 @@ function award_song_edit_xp(mysqli $mysqli, int $userId, int $songId): int {
 
 function revoke_song_add_xp(mysqli $mysqli, int $userId, int $songId): int {
     $stmt = $mysqli->prepare("SELECT COALESCE(SUM(amount), 0) AS earned FROM xp_events WHERE user_id = ? AND event_type = 'song_add' AND reference_id = ?");
+    if (!$stmt) {
+        error_log("MySQL prepare error in revoke_song_add_xp: " . $mysqli->error);
+        return 0;
+    }
     $stmt->bind_param('ii', $userId, $songId);
     $stmt->execute();
     $earned = (int)$stmt->get_result()->fetch_assoc()['earned'];
@@ -1098,6 +1118,10 @@ function revoke_song_add_xp(mysqli $mysqli, int $userId, int $songId): int {
 
 function get_most_xp_in_day(mysqli $mysqli, int $userId): int {
     $stmt = $mysqli->prepare("SELECT COALESCE(MAX(day_xp), 0) AS most FROM (SELECT SUM(amount) AS day_xp FROM xp_events WHERE user_id = ? GROUP BY DATE(created_at)) daily");
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_most_xp_in_day: " . $mysqli->error);
+        return 0;
+    }
     $stmt->bind_param('i', $userId);
     $stmt->execute();
     $most = (int)$stmt->get_result()->fetch_assoc()['most'];
@@ -1117,6 +1141,10 @@ function get_xp_leaderboard(mysqli $mysqli, string $period = 'total', int $limit
     $stmt = $mysqli->prepare("SELECT u.id, u.name, u.username, COALESCE(SUM(x.amount), 0) AS xp
         FROM users u LEFT JOIN xp_events x ON x.user_id = u.id $dateFilter
         GROUP BY u.id, u.name, u.username HAVING xp > 0 ORDER BY xp DESC, u.name LIMIT ?");
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_xp_leaderboard: " . $mysqli->error);
+        return [];
+    }
     $stmt->bind_param('i', $limit);
     $stmt->execute();
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);

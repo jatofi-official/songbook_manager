@@ -14,12 +14,13 @@ $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $types = str_repeat('i', count($ids));
 
 $stmt = $mysqli->prepare("SELECT id, title, artist, content, capo, capo_alt, owner, tags, instruments,
-    strumming_pattern, chord_source, original_artist, translator
+    category, chord_source, original_artist, translator
     FROM songs WHERE id IN ($placeholders)");
 $stmt->bind_param($types, ...$ids);
 $stmt->execute();
 
 $result = $stmt->get_result();
+$categories = get_all_categories($mysqli);
 $songs = [];
 
 while ($row = $result->fetch_assoc()) {
@@ -33,6 +34,7 @@ while ($row = $result->fetch_assoc()) {
     $filtered = filter_difficulty_tags($row['tags']);
     $row['difficulty'] = $filtered['difficulty'];
     $row['tags'] = $filtered['tags'];
+    $row['category_name'] = $categories[$row['category']] ?? '';
 
     $songs[] = $row;
 }
