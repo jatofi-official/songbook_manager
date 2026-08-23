@@ -132,14 +132,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $res->close();
                 $ok = edit_song($mysqli, $id, $data);
                 if ($ok === true) {
-                    add_activity(
-                        $mysqli,
-                        $userId,
-                        "edit",
-                        "Edited '{$title}' - {$artist}",
-                        $is_public
-                    );
-                    $xpAwarded = award_song_edit_xp($mysqli, (int)$_SESSION['id'], $id);
+                    // The edit itself is already saved at this point - activity
+                    // logging and XP are side effects that must not crash the
+                    // request and hide that the edit actually succeeded.
+                    $xpAwarded = 0;
+                    try {
+                        add_activity(
+                            $mysqli,
+                            $userId,
+                            "edit",
+                            "Edited '{$title}' - {$artist}",
+                            $is_public
+                        );
+                        $xpAwarded = award_song_edit_xp($mysqli, (int)$_SESSION['id'], $id);
+                    } catch (\Throwable $e) {
+                        error_log("Post-edit side effect failed for song $id: " . $e->getMessage());
+                    }
                     $successMessage = "Song updated successfully." . ($xpAwarded ? " +{$xpAwarded} XP" : '');
                     // reload for display
                     $song = get_song($mysqli, $id);
@@ -153,24 +161,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Add new song, now returns inserted ID
             $newId = add_song($mysqli, $data);
             if (is_int($newId)) {
-                add_activity(
-                    $mysqli,
-                    $userId,
-                    "add",
-                    "Added '{$title}' by {$artist}",
-                    $is_public
-                );
-                $xpAwarded = add_xp_event($mysqli, (int)$_SESSION['id'], ADD_XP_AMOUNT, 'song_add', "song-add:$newId", $newId);
+                // The song itself is already saved at this point (the INSERT
+                // above succeeded) - everything past here is a side effect
+                // (activity log, XP, wishlist bookkeeping). None of it should
+                // be able to crash the request and hide that the song was
+                // actually added successfully, so failures are caught and
+                // logged rather than left to bubble up into a 500.
+                $xpAwarded = 0;
+                try {
+                    add_activity(
+                        $mysqli,
+                        $userId,
+                        "add",
+                        "Added '{$title}' by {$artist}",
+                        $is_public
+                    );
+                    $xpAwarded = add_xp_event($mysqli, (int)$_SESSION['id'], ADD_XP_AMOUNT, 'song_add', "song-add:$newId", $newId);
 
-                // Fulfilling a wishlist request: attach to the songbook it was
-                // wished for (if any), then remove the wishlist entry/entries.
-                $postedWishlistSongId = isset($_POST['wishlist_song_id']) && $_POST['wishlist_song_id'] !== '' ? (int)$_POST['wishlist_song_id'] : null;
-                if ($postedWishlistSongId) {
-                    $postedSongbookId = isset($_POST['songbook_id']) && $_POST['songbook_id'] !== '' ? (int)$_POST['songbook_id'] : null;
-                    if ($postedSongbookId) {
-                        attach_song_to_songbook($mysqli, $postedSongbookId, UNCATEGORIZED_CATEGORY_ID, $newId);
+                    // Fulfilling a wishlist request: attach to the songbook it
+                    // was wished for (if any), then remove the wishlist entry/entries.
+                    $postedWishlistSongId = isset($_POST['wishlist_song_id']) && $_POST['wishlist_song_id'] !== '' ? (int)$_POST['wishlist_song_id'] : null;
+                    if ($postedWishlistSongId) {
+                        $postedSongbookId = isset($_POST['songbook_id']) && $_POST['songbook_id'] !== '' ? (int)$_POST['songbook_id'] : null;
+                        if ($postedSongbookId) {
+                            attach_song_to_songbook($mysqli, $postedSongbookId, UNCATEGORIZED_CATEGORY_ID, $newId);
+                        }
+                        delete_wishlist_song($mysqli, $postedWishlistSongId);
                     }
-                    delete_wishlist_song($mysqli, $postedWishlistSongId);
+                } catch (\Throwable $e) {
+                    error_log("Post-add side effect failed for new song $newId: " . $e->getMessage());
                 }
 
                 header("Location: song.php?id=$newId&xp=$xpAwarded");
