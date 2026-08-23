@@ -1,5 +1,17 @@
 <?php
 date_default_timezone_set('Europe/Bratislava');
+
+// PHP 8.1+ defaults mysqli to throwing an exception on a failed query/prepare
+// (e.g. a missing table) instead of returning false. This codebase's error
+// handling is written throughout assuming the old non-throwing behaviour
+// (`if (!$stmt) { ... }`), so restore it - otherwise those checks never run
+// and a single bad/missing-table query crashes the whole request with an
+// uncaught exception instead of degrading gracefully.
+// (Also set in php/db.php, but that file is gitignored per-environment and
+// doesn't get deployed - this copy, in a tracked file, is the one that
+// actually reaches production.)
+mysqli_report(MYSQLI_REPORT_OFF);
+
 include_once("data.php");
 //NEMAŽ TIETO AJ KEĎ CHCEŠ
 function osetri($co) {
