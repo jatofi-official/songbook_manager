@@ -1683,6 +1683,14 @@ async function renderSavedPdfsList() {
       const actions = document.createElement('div');
       actions.className = 'd-flex align-items-center gap-2';
 
+      const viewLink = document.createElement('a');
+      viewLink.href = `php/download_songbook_pdf.php?id=${pdf.id}&mode=inline`;
+      viewLink.target = '_blank';
+      viewLink.rel = 'noopener';
+      viewLink.className = 'btn btn-sm btn-outline-secondary';
+      viewLink.textContent = '👁️ View';
+      actions.appendChild(viewLink);
+
       const downloadLink = document.createElement('a');
       downloadLink.href = `php/download_songbook_pdf.php?id=${pdf.id}`;
       downloadLink.className = 'btn btn-sm btn-outline-primary';
