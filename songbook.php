@@ -184,6 +184,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 Select All Categories
               </label>
             </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="select-all-numbering-checkbox">
+              <label class="form-check-label" for="select-all-numbering-checkbox">
+                Number All Categories
+              </label>
+            </div>
+            <div class="form-text mb-2">Click a category name to include/exclude it from rendering. Use the 🔢 toggle next to a category to include/exclude it from numbering.</div>
 
             <button id="render-categories-btn" class="btn btn-primary w-100 mt-2">
               🖨️ Render All Categories
@@ -215,12 +222,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           <div class="card-body">
             <p class="text-muted small">Tools for development and layout debugging.</p>
 
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" value="" id="render-numbering-checkbox" checked>
-              <label class="form-check-label" for="render-numbering-checkbox">
-                Category Number
-              </label>
-            </div>
+            <div class="form-text mb-3">Which categories get numbered, and which are included when rendering, is set per-category in the Categories &amp; Songs panel (or via the Actions sidebar's "Select All" toggles).</div>
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="render-bw-checkbox">
               <label class="form-check-label" for="render-bw-checkbox">
@@ -283,6 +285,21 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </select>
             </div>
 
+            <hr>
+            <p class="text-muted small mb-2"><strong>Presets</strong></p>
+            <div class="mb-2">
+              <select id="preset-select" class="form-select form-select-sm">
+                <option value="">-- Select preset --</option>
+              </select>
+            </div>
+            <div class="d-flex gap-2 mb-2">
+              <button id="load-preset-btn" class="btn btn-sm btn-outline-primary" disabled>Load</button>
+              <button id="delete-preset-btn" class="btn btn-sm btn-outline-danger" disabled>Delete</button>
+            </div>
+            <div class="input-group input-group-sm mb-3">
+              <input type="text" id="preset-name-input" class="form-control" placeholder="Preset name">
+              <button id="save-preset-btn" class="btn btn-outline-success">Save</button>
+            </div>
 
             <div id="save-layout-wrapper" style="margin-top: 1rem;">
               <button id="save-layout-btn" class="btn btn-success" disabled>💾 Save Layout</button>
@@ -418,6 +435,9 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
   let undoStack = [];
 
   const selectedCategoryIds = [];
+  // Which categories currently show a category number when rendered.
+  // Defaults to "all" so behavior matches the old always-numbered default.
+  let numberedCategoryIds = [];
 
 
 
@@ -772,6 +792,35 @@ function renderCategories() {
             const btnContainer = document.createElement('div');
             btnContainer.className = 'd-flex align-items-center';
 
+            // Toggles whether this category shows a category number when rendered.
+            const numberingCheck = document.createElement('div');
+            numberingCheck.className = 'form-check form-check-inline me-2 mb-0';
+            numberingCheck.title = 'Show category number when rendered';
+
+            const numberingInput = document.createElement('input');
+            numberingInput.className = 'form-check-input';
+            numberingInput.type = 'checkbox';
+            numberingInput.id = `numbering-check-${category.id}`;
+            numberingInput.checked = numberedCategoryIds.includes(category.id);
+            numberingInput.addEventListener('change', (e) => {
+                const index = numberedCategoryIds.indexOf(category.id);
+                if (e.target.checked && index === -1) {
+                    numberedCategoryIds.push(category.id);
+                } else if (!e.target.checked && index !== -1) {
+                    numberedCategoryIds.splice(index, 1);
+                }
+                updateRenderCategoriesUI();
+            });
+
+            const numberingLabel = document.createElement('label');
+            numberingLabel.className = 'form-check-label small';
+            numberingLabel.setAttribute('for', numberingInput.id);
+            numberingLabel.textContent = '🔢';
+
+            numberingCheck.appendChild(numberingInput);
+            numberingCheck.appendChild(numberingLabel);
+            btnContainer.appendChild(numberingCheck);
+
             // Single render button: loads the saved layout if one exists
             // (appending any newly-added songs after it), otherwise generates one.
             const renderBtn = document.createElement('button');
@@ -914,9 +963,11 @@ function populateCategorySelect() {
 }
 
 // Initial render calls
+numberedCategoryIds = songbook.songs_categories.map(cat => cat.id);
 renderCategories();
 populateCategorySelect();
 updateRenderCategoriesUI();
+loadPresetsList();
 
 // Your existing event listeners for search and add song:
 
@@ -1258,7 +1309,187 @@ function updateRenderCategoriesUI() {
 
   selectAllCheckbox.checked = songbook.songs_categories.length > 0
     && selectedCategoryIds.length === songbook.songs_categories.length;
+
+  const selectAllNumberingCheckbox = document.getElementById('select-all-numbering-checkbox');
+  if (selectAllNumberingCheckbox) {
+    selectAllNumberingCheckbox.checked = songbook.songs_categories.length > 0
+      && numberedCategoryIds.length === songbook.songs_categories.length;
+  }
 }
+
+document.getElementById('select-all-numbering-checkbox')?.addEventListener('change', (e) => {
+  numberedCategoryIds.length = 0;
+  if (e.target.checked) {
+    numberedCategoryIds.push(...songbook.songs_categories.map(cat => cat.id));
+  }
+  renderCategories();
+  updateRenderCategoriesUI();
+});
+
+
+// PRESETS
+//
+// A preset is a named, saved snapshot of every Dev Tools render option
+// (including which categories are currently selected to render and which
+// are numbered), scoped to this songbook. Loading one overwrites the current
+// in-page settings; it isn't itself persisted until saved again.
+
+let renderPresets = [];
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function getCurrentRenderSettings() {
+  return {
+    blackAndWhite: document.getElementById('render-bw-checkbox')?.checked || false,
+    allowManualOrdering: document.getElementById('allow-manual-ordering-checkbox')?.checked || false,
+    showLockName: document.getElementById('render-lock-name-checkbox')?.checked || false,
+    transposeCapoZero: document.getElementById('transpose-capo-zero-checkbox')?.checked || false,
+    showToc: document.getElementById('render-toc-checkbox')?.checked || false,
+    showDifficulty: document.getElementById('extra-difficulty-checkbox')?.checked || false,
+    showTags: document.getElementById('extra-tags-checkbox')?.checked || false,
+    showInstruments: document.getElementById('extra-instruments-checkbox')?.checked || false,
+    sortMode: document.getElementById('content-sort-select')?.value || 'manual',
+    renderedCategoryIds: [...selectedCategoryIds],
+    numberedCategoryIds: [...numberedCategoryIds]
+  };
+}
+
+function applyRenderSettings(settings) {
+  if (!settings) return;
+
+  const setChecked = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.checked = !!value;
+  };
+
+  setChecked('render-bw-checkbox', settings.blackAndWhite);
+  setChecked('allow-manual-ordering-checkbox', settings.allowManualOrdering);
+  setChecked('render-lock-name-checkbox', settings.showLockName);
+  setChecked('transpose-capo-zero-checkbox', settings.transposeCapoZero);
+  setChecked('render-toc-checkbox', settings.showToc);
+  setChecked('extra-difficulty-checkbox', settings.showDifficulty);
+  setChecked('extra-tags-checkbox', settings.showTags);
+  setChecked('extra-instruments-checkbox', settings.showInstruments);
+
+  const sortSelect = document.getElementById('content-sort-select');
+  if (sortSelect) sortSelect.value = settings.sortMode || 'manual';
+
+  const validCategoryIds = new Set(songbook.songs_categories.map(cat => cat.id));
+
+  selectedCategoryIds.length = 0;
+  if (Array.isArray(settings.renderedCategoryIds)) {
+    selectedCategoryIds.push(...settings.renderedCategoryIds.filter(id => validCategoryIds.has(id)));
+  }
+
+  numberedCategoryIds.length = 0;
+  if (Array.isArray(settings.numberedCategoryIds)) {
+    numberedCategoryIds.push(...settings.numberedCategoryIds.filter(id => validCategoryIds.has(id)));
+  } else {
+    numberedCategoryIds.push(...songbook.songs_categories.map(cat => cat.id));
+  }
+
+  renderCategories();
+  updateRenderCategoriesUI();
+}
+
+async function loadPresetsList() {
+  const select = document.getElementById('preset-select');
+  if (!select) return; // Dev Tools sidebar is admin-only.
+
+  try {
+    const res = await fetch(`php/get_render_presets.php?songbook_id=${songbook.id}`);
+    const data = await res.json();
+    if (!data.success) return;
+
+    renderPresets = data.presets || [];
+    select.innerHTML = '<option value="">-- Select preset --</option>' +
+      renderPresets.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  } catch (err) {
+    console.error('Failed to load presets', err);
+  }
+}
+
+document.getElementById('preset-select')?.addEventListener('change', (e) => {
+  const hasSelection = !!e.target.value;
+  document.getElementById('load-preset-btn').disabled = !hasSelection;
+  document.getElementById('delete-preset-btn').disabled = !hasSelection;
+
+  const preset = renderPresets.find(p => String(p.id) === e.target.value);
+  document.getElementById('preset-name-input').value = preset ? preset.name : '';
+});
+
+document.getElementById('load-preset-btn')?.addEventListener('click', () => {
+  const select = document.getElementById('preset-select');
+  const preset = renderPresets.find(p => String(p.id) === select.value);
+  if (preset) applyRenderSettings(preset.settings);
+});
+
+document.getElementById('save-preset-btn')?.addEventListener('click', async () => {
+  const nameInput = document.getElementById('preset-name-input');
+  const name = nameInput?.value.trim();
+  if (!name) {
+    alert('Enter a preset name.');
+    return;
+  }
+
+  const select = document.getElementById('preset-select');
+  const existing = renderPresets.find(p => p.name === name);
+
+  try {
+    const res = await fetch('php/save_render_preset.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        songbook_id: songbook.id,
+        preset_id: existing ? existing.id : null,
+        name,
+        settings: getCurrentRenderSettings()
+      })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || 'Failed to save preset.');
+      return;
+    }
+
+    await loadPresetsList();
+    select.value = String(data.id);
+    select.dispatchEvent(new Event('change'));
+  } catch (err) {
+    console.error('Failed to save preset', err);
+    alert('Failed to save preset.');
+  }
+});
+
+document.getElementById('delete-preset-btn')?.addEventListener('click', async () => {
+  const select = document.getElementById('preset-select');
+  const preset = renderPresets.find(p => String(p.id) === select.value);
+  if (!preset) return;
+  if (!confirm(`Delete preset "${preset.name}"?`)) return;
+
+  try {
+    const res = await fetch('php/delete_render_preset.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preset_id: preset.id })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || 'Failed to delete preset.');
+      return;
+    }
+
+    document.getElementById('preset-name-input').value = '';
+    await loadPresetsList();
+  } catch (err) {
+    console.error('Failed to delete preset', err);
+    alert('Failed to delete preset.');
+  }
+});
 
 
 
@@ -1365,7 +1596,7 @@ async function beginRender(orderedIds, category, clearPages = true) {
     container.innerHTML = ''; // Clear previous content if requested
   }
 
-  const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
+  const includeRoman = numberedCategoryIds.includes(category.id);
   const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
   const allowClicking = document.getElementById('allow-manual-ordering-checkbox')?.checked || false;
   const debugMode = allowClicking; // debug lines are just a side effect of manual ordering now
