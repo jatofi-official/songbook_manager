@@ -32,9 +32,27 @@ if (!is_file($filePath)) {
 }
 
 $displayName = $songbook["name"] . "_" . $row["title"] . ".pdf";
-$safeName = preg_replace('/[^A-Za-z0-9_\- .]+/', '-', $displayName);
+
+// filename= alone is ASCII-only per the old RFC, so accented/diacritic
+// characters (á, č, ň, ž, ...) would otherwise get mangled or stripped by
+// the browser. filename*= (RFC 5987/6266) carries the real UTF-8 name for
+// clients that support it; filename= stays as a transliterated ASCII
+// fallback for the rare client that doesn't.
+$asciiFallback = preg_replace('/[^A-Za-z0-9_\- .]+/', '_', $displayName);
+if ($asciiFallback === '' || $asciiFallback === null) {
+    $asciiFallback = 'songbook.pdf';
+}
+
+// "View" (opens in a new tab, rendered by the browser's own PDF viewer)
+// uses the exact same file/permissions/filename logic as "Download" - just
+// inline instead of attachment - so it's driven by a query param rather
+// than a separate endpoint.
+$disposition = (($_GET["mode"] ?? "") === "inline") ? "inline" : "attachment";
 
 header("Content-Type: application/pdf");
-header('Content-Disposition: attachment; filename="' . $safeName . '"');
+header(
+    "Content-Disposition: {$disposition}; filename=\"{$asciiFallback}\"; "
+    . "filename*=UTF-8''" . rawurlencode($displayName)
+);
 header("Content-Length: " . filesize($filePath));
 readfile($filePath);
