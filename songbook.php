@@ -163,13 +163,14 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         </div>
       </div>
 
-        <?php if (
-            (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"])) ||
-            (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true)
-        ): ?>
+        <?php
+        $isSongbookAdmin = (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"]))
+            || (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true);
+        ?>
+        <?php if ($isSongbookAdmin): ?>
       <!-- Actions Sidebar -->
       <div class="col-lg-3 mt-4 mt-lg-0">
-        
+
         <!-- Actions Sidebar -->
         <div class="card shadow-sm mb-4">
           <div class="card-header bg-light">
@@ -352,8 +353,91 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         </div>
 
 
-        
 
+
+        <?php else: ?>
+      <!-- Render Options Sidebar (view-only users) -->
+      <div class="col-lg-3 mt-4 mt-lg-0">
+
+        <div class="card shadow-sm">
+          <div class="card-header bg-light">
+            🖨️ Render Options
+          </div>
+          <div class="card-body">
+            <p class="text-muted small">Select categories to render</p>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="select-all-categories-checkbox">
+              <label class="form-check-label" for="select-all-categories-checkbox">
+                Select All Categories
+              </label>
+            </div>
+
+            <button id="render-categories-btn" class="btn btn-primary w-100 mb-3">
+              🖨️ Render All Categories
+            </button>
+
+            <hr>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="render-bw-checkbox">
+              <label class="form-check-label" for="render-bw-checkbox">
+                Black and White
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="transpose-capo-zero-checkbox">
+              <label class="form-check-label" for="transpose-capo-zero-checkbox">
+                Transpose to Capo 0
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
+              <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
+            </div>
+
+            <!-- Not user-editable, but still readable/writable by beginRender()
+                 and applyRenderSettings() so a loaded preset can still set it. -->
+            <input class="d-none" type="checkbox" id="render-lock-name-checkbox" checked>
+
+            <hr>
+            <p class="text-muted small mb-2"><strong>Extra Display</strong></p>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-difficulty-checkbox">
+              <label class="form-check-label" for="extra-difficulty-checkbox">
+                Difficulty
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-tags-checkbox">
+              <label class="form-check-label" for="extra-tags-checkbox">
+                Tags
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-instruments-checkbox">
+              <label class="form-check-label" for="extra-instruments-checkbox">
+                Instruments
+              </label>
+            </div>
+
+            <hr>
+            <p class="text-muted small mb-2"><strong>Presets</strong></p>
+            <div class="mb-2">
+              <select id="preset-select" class="form-select form-select-sm">
+                <option value="">-- Select preset --</option>
+              </select>
+            </div>
+            <button id="load-preset-btn" class="btn btn-sm btn-outline-primary w-100 mb-3" disabled>Load</button>
+
+            <button id="export-pdf-btn" class="btn btn-sm btn-primary" disabled>
+              📄 Export to PDF
+            </button>
+          </div>
+        </div>
+
+      </div>
         <?php endif; ?>
     </div>
   </div>
@@ -788,38 +872,44 @@ function renderCategories() {
         headerDiv.style.display = 'flex';
         headerDiv.style.alignItems = 'center';
 
-        if (isCurrentUserAdmin()) {
+        {
+            // Rendering a category (and selecting it via the header click above)
+            // is available to every user who can see this songbook, not just
+            // admins. Only the numbering toggle, category removal, and adding
+            // songs/categories stay admin-only, gated below.
             const btnContainer = document.createElement('div');
             btnContainer.className = 'd-flex align-items-center';
 
-            // Toggles whether this category shows a category number when rendered.
-            const numberingCheck = document.createElement('div');
-            numberingCheck.className = 'form-check form-check-inline me-2 mb-0';
-            numberingCheck.title = 'Show category number when rendered';
+            if (isCurrentUserAdmin()) {
+                // Toggles whether this category shows a category number when rendered.
+                const numberingCheck = document.createElement('div');
+                numberingCheck.className = 'form-check form-check-inline me-2 mb-0';
+                numberingCheck.title = 'Show category number when rendered';
 
-            const numberingInput = document.createElement('input');
-            numberingInput.className = 'form-check-input';
-            numberingInput.type = 'checkbox';
-            numberingInput.id = `numbering-check-${category.id}`;
-            numberingInput.checked = numberedCategoryIds.includes(category.id);
-            numberingInput.addEventListener('change', (e) => {
-                const index = numberedCategoryIds.indexOf(category.id);
-                if (e.target.checked && index === -1) {
-                    numberedCategoryIds.push(category.id);
-                } else if (!e.target.checked && index !== -1) {
-                    numberedCategoryIds.splice(index, 1);
-                }
-                updateRenderCategoriesUI();
-            });
+                const numberingInput = document.createElement('input');
+                numberingInput.className = 'form-check-input';
+                numberingInput.type = 'checkbox';
+                numberingInput.id = `numbering-check-${category.id}`;
+                numberingInput.checked = numberedCategoryIds.includes(category.id);
+                numberingInput.addEventListener('change', (e) => {
+                    const index = numberedCategoryIds.indexOf(category.id);
+                    if (e.target.checked && index === -1) {
+                        numberedCategoryIds.push(category.id);
+                    } else if (!e.target.checked && index !== -1) {
+                        numberedCategoryIds.splice(index, 1);
+                    }
+                    updateRenderCategoriesUI();
+                });
 
-            const numberingLabel = document.createElement('label');
-            numberingLabel.className = 'form-check-label small';
-            numberingLabel.setAttribute('for', numberingInput.id);
-            numberingLabel.textContent = '🔢';
+                const numberingLabel = document.createElement('label');
+                numberingLabel.className = 'form-check-label small';
+                numberingLabel.setAttribute('for', numberingInput.id);
+                numberingLabel.textContent = '🔢';
 
-            numberingCheck.appendChild(numberingInput);
-            numberingCheck.appendChild(numberingLabel);
-            btnContainer.appendChild(numberingCheck);
+                numberingCheck.appendChild(numberingInput);
+                numberingCheck.appendChild(numberingLabel);
+                btnContainer.appendChild(numberingCheck);
+            }
 
             // Single render button: loads the saved layout if one exists
             // (appending any newly-added songs after it), otherwise generates one.
@@ -847,7 +937,7 @@ function renderCategories() {
             });
 
             // Uncategorized (id 0) is an implicit bucket and can't be removed.
-            if (category.id !== 0) {
+            if (isCurrentUserAdmin() && category.id !== 0) {
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'btn btn-sm btn-outline-danger ms-2';
                 removeBtn.textContent = '🗑️ Remove';
@@ -1095,7 +1185,9 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
 });
 
 
-document.getElementById("addCategoryBtn").addEventListener("click", () => {
+// addCategoryBtn is only created (inside renderCategories()) for admins - it
+// doesn't exist in the DOM at all for view-only users.
+document.getElementById("addCategoryBtn")?.addEventListener("click", () => {
   const modal = new bootstrap.Modal(document.getElementById("addCategoryModal"));
   modal.show();
 });
@@ -1200,7 +1292,7 @@ if (saveBtn) {
     });
   });
 
-  document.getElementById("save-layout-btn").addEventListener("click", async () => {
+  document.getElementById("save-layout-btn")?.addEventListener("click", async () => {
     if (!currentCategory || !orderedIds.length || !songbook?.id) {
       alert("Missing songbook, category, or layout info.");
       return;
@@ -1398,10 +1490,12 @@ function applyRenderSettings(settings) {
 
 async function loadPresetsList() {
   const select = document.getElementById('preset-select');
-  if (!select) return; // Dev Tools sidebar is admin-only.
+  if (!select) return; // Absent only if the render sidebar itself didn't render.
 
   try {
-    const res = await fetch(`php/get_render_presets.php?songbook_id=${songbook.id}`);
+    const res = await fetch(`php/get_render_presets.php?songbook_id=${songbook.id}`, {
+      credentials: 'same-origin'
+    });
     const data = await res.json();
     if (!data.success) return;
 
@@ -1415,11 +1509,15 @@ async function loadPresetsList() {
 
 document.getElementById('preset-select')?.addEventListener('change', (e) => {
   const hasSelection = !!e.target.value;
-  document.getElementById('load-preset-btn').disabled = !hasSelection;
-  document.getElementById('delete-preset-btn').disabled = !hasSelection;
+  const loadBtn = document.getElementById('load-preset-btn');
+  const deleteBtn = document.getElementById('delete-preset-btn');
+  // delete-preset-btn / preset-name-input are admin-only - absent for view-only users.
+  if (loadBtn) loadBtn.disabled = !hasSelection;
+  if (deleteBtn) deleteBtn.disabled = !hasSelection;
 
   const preset = renderPresets.find(p => String(p.id) === e.target.value);
-  document.getElementById('preset-name-input').value = preset ? preset.name : '';
+  const nameInput = document.getElementById('preset-name-input');
+  if (nameInput) nameInput.value = preset ? preset.name : '';
 });
 
 document.getElementById('load-preset-btn')?.addEventListener('click', () => {
@@ -1442,6 +1540,7 @@ document.getElementById('save-preset-btn')?.addEventListener('click', async () =
   try {
     const res = await fetch('php/save_render_preset.php', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         songbook_id: songbook.id,
@@ -1474,6 +1573,7 @@ document.getElementById('delete-preset-btn')?.addEventListener('click', async ()
   try {
     const res = await fetch('php/delete_render_preset.php', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ preset_id: preset.id })
     });
@@ -1661,8 +1761,9 @@ async function beginRender(orderedIds, category, clearPages = true) {
 
   setTimeout(() => {
     const hasPages = container.querySelectorAll('.a4-page').length > 0;
-    exportBtn.disabled = !hasPages;
-    saveLayoutBtn.disabled = !hasPages;
+    if (exportBtn) exportBtn.disabled = !hasPages;
+    // save-layout-btn doesn't exist for view-only users - they can't save layouts.
+    if (saveLayoutBtn) saveLayoutBtn.disabled = !hasPages;
   }, 100);
 
   return pageCount;
@@ -1774,7 +1875,8 @@ async function printSongbookLock(lockId) {
     });
 
     // Save Layout has no meaning for this filtered, whole-book printout.
-    document.getElementById('save-layout-btn').disabled = true;
+    const printLockSaveLayoutBtn = document.getElementById('save-layout-btn');
+    if (printLockSaveLayoutBtn) printLockSaveLayoutBtn.disabled = true;
 
     container.scrollIntoView({ behavior: 'smooth' });
   } catch (err) {
