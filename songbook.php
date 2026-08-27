@@ -24,28 +24,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     }
 
     // --- Visibility check ---
-    $userId = $_SESSION['id'] ?? null;
-    $userGroupId = $userId ? get_user_group($mysqli, (int)$userId) : null;
-
-    if (empty($_SESSION['admin_view'])) { // admin override off
-        if (
-            // Guest user: only see is_public = 2
-            (!$userId && $songbook['is_public'] != 2)
-            ||
-            // Logged-in user
-            ($userId && (
-                // Group-access songbooks (is_public = 1)
-                ($songbook['is_public'] == 1 &&
-                    (is_null($userGroupId) || (int)$userGroupId !== (int)$songbook['group_id']) &&
-                    !in_array($userId, $songbook['admins'])
-                )
-                ||
-                // Private songbooks (is_public = 0)
-                ($songbook['is_public'] == 0 && !in_array($userId, $songbook['admins']))
-            ))
-        ) {
-            exit("You do not have permission to view this songbook.");
-        }
+    if (!can_view_songbook($mysqli, $songbook)) {
+        exit("You do not have permission to view this songbook.");
     }
 
 
@@ -161,15 +141,26 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             <!-- JS will render categories and songs here -->
           </div>
         </div>
+
+        <!-- Saved PDFs - visible to anyone who can see this songbook -->
+        <div class="card shadow-sm mt-4">
+          <div class="card-header bg-primary text-white">
+            📄 Saved PDFs
+          </div>
+          <div class="card-body" id="saved-pdfs-container">
+            <!-- JS will render the saved-PDF list (and, for admins, save controls) here -->
+          </div>
+        </div>
       </div>
 
-        <?php if (
-            (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"])) ||
-            (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true)
-        ): ?>
+        <?php
+        $isSongbookAdmin = (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"]))
+            || (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true);
+        ?>
+        <?php if ($isSongbookAdmin): ?>
       <!-- Actions Sidebar -->
       <div class="col-lg-3 mt-4 mt-lg-0">
-        
+
         <!-- Actions Sidebar -->
         <div class="card shadow-sm mb-4">
           <div class="card-header bg-light">
@@ -184,6 +175,13 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 Select All Categories
               </label>
             </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="select-all-numbering-checkbox">
+              <label class="form-check-label" for="select-all-numbering-checkbox">
+                Number All Categories
+              </label>
+            </div>
+            <div class="form-text mb-2">Click a category name to include/exclude it from rendering. Use the 🔢 toggle next to a category to include/exclude it from numbering.</div>
 
             <button id="render-categories-btn" class="btn btn-primary w-100 mt-2">
               🖨️ Render All Categories
@@ -215,12 +213,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           <div class="card-body">
             <p class="text-muted small">Tools for development and layout debugging.</p>
 
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" value="" id="render-numbering-checkbox" checked>
-              <label class="form-check-label" for="render-numbering-checkbox">
-                Category Number
-              </label>
-            </div>
+            <div class="form-text mb-3">Which categories get numbered, and which are included when rendering, is set per-category in the Categories &amp; Songs panel (or via the Actions sidebar's "Select All" toggles).</div>
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" value="" id="render-bw-checkbox">
               <label class="form-check-label" for="render-bw-checkbox">
@@ -273,6 +266,16 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </label>
             </div>
             <div class="mb-3">
+              <label class="form-label" for="ignored-instrument-select">Ignore default instrument</label>
+              <select id="ignored-instrument-select" class="form-select form-select-sm">
+                <option value="">None</option>
+                <?php foreach (get_all_instruments($mysqli) as $inst): ?>
+                  <option value="<?= htmlspecialchars($inst['name']) ?>"><?= htmlspecialchars($inst['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <div class="form-text">Hides this instrument's badge when a song has it; shows it struck-through when a song doesn't.</div>
+            </div>
+            <div class="mb-3">
               <label class="form-label" for="content-sort-select">Content order</label>
               <select id="content-sort-select" class="form-select form-select-sm">
                 <option value="manual">Manual / saved order</option>
@@ -283,6 +286,21 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </select>
             </div>
 
+            <hr>
+            <p class="text-muted small mb-2"><strong>Presets</strong></p>
+            <div class="mb-2">
+              <select id="preset-select" class="form-select form-select-sm">
+                <option value="">-- Select preset --</option>
+              </select>
+            </div>
+            <div class="d-flex gap-2 mb-2">
+              <button id="load-preset-btn" class="btn btn-sm btn-outline-primary" disabled>Load</button>
+              <button id="delete-preset-btn" class="btn btn-sm btn-outline-danger" disabled>Delete</button>
+            </div>
+            <div class="input-group input-group-sm mb-3">
+              <input type="text" id="preset-name-input" class="form-control" placeholder="Preset name">
+              <button id="save-preset-btn" class="btn btn-outline-success">Save</button>
+            </div>
 
             <div id="save-layout-wrapper" style="margin-top: 1rem;">
               <button id="save-layout-btn" class="btn btn-success" disabled>💾 Save Layout</button>
@@ -335,8 +353,91 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         </div>
 
 
-        
 
+
+        <?php else: ?>
+      <!-- Render Options Sidebar (view-only users) -->
+      <div class="col-lg-3 mt-4 mt-lg-0">
+
+        <div class="card shadow-sm">
+          <div class="card-header bg-light">
+            🖨️ Render Options
+          </div>
+          <div class="card-body">
+            <p class="text-muted small">Select categories to render</p>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="select-all-categories-checkbox">
+              <label class="form-check-label" for="select-all-categories-checkbox">
+                Select All Categories
+              </label>
+            </div>
+
+            <button id="render-categories-btn" class="btn btn-primary w-100 mb-3">
+              🖨️ Render All Categories
+            </button>
+
+            <hr>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="render-bw-checkbox">
+              <label class="form-check-label" for="render-bw-checkbox">
+                Black and White
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="transpose-capo-zero-checkbox">
+              <label class="form-check-label" for="transpose-capo-zero-checkbox">
+                Transpose to Capo 0
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
+              <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
+            </div>
+
+            <!-- Not user-editable, but still readable/writable by beginRender()
+                 and applyRenderSettings() so a loaded preset can still set it. -->
+            <input class="d-none" type="checkbox" id="render-lock-name-checkbox" checked>
+
+            <hr>
+            <p class="text-muted small mb-2"><strong>Extra Display</strong></p>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-difficulty-checkbox">
+              <label class="form-check-label" for="extra-difficulty-checkbox">
+                Difficulty
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-tags-checkbox">
+              <label class="form-check-label" for="extra-tags-checkbox">
+                Tags
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="" id="extra-instruments-checkbox">
+              <label class="form-check-label" for="extra-instruments-checkbox">
+                Instruments
+              </label>
+            </div>
+
+            <hr>
+            <p class="text-muted small mb-2"><strong>Presets</strong></p>
+            <div class="mb-2">
+              <select id="preset-select" class="form-select form-select-sm">
+                <option value="">-- Select preset --</option>
+              </select>
+            </div>
+            <button id="load-preset-btn" class="btn btn-sm btn-outline-primary w-100 mb-3" disabled>Load</button>
+
+            <button id="export-pdf-btn" class="btn btn-sm btn-primary" disabled>
+              📄 Export to PDF
+            </button>
+          </div>
+        </div>
+
+      </div>
         <?php endif; ?>
     </div>
   </div>
@@ -418,6 +519,9 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
   let undoStack = [];
 
   const selectedCategoryIds = [];
+  // Which categories currently show a category number when rendered.
+  // Defaults to "all" so behavior matches the old always-numbered default.
+  let numberedCategoryIds = [];
 
 
 
@@ -768,9 +872,44 @@ function renderCategories() {
         headerDiv.style.display = 'flex';
         headerDiv.style.alignItems = 'center';
 
-        if (isCurrentUserAdmin()) {
+        {
+            // Rendering a category (and selecting it via the header click above)
+            // is available to every user who can see this songbook, not just
+            // admins. Only the numbering toggle, category removal, and adding
+            // songs/categories stay admin-only, gated below.
             const btnContainer = document.createElement('div');
             btnContainer.className = 'd-flex align-items-center';
+
+            if (isCurrentUserAdmin()) {
+                // Toggles whether this category shows a category number when rendered.
+                const numberingCheck = document.createElement('div');
+                numberingCheck.className = 'form-check form-check-inline me-2 mb-0';
+                numberingCheck.title = 'Show category number when rendered';
+
+                const numberingInput = document.createElement('input');
+                numberingInput.className = 'form-check-input';
+                numberingInput.type = 'checkbox';
+                numberingInput.id = `numbering-check-${category.id}`;
+                numberingInput.checked = numberedCategoryIds.includes(category.id);
+                numberingInput.addEventListener('change', (e) => {
+                    const index = numberedCategoryIds.indexOf(category.id);
+                    if (e.target.checked && index === -1) {
+                        numberedCategoryIds.push(category.id);
+                    } else if (!e.target.checked && index !== -1) {
+                        numberedCategoryIds.splice(index, 1);
+                    }
+                    updateRenderCategoriesUI();
+                });
+
+                const numberingLabel = document.createElement('label');
+                numberingLabel.className = 'form-check-label small';
+                numberingLabel.setAttribute('for', numberingInput.id);
+                numberingLabel.textContent = '🔢';
+
+                numberingCheck.appendChild(numberingInput);
+                numberingCheck.appendChild(numberingLabel);
+                btnContainer.appendChild(numberingCheck);
+            }
 
             // Single render button: loads the saved layout if one exists
             // (appending any newly-added songs after it), otherwise generates one.
@@ -798,7 +937,7 @@ function renderCategories() {
             });
 
             // Uncategorized (id 0) is an implicit bucket and can't be removed.
-            if (category.id !== 0) {
+            if (isCurrentUserAdmin() && category.id !== 0) {
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'btn btn-sm btn-outline-danger ms-2';
                 removeBtn.textContent = '🗑️ Remove';
@@ -914,9 +1053,12 @@ function populateCategorySelect() {
 }
 
 // Initial render calls
+numberedCategoryIds = songbook.songs_categories.map(cat => cat.id);
 renderCategories();
 populateCategorySelect();
 updateRenderCategoriesUI();
+loadPresetsList();
+renderSavedPdfsList();
 
 // Your existing event listeners for search and add song:
 
@@ -1044,7 +1186,9 @@ document.getElementById('addSongToCategoryBtn').addEventListener('click', () => 
 });
 
 
-document.getElementById("addCategoryBtn").addEventListener("click", () => {
+// addCategoryBtn is only created (inside renderCategories()) for admins - it
+// doesn't exist in the DOM at all for view-only users.
+document.getElementById("addCategoryBtn")?.addEventListener("click", () => {
   const modal = new bootstrap.Modal(document.getElementById("addCategoryModal"));
   modal.show();
 });
@@ -1149,7 +1293,7 @@ if (saveBtn) {
     });
   });
 
-  document.getElementById("save-layout-btn").addEventListener("click", async () => {
+  document.getElementById("save-layout-btn")?.addEventListener("click", async () => {
     if (!currentCategory || !orderedIds.length || !songbook?.id) {
       alert("Missing songbook, category, or layout info.");
       return;
@@ -1258,6 +1402,386 @@ function updateRenderCategoriesUI() {
 
   selectAllCheckbox.checked = songbook.songs_categories.length > 0
     && selectedCategoryIds.length === songbook.songs_categories.length;
+
+  const selectAllNumberingCheckbox = document.getElementById('select-all-numbering-checkbox');
+  if (selectAllNumberingCheckbox) {
+    selectAllNumberingCheckbox.checked = songbook.songs_categories.length > 0
+      && numberedCategoryIds.length === songbook.songs_categories.length;
+  }
+}
+
+document.getElementById('select-all-numbering-checkbox')?.addEventListener('change', (e) => {
+  numberedCategoryIds.length = 0;
+  if (e.target.checked) {
+    numberedCategoryIds.push(...songbook.songs_categories.map(cat => cat.id));
+  }
+  renderCategories();
+  updateRenderCategoriesUI();
+});
+
+
+// PRESETS
+//
+// A preset is a named, saved snapshot of every Dev Tools render option
+// (including which categories are currently selected to render and which
+// are numbered), scoped to this songbook. Loading one overwrites the current
+// in-page settings; it isn't itself persisted until saved again.
+
+let renderPresets = [];
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function getCurrentRenderSettings() {
+  return {
+    blackAndWhite: document.getElementById('render-bw-checkbox')?.checked || false,
+    allowManualOrdering: document.getElementById('allow-manual-ordering-checkbox')?.checked || false,
+    showLockName: document.getElementById('render-lock-name-checkbox')?.checked || false,
+    transposeCapoZero: document.getElementById('transpose-capo-zero-checkbox')?.checked || false,
+    showToc: document.getElementById('render-toc-checkbox')?.checked || false,
+    showDifficulty: document.getElementById('extra-difficulty-checkbox')?.checked || false,
+    showTags: document.getElementById('extra-tags-checkbox')?.checked || false,
+    showInstruments: document.getElementById('extra-instruments-checkbox')?.checked || false,
+    ignoredInstrument: document.getElementById('ignored-instrument-select')?.value || '',
+    sortMode: document.getElementById('content-sort-select')?.value || 'manual',
+    renderedCategoryIds: [...selectedCategoryIds],
+    numberedCategoryIds: [...numberedCategoryIds]
+  };
+}
+
+function applyRenderSettings(settings) {
+  if (!settings) return;
+
+  const setChecked = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.checked = !!value;
+  };
+
+  setChecked('render-bw-checkbox', settings.blackAndWhite);
+  setChecked('allow-manual-ordering-checkbox', settings.allowManualOrdering);
+  setChecked('render-lock-name-checkbox', settings.showLockName);
+  setChecked('transpose-capo-zero-checkbox', settings.transposeCapoZero);
+  setChecked('render-toc-checkbox', settings.showToc);
+  setChecked('extra-difficulty-checkbox', settings.showDifficulty);
+  setChecked('extra-tags-checkbox', settings.showTags);
+  setChecked('extra-instruments-checkbox', settings.showInstruments);
+
+  const ignoredInstrumentSelect = document.getElementById('ignored-instrument-select');
+  if (ignoredInstrumentSelect) ignoredInstrumentSelect.value = settings.ignoredInstrument || '';
+
+  const sortSelect = document.getElementById('content-sort-select');
+  if (sortSelect) sortSelect.value = settings.sortMode || 'manual';
+
+  const validCategoryIds = new Set(songbook.songs_categories.map(cat => cat.id));
+
+  selectedCategoryIds.length = 0;
+  if (Array.isArray(settings.renderedCategoryIds)) {
+    selectedCategoryIds.push(...settings.renderedCategoryIds.filter(id => validCategoryIds.has(id)));
+  }
+
+  numberedCategoryIds.length = 0;
+  if (Array.isArray(settings.numberedCategoryIds)) {
+    numberedCategoryIds.push(...settings.numberedCategoryIds.filter(id => validCategoryIds.has(id)));
+  } else {
+    numberedCategoryIds.push(...songbook.songs_categories.map(cat => cat.id));
+  }
+
+  renderCategories();
+  updateRenderCategoriesUI();
+}
+
+async function loadPresetsList() {
+  const select = document.getElementById('preset-select');
+  if (!select) return; // Absent only if the render sidebar itself didn't render.
+
+  try {
+    const res = await fetch(`php/get_render_presets.php?songbook_id=${songbook.id}`, {
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+    if (!data.success) return;
+
+    renderPresets = data.presets || [];
+    select.innerHTML = '<option value="">-- Select preset --</option>' +
+      renderPresets.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  } catch (err) {
+    console.error('Failed to load presets', err);
+  }
+}
+
+document.getElementById('preset-select')?.addEventListener('change', (e) => {
+  const hasSelection = !!e.target.value;
+  const loadBtn = document.getElementById('load-preset-btn');
+  const deleteBtn = document.getElementById('delete-preset-btn');
+  // delete-preset-btn / preset-name-input are admin-only - absent for view-only users.
+  if (loadBtn) loadBtn.disabled = !hasSelection;
+  if (deleteBtn) deleteBtn.disabled = !hasSelection;
+
+  const preset = renderPresets.find(p => String(p.id) === e.target.value);
+  const nameInput = document.getElementById('preset-name-input');
+  if (nameInput) nameInput.value = preset ? preset.name : '';
+});
+
+document.getElementById('load-preset-btn')?.addEventListener('click', () => {
+  const select = document.getElementById('preset-select');
+  const preset = renderPresets.find(p => String(p.id) === select.value);
+  if (preset) applyRenderSettings(preset.settings);
+});
+
+document.getElementById('save-preset-btn')?.addEventListener('click', async () => {
+  const nameInput = document.getElementById('preset-name-input');
+  const name = nameInput?.value.trim();
+  if (!name) {
+    alert('Enter a preset name.');
+    return;
+  }
+
+  const select = document.getElementById('preset-select');
+  const existing = renderPresets.find(p => p.name === name);
+
+  try {
+    const res = await fetch('php/save_render_preset.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        songbook_id: songbook.id,
+        preset_id: existing ? existing.id : null,
+        name,
+        settings: getCurrentRenderSettings()
+      })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || 'Failed to save preset.');
+      return;
+    }
+
+    await loadPresetsList();
+    select.value = String(data.id);
+    select.dispatchEvent(new Event('change'));
+  } catch (err) {
+    console.error('Failed to save preset', err);
+    alert('Failed to save preset.');
+  }
+});
+
+document.getElementById('delete-preset-btn')?.addEventListener('click', async () => {
+  const select = document.getElementById('preset-select');
+  const preset = renderPresets.find(p => String(p.id) === select.value);
+  if (!preset) return;
+  if (!confirm(`Delete preset "${preset.name}"?`)) return;
+
+  try {
+    const res = await fetch('php/delete_render_preset.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preset_id: preset.id })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || 'Failed to delete preset.');
+      return;
+    }
+
+    document.getElementById('preset-name-input').value = '';
+    await loadPresetsList();
+  } catch (err) {
+    console.error('Failed to delete preset', err);
+    alert('Failed to delete preset.');
+  }
+});
+
+
+// SAVED PDFs
+//
+// A saved PDF is a static snapshot of whatever's currently rendered below,
+// stored on the server as "<songbook name>_<title>". Anyone who can view
+// this songbook (including guests, on public ones) can see and download the
+// list; only a songbook admin can generate a new one or delete an existing
+// one - saveSongbookPdfToServer/deleteSongbookPdf below are only reachable
+// through controls that renderSavedPdfsList only builds for admins.
+
+async function renderSavedPdfsList() {
+  const container = document.getElementById('saved-pdfs-container');
+  if (!container) return;
+
+  const admin = isCurrentUserAdmin();
+  container.innerHTML = '';
+
+  if (admin) {
+    const saveRow = document.createElement('div');
+    saveRow.className = 'input-group input-group-sm mb-2';
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.id = 'pdf-title-input';
+    titleInput.className = 'form-control';
+    titleInput.placeholder = 'PDF title (e.g. "Summer 25")';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.id = 'save-pdf-to-server-btn';
+    saveBtn.className = 'btn btn-outline-success';
+    saveBtn.textContent = '💾 Save current render as PDF';
+    saveBtn.addEventListener('click', saveSongbookPdfToServer);
+
+    saveRow.appendChild(titleInput);
+    saveRow.appendChild(saveBtn);
+    container.appendChild(saveRow);
+
+    const hint = document.createElement('div');
+    hint.className = 'form-text mb-3';
+    hint.textContent = `Saves whatever is currently rendered below as "${songbook.name}_<title>". Render something first.`;
+    container.appendChild(hint);
+  }
+
+  const listWrapper = document.createElement('div');
+  listWrapper.textContent = 'Loading…';
+  listWrapper.className = 'text-muted small';
+  container.appendChild(listWrapper);
+
+  try {
+    const res = await fetch(`php/get_songbook_pdfs.php?songbook_id=${songbook.id}`, {
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      listWrapper.textContent = data.message || 'Unable to load saved PDFs.';
+      return;
+    }
+
+    if (!data.pdfs.length) {
+      listWrapper.textContent = 'No PDFs saved yet.';
+      return;
+    }
+
+    listWrapper.textContent = '';
+    listWrapper.className = '';
+
+    data.pdfs.forEach(pdf => {
+      const row = document.createElement('div');
+      row.className = 'd-flex justify-content-between align-items-center border rounded p-2 mb-2';
+
+      const info = document.createElement('div');
+      const nameLine = document.createElement('div');
+      nameLine.className = 'fw-semibold';
+      nameLine.textContent = pdf.display_name;
+      info.appendChild(nameLine);
+
+      const meta = document.createElement('div');
+      meta.className = 'small text-muted';
+      meta.textContent = new Date(pdf.created_at.replace(' ', 'T')).toLocaleString();
+      info.appendChild(meta);
+
+      row.appendChild(info);
+
+      const actions = document.createElement('div');
+      actions.className = 'd-flex align-items-center gap-2';
+
+      const downloadLink = document.createElement('a');
+      downloadLink.href = `php/download_songbook_pdf.php?id=${pdf.id}`;
+      downloadLink.className = 'btn btn-sm btn-outline-primary';
+      downloadLink.textContent = '⬇️ Download';
+      actions.appendChild(downloadLink);
+
+      if (admin) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.title = 'Delete this saved PDF';
+        deleteBtn.addEventListener('click', () => deleteSongbookPdf(pdf.id, pdf.display_name));
+        actions.appendChild(deleteBtn);
+      }
+
+      row.appendChild(actions);
+      listWrapper.appendChild(row);
+    });
+  } catch (err) {
+    console.error('Failed to load saved PDFs', err);
+    listWrapper.textContent = 'Unable to load saved PDFs.';
+  }
+}
+
+async function saveSongbookPdfToServer() {
+  const titleInput = document.getElementById('pdf-title-input');
+  const title = titleInput?.value.trim();
+  if (!title) {
+    alert('Enter a title for this PDF.');
+    return;
+  }
+
+  const hasPages = document.querySelectorAll('#a4-preview-container .a4-page').length > 0;
+  if (!hasPages) {
+    alert("Render something first - there's nothing in the preview to save.");
+    return;
+  }
+
+  const saveBtn = document.getElementById('save-pdf-to-server-btn');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = '⏳ Generating...';
+  }
+
+  try {
+    const blob = await generatePdfBlob();
+
+    const formData = new FormData();
+    formData.append('songbook_id', songbook.id);
+    formData.append('title', title);
+    formData.append('pdf', blob, 'songbook.pdf');
+
+    const res = await fetch('php/save_songbook_pdf.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: formData
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.message || 'Failed to save PDF.');
+      return;
+    }
+
+    await renderSavedPdfsList();
+  } catch (err) {
+    console.error('Failed to save PDF to server', err);
+    alert('Failed to save PDF.');
+  } finally {
+    // saveBtn no longer exists if renderSavedPdfsList() already rebuilt the
+    // list (the success path) - only need to reset it on the error/early-out paths.
+    const stillThere = document.getElementById('save-pdf-to-server-btn');
+    if (stillThere) {
+      stillThere.disabled = false;
+      stillThere.textContent = '💾 Save current render as PDF';
+    }
+  }
+}
+
+async function deleteSongbookPdf(id, displayName) {
+  if (!confirm(`Delete saved PDF "${displayName}"?`)) return;
+
+  try {
+    const res = await fetch('php/delete_songbook_pdf.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || 'Failed to delete PDF.');
+      return;
+    }
+    await renderSavedPdfsList();
+  } catch (err) {
+    console.error('Failed to delete PDF', err);
+    alert('Failed to delete PDF.');
+  }
 }
 
 
@@ -1365,7 +1889,7 @@ async function beginRender(orderedIds, category, clearPages = true) {
     container.innerHTML = ''; // Clear previous content if requested
   }
 
-  const includeRoman = document.getElementById('render-numbering-checkbox')?.checked;
+  const includeRoman = numberedCategoryIds.includes(category.id);
   const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
   const allowClicking = document.getElementById('allow-manual-ordering-checkbox')?.checked || false;
   const debugMode = allowClicking; // debug lines are just a side effect of manual ordering now
@@ -1374,6 +1898,7 @@ async function beginRender(orderedIds, category, clearPages = true) {
   const showDifficulty = document.getElementById('extra-difficulty-checkbox')?.checked || false;
   const showTags = document.getElementById('extra-tags-checkbox')?.checked || false;
   const showInstruments = document.getElementById('extra-instruments-checkbox')?.checked || false;
+  const ignoredInstrument = document.getElementById('ignored-instrument-select')?.value || '';
   const sortMode = document.getElementById('content-sort-select')?.value || 'manual';
 
   const categoryTitle = includeRoman
@@ -1418,6 +1943,7 @@ async function beginRender(orderedIds, category, clearPages = true) {
     showDifficulty: showDifficulty,
     showTags: showTags,
     showInstruments: showInstruments,
+    ignoredInstrument: ignoredInstrument,
     showLockName: showLockName,
     lockNames: lockNames,
     categoryId: category.id
@@ -1430,8 +1956,9 @@ async function beginRender(orderedIds, category, clearPages = true) {
 
   setTimeout(() => {
     const hasPages = container.querySelectorAll('.a4-page').length > 0;
-    exportBtn.disabled = !hasPages;
-    saveLayoutBtn.disabled = !hasPages;
+    if (exportBtn) exportBtn.disabled = !hasPages;
+    // save-layout-btn doesn't exist for view-only users - they can't save layouts.
+    if (saveLayoutBtn) saveLayoutBtn.disabled = !hasPages;
   }, 100);
 
   return pageCount;
@@ -1453,7 +1980,16 @@ async function renderMultiple(categoryIds) {
   const container = document.getElementById('a4-preview-container');
   container.innerHTML = '';
 
-  for (const id of categoryIds) {
+  // Always render in the songbook's own category order, regardless of the
+  // order categories were clicked/selected in (selectedCategoryIds is built
+  // in click order, not display order) - selection order shouldn't control
+  // render order.
+  const categoryOrder = new Map(songbook.songs_categories.map((cat, i) => [cat.id, i]));
+  const orderedCategoryIds = [...categoryIds].sort(
+    (a, b) => (categoryOrder.get(a) ?? 0) - (categoryOrder.get(b) ?? 0)
+  );
+
+  for (const id of orderedCategoryIds) {
     const category = getCategoryById(id);
     if (!category) {
       console.warn(`Category with id ${id} not found.`);
@@ -1543,7 +2079,8 @@ async function printSongbookLock(lockId) {
     });
 
     // Save Layout has no meaning for this filtered, whole-book printout.
-    document.getElementById('save-layout-btn').disabled = true;
+    const printLockSaveLayoutBtn = document.getElementById('save-layout-btn');
+    if (printLockSaveLayoutBtn) printLockSaveLayoutBtn.disabled = true;
 
     container.scrollIntoView({ behavior: 'smooth' });
   } catch (err) {

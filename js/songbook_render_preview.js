@@ -7,6 +7,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
   const showInstruments = options.showInstruments || false;
+  const ignoredInstrument = options.ignoredInstrument || '';
   const showLockName = options.showLockName || false;
   const lockNames = options.lockNames || {}; // song_id (string) -> { lock_id, name, locked_at }
 
@@ -155,7 +156,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
       if (!partSong.continuation) {
         const header = createSongHeader(partSong, {
-          blackAndWhite, showDifficulty, showTags, showInstruments,
+          blackAndWhite, showDifficulty, showTags, showInstruments, ignoredInstrument,
           locked: allowClicking && isLocked,
           lockedName: isLocked ? lockNames[String(partSong.id)].name : null
         });
@@ -482,6 +483,79 @@ function addLockNameLabelToPage(page, pageNumber, lockNames) {
 // Small single-line badges used by the "Extra Display" dev-tools options.
 // Kept deliberately compact (small font, tight padding) so they never grow
 // taller than the title line's own text, and never change header height.
+// The A4 page is a fixed 794px sheet (see createPage: p-4 = 24px Bootstrap
+// padding each side) and the song header always uses its default 6px/10px
+// padding (see createSongHeader) - so, unlike a responsive page, the space
+// available for badges is a known constant we can fit against directly,
+// rather than something that needs live layout to discover. A small safety
+// margin absorbs the header's 1px border and any box-sizing rounding.
+const HEADER_CONTENT_WIDTH = 794 - 24 * 2 - 10 * 2 - 10; // ~696px
+const EXTRA_WRAPPER_MAX_WIDTH = HEADER_CONTENT_WIDTH * 0.55; // matches the old 55% CSS cap
+const BADGE_GAP = 4;
+
+// Measures the rendered width of an element via a throwaway offscreen probe,
+// without needing it attached anywhere in particular first. Badges/capo text
+// all inherit the header's system-ui font, so the probe matches that.
+function measureElementWidth(el) {
+  const probe = document.createElement('div');
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.left = '-9999px';
+  probe.style.top = '0';
+  probe.style.whiteSpace = 'nowrap';
+  probe.style.fontFamily = 'system-ui, sans-serif';
+  document.body.appendChild(probe);
+  probe.appendChild(el.cloneNode(true));
+  const width = probe.getBoundingClientRect().width;
+  document.body.removeChild(probe);
+  return width;
+}
+
+// Greedily fits as many leading `badges` as possible within `maxWidth` with
+// no fallback - used when whatever doesn't fit gets a second chance
+// elsewhere (the capo row) rather than needing to collapse immediately.
+function fitBadgesNoOverflow(badges, maxWidth, gap = BADGE_GAP) {
+  const widths = badges.map(measureElementWidth);
+  let used = 0;
+  let cutoff = badges.length;
+  for (let i = 0; i < badges.length; i++) {
+    const next = used + (i > 0 ? gap : 0) + widths[i];
+    if (next > maxWidth) { cutoff = i; break; }
+    used = next;
+  }
+  return { fitting: badges.slice(0, cutoff), overflow: badges.slice(cutoff) };
+}
+
+// Fits as many leading `badges` as possible within `maxWidth`, falling back
+// to a "+N" badge (same visual style as a tag) summarizing whatever doesn't
+// fit. Tries the largest N that still leaves room for the "+N" badge itself,
+// so one oversized badge doesn't collapse the whole row down to just "+N".
+function fitBadgesWithOverflow(badges, maxWidth, blackAndWhite, gap = BADGE_GAP) {
+  if (!badges.length) return [];
+
+  const widths = badges.map(measureElementWidth);
+
+  for (let n = badges.length; n >= 0; n--) {
+    let total = 0;
+    for (let i = 0; i < n; i++) total += widths[i] + (i > 0 ? gap : 0);
+
+    const remaining = badges.length - n;
+    let plusBadge = null;
+    if (remaining > 0) {
+      plusBadge = buildTagBadge(`+${remaining}`, blackAndWhite);
+      total += (n > 0 ? gap : 0) + measureElementWidth(plusBadge);
+    }
+
+    if (total <= maxWidth || n === 0) {
+      const visible = badges.slice(0, n);
+      if (plusBadge) visible.push(plusBadge);
+      return visible;
+    }
+  }
+
+  return []; // unreachable - the n === 0 pass above always returns
+}
+
 function buildDifficultyBadge(difficulty, blackAndWhite) {
   if (!difficulty) return null;
   const diff = String(difficulty).toLowerCase();
@@ -551,8 +625,11 @@ function createSongHeader(song, options = {}) {
   const showDifficulty = options.showDifficulty || false;
   const showTags = options.showTags || false;
   const showInstruments = options.showInstruments || false;
+  const ignoredInstrument = (options.ignoredInstrument || '').trim();
   const locked = options.locked || false;
   const lockedName = options.lockedName || null;
+
+  const hasCapo = !!((song.capo && song.capo !== 0) || (song.capo_alt && song.capo_alt !== 0));
 
 
   header.classList.add('song-header');
@@ -622,42 +699,105 @@ function createSongHeader(song, options = {}) {
 
   titleLine.appendChild(titleTextWrapper);
 
-  // Extra Display: difficulty, tags and instruments, rendered to the right of the title.
-  // Rendered into a fixed-shrink, overflow-hidden, single-line wrapper so it
-  // can never make the header (and therefore the whole song block) taller.
+  // Extra Display: difficulty, tags and instruments, rendered to the right of
+  // the title. Difficulty always renders in full - its width is reserved
+  // first and it's never dropped. Tags (most-used tag first, per the
+  // usage_count ordering the server already applies) and instruments fill
+  // whatever's left in the title row; anything that doesn't fit there spills
+  // into the capo row if the song has one (capoOverflowBadges, appended
+  // below), or collapses into a "+N" badge immediately otherwise - either
+  // way the header's line count, and therefore pagination, never changes
+  // based on how many tags/instruments a song happens to have.
+  let capoOverflowBadges = [];
+  // X offset (from the header's left content edge) of the title row's
+  // rightmost tag/instrument badge - excluding difficulty, which always sits
+  // furthest right on its own - so the capo row's overflow badges align
+  // under that instead of bunching up against the capo circle.
+  let extraWrapperLeftOffset = 0;
+
   if (showDifficulty || showTags || showInstruments) {
     const extraWrapper = document.createElement('span');
     extraWrapper.style.display = 'flex';
     extraWrapper.style.alignItems = 'center';
-    extraWrapper.style.gap = '4px';
+    extraWrapper.style.gap = `${BADGE_GAP}px`;
     extraWrapper.style.flex = '0 1 auto';
-    extraWrapper.style.maxWidth = '55%';
-    extraWrapper.style.overflow = 'hidden';
     extraWrapper.style.whiteSpace = 'nowrap';
 
-    
+    const difficultyBadge = showDifficulty ? buildDifficultyBadge(song.difficulty, blackAndWhite) : null;
+
+    const overflowCandidates = [];
     if (showTags && song.tags) {
       song.tags.split(',')
-      .map(t => t.trim())
-      .filter(Boolean)
-      .forEach(tag => extraWrapper.appendChild(buildTagBadge(tag, blackAndWhite)));
+        .map(t => t.trim())
+        .filter(Boolean)
+        .forEach(tag => overflowCandidates.push(buildTagBadge(tag, blackAndWhite)));
     }
 
-    if (showInstruments && song.instruments) {
-      song.instruments.split(',')
-      .map(instrument => instrument.trim())
-      .filter(Boolean)
-      .forEach(instrument => {
-        const badge = buildTagBadge(instrument, blackAndWhite);
-        badge.title = 'Instrument';
-        extraWrapper.appendChild(badge);
-      });
+    if (showInstruments) {
+      // Not gated on song.instruments being non-empty - a song with no
+      // instruments at all still needs to be flagged as missing the ignored
+      // default (e.g. Guitar) if one is configured.
+      const instrumentNames = (song.instruments || '').split(',').map(i => i.trim()).filter(Boolean);
+      const ignoredLower = ignoredInstrument.toLowerCase();
+
+      instrumentNames
+        .filter(instrument => !ignoredInstrument || instrument.toLowerCase() !== ignoredLower)
+        .forEach(instrument => {
+          const badge = buildTagBadge(instrument, blackAndWhite);
+          badge.title = 'Instrument';
+          overflowCandidates.push(badge);
+        });
+
+      // The ignored "default" instrument (e.g. Guitar, almost always
+      // present) is assumed and hidden entirely when the song does have it;
+      // shown struck-through only to flag a song that deviates from that
+      // assumption by NOT having it.
+      if (ignoredInstrument && !instrumentNames.some(i => i.toLowerCase() === ignoredLower)) {
+        const missingBadge = buildTagBadge(ignoredInstrument, blackAndWhite);
+        missingBadge.title = `Missing default instrument (${ignoredInstrument})`;
+        missingBadge.style.textDecoration = 'line-through';
+        missingBadge.style.opacity = '0.6';
+        overflowCandidates.unshift(missingBadge);
+      }
     }
-    
-    if (showDifficulty) {
-      const diffBadge = buildDifficultyBadge(song.difficulty, blackAndWhite);
-      if (diffBadge) extraWrapper.appendChild(diffBadge);
+
+    const difficultyWidth = difficultyBadge ? measureElementWidth(difficultyBadge) : 0;
+    const rowBudget = Math.max(
+      0,
+      EXTRA_WRAPPER_MAX_WIDTH - difficultyWidth - (difficultyBadge && overflowCandidates.length ? BADGE_GAP : 0)
+    );
+
+    let rowBadges;
+    if (hasCapo) {
+      // Give unfit badges a second chance in the capo row instead of
+      // collapsing them into "+N" immediately.
+      const { fitting, overflow } = fitBadgesNoOverflow(overflowCandidates, rowBudget);
+      rowBadges = fitting;
+      capoOverflowBadges = overflow;
+    } else {
+      rowBadges = fitBadgesWithOverflow(overflowCandidates, rowBudget, blackAndWhite);
     }
+
+    // Measured before rowBadges are moved into the real extraWrapper below -
+    // a throwaway wrapper holding the same (still-unattached) elements gives
+    // their combined width without difficulty, then appendChild() below just
+    // moves them out of it into extraWrapper for real.
+    if (rowBadges.length) {
+      const rowBadgesOnlyWrapper = document.createElement('span');
+      rowBadgesOnlyWrapper.style.display = 'flex';
+      rowBadgesOnlyWrapper.style.gap = `${BADGE_GAP}px`;
+      rowBadges.forEach(el => rowBadgesOnlyWrapper.appendChild(el));
+      const rowBadgesOnlyWidth = measureElementWidth(rowBadgesOnlyWrapper);
+      const lastBadgeWidth = measureElementWidth(rowBadges[rowBadges.length - 1]);
+
+      const fullWidth = rowBadgesOnlyWidth + (difficultyBadge ? BADGE_GAP + difficultyWidth : 0);
+      const extraWrapperLeft = Math.max(0, HEADER_CONTENT_WIDTH - fullWidth);
+      extraWrapperLeftOffset = extraWrapperLeft + rowBadgesOnlyWidth - lastBadgeWidth;
+    }
+
+    rowBadges.forEach(el => extraWrapper.appendChild(el));
+    if (difficultyBadge) extraWrapper.appendChild(difficultyBadge);
+
     if (extraWrapper.children.length) {
       titleLine.appendChild(extraWrapper);
     }
@@ -683,7 +823,7 @@ function createSongHeader(song, options = {}) {
   }
 
   // Capo Display
-  if ((song.capo && song.capo !== 0) || (song.capo_alt && song.capo_alt !== 0)) {
+  if (hasCapo) {
     const capoLine = document.createElement('div');
     capoLine.style.marginTop = '6px';
     capoLine.style.fontSize = '0.9rem';
@@ -758,6 +898,36 @@ function createSongHeader(song, options = {}) {
     }
 
       capoLine.appendChild(capoAltCircle);
+    }
+
+    // Tag/instrument badges that didn't fit in the title row get a second
+    // chance here, since the capo row already reserves its own vertical
+    // space - using it doesn't change the header's height. Anything that
+    // still doesn't fit (rare - the capo row is much wider than the title
+    // row's badge budget) collapses into "+N" the same as the title row does.
+    // The group aligns under the title row's rightmost tag/instrument badge
+    // (excluding difficulty, which sits apart on the far right) rather than
+    // bunching up against the capo circle.
+    if (capoOverflowBadges.length) {
+      const capoRowGap = 6; // matches capoLine.style.gap above
+      const usedWidth = measureElementWidth(capoLine);
+      const naturalLeft = usedWidth + capoRowGap;
+      // Falls back to right after the circle(s) if those are themselves
+      // wider than the title row's rightmost badge position (rare - e.g. a
+      // long "Transp. -2" label), rather than overlapping them.
+      const badgeGroupLeft = Math.max(naturalLeft, extraWrapperLeftOffset);
+      const capoRowBudget = Math.max(0, HEADER_CONTENT_WIDTH - badgeGroupLeft);
+
+      const fitted = fitBadgesWithOverflow(capoOverflowBadges, capoRowBudget, blackAndWhite, BADGE_GAP);
+      if (fitted.length) {
+        const badgeGroup = document.createElement('span');
+        badgeGroup.style.display = 'flex';
+        badgeGroup.style.alignItems = 'center';
+        badgeGroup.style.gap = `${BADGE_GAP}px`;
+        badgeGroup.style.marginLeft = `${badgeGroupLeft - naturalLeft}px`;
+        fitted.forEach(el => badgeGroup.appendChild(el));
+        capoLine.appendChild(badgeGroup);
+      }
     }
 
   header.appendChild(capoLine);
@@ -870,7 +1040,10 @@ async function exportToPDF() {
   }
 }
 
-async function doExportLogic(filename = 'songbook.pdf') {
+// Builds a jsPDF document from whatever's currently in #a4-preview-container.
+// Shared by the local "Export to PDF" download and by saving a copy to the
+// server (see songbook.php's "Save PDF" flow) so both produce identical output.
+async function generatePdfDocument() {
   const { jsPDF } = window.jspdf;
 
   const container = document.getElementById('a4-preview-container');
@@ -924,9 +1097,21 @@ async function doExportLogic(filename = 'songbook.pdf') {
     document.body.removeChild(wrapper);
   }
 
+  return pdf;
+}
+
+async function doExportLogic(filename = 'songbook.pdf') {
+  const pdf = await generatePdfDocument();
   pdf.save(filename);
 }
 
-
+// Used by the "Save PDF to server" flow - same rendering as the local
+// download, just returned as a Blob for upload instead of triggering a
+// browser save.
+async function generatePdfBlob() {
+  const pdf = await generatePdfDocument();
+  return pdf.output('blob');
+}
 
 window.exportToPDF = exportToPDF;
+window.generatePdfBlob = generatePdfBlob;

@@ -23,6 +23,17 @@ $result = $stmt->get_result();
 $categories = get_all_categories($mysqli);
 $songs = [];
 
+// Tags render most-used-first (see songbook_render_preview.js), so the
+// renderer's overflow/collapse logic always keeps a song's most common tags
+// visible and folds its rarer ones away first.
+$tagUsage = [];
+$tagResult = $mysqli->query("SELECT name, usage_count FROM song_tags");
+if ($tagResult) {
+    while ($tagRow = $tagResult->fetch_assoc()) {
+        $tagUsage[strtolower($tagRow['name'])] = (int)$tagRow['usage_count'];
+    }
+}
+
 while ($row = $result->fetch_assoc()) {
     $user = get_user_by_username($mysqli, $row['owner']);
     $row['owner'] = [
@@ -33,7 +44,15 @@ while ($row = $result->fetch_assoc()) {
 
     $filtered = filter_difficulty_tags($row['tags']);
     $row['difficulty'] = $filtered['difficulty'];
-    $row['tags'] = $filtered['tags'];
+
+    $tagList = array_values(array_filter(array_map('trim', explode(',', $filtered['tags'])), fn($t) => $t !== ''));
+    usort($tagList, function ($a, $b) use ($tagUsage) {
+        $countA = $tagUsage[strtolower($a)] ?? 0;
+        $countB = $tagUsage[strtolower($b)] ?? 0;
+        return $countB <=> $countA;
+    });
+    $row['tags'] = implode(',', $tagList);
+
     $row['category_name'] = $categories[$row['category']] ?? '';
 
     $songs[] = $row;

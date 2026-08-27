@@ -284,6 +284,30 @@ font-size: 0.9rem;
     color: var(--muted);
 }
 
+/* Bootstrap hardcodes its checkbox fill and select-arrow icon to light-theme
+   colours (via --bs-body-bg / a baked-in dark-stroke SVG) that this app's
+   [data-theme="dark"] variables don't reach, since the app uses its own
+   data-theme attribute rather than Bootstrap's data-bs-theme. Left alone,
+   unchecked checkboxes render as solid white squares and select arrows go
+   near-invisible against a dark card. */
+[data-theme="dark"] .form-check-input {
+    background-color: var(--surface-muted);
+    border-color: var(--border);
+}
+
+[data-theme="dark"] .form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23edf1f7' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+
+[data-theme="dark"] .form-text {
+    color: var(--muted) !important;
+}
+
 [data-theme="dark"] .table {
     --bs-table-bg: var(--surface);
     --bs-table-color: var(--text);
