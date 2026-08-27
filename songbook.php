@@ -24,28 +24,8 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     }
 
     // --- Visibility check ---
-    $userId = $_SESSION['id'] ?? null;
-    $userGroupId = $userId ? get_user_group($mysqli, (int)$userId) : null;
-
-    if (empty($_SESSION['admin_view'])) { // admin override off
-        if (
-            // Guest user: only see is_public = 2
-            (!$userId && $songbook['is_public'] != 2)
-            ||
-            // Logged-in user
-            ($userId && (
-                // Group-access songbooks (is_public = 1)
-                ($songbook['is_public'] == 1 &&
-                    (is_null($userGroupId) || (int)$userGroupId !== (int)$songbook['group_id']) &&
-                    !in_array($userId, $songbook['admins'])
-                )
-                ||
-                // Private songbooks (is_public = 0)
-                ($songbook['is_public'] == 0 && !in_array($userId, $songbook['admins']))
-            ))
-        ) {
-            exit("You do not have permission to view this songbook.");
-        }
+    if (!can_view_songbook($mysqli, $songbook)) {
+        exit("You do not have permission to view this songbook.");
     }
 
 
@@ -159,6 +139,16 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           </div>
           <div class="card-body" id="category-container">
             <!-- JS will render categories and songs here -->
+          </div>
+        </div>
+
+        <!-- Saved PDFs - visible to anyone who can see this songbook -->
+        <div class="card shadow-sm mt-4">
+          <div class="card-header bg-primary text-white">
+            📄 Saved PDFs
+          </div>
+          <div class="card-body" id="saved-pdfs-container">
+            <!-- JS will render the saved-PDF list (and, for admins, save controls) here -->
           </div>
         </div>
       </div>
@@ -1068,6 +1058,7 @@ renderCategories();
 populateCategorySelect();
 updateRenderCategoriesUI();
 loadPresetsList();
+renderSavedPdfsList();
 
 // Your existing event listeners for search and add song:
 
@@ -1604,6 +1595,194 @@ document.getElementById('delete-preset-btn')?.addEventListener('click', async ()
     alert('Failed to delete preset.');
   }
 });
+
+
+// SAVED PDFs
+//
+// A saved PDF is a static snapshot of whatever's currently rendered below,
+// stored on the server as "<songbook name>_<title>". Anyone who can view
+// this songbook (including guests, on public ones) can see and download the
+// list; only a songbook admin can generate a new one or delete an existing
+// one - saveSongbookPdfToServer/deleteSongbookPdf below are only reachable
+// through controls that renderSavedPdfsList only builds for admins.
+
+async function renderSavedPdfsList() {
+  const container = document.getElementById('saved-pdfs-container');
+  if (!container) return;
+
+  const admin = isCurrentUserAdmin();
+  container.innerHTML = '';
+
+  if (admin) {
+    const saveRow = document.createElement('div');
+    saveRow.className = 'input-group input-group-sm mb-2';
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.id = 'pdf-title-input';
+    titleInput.className = 'form-control';
+    titleInput.placeholder = 'PDF title (e.g. "Summer 25")';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.id = 'save-pdf-to-server-btn';
+    saveBtn.className = 'btn btn-outline-success';
+    saveBtn.textContent = '💾 Save current render as PDF';
+    saveBtn.addEventListener('click', saveSongbookPdfToServer);
+
+    saveRow.appendChild(titleInput);
+    saveRow.appendChild(saveBtn);
+    container.appendChild(saveRow);
+
+    const hint = document.createElement('div');
+    hint.className = 'form-text mb-3';
+    hint.textContent = `Saves whatever is currently rendered below as "${songbook.name}_<title>". Render something first.`;
+    container.appendChild(hint);
+  }
+
+  const listWrapper = document.createElement('div');
+  listWrapper.textContent = 'Loading…';
+  listWrapper.className = 'text-muted small';
+  container.appendChild(listWrapper);
+
+  try {
+    const res = await fetch(`php/get_songbook_pdfs.php?songbook_id=${songbook.id}`, {
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      listWrapper.textContent = data.message || 'Unable to load saved PDFs.';
+      return;
+    }
+
+    if (!data.pdfs.length) {
+      listWrapper.textContent = 'No PDFs saved yet.';
+      return;
+    }
+
+    listWrapper.textContent = '';
+    listWrapper.className = '';
+
+    data.pdfs.forEach(pdf => {
+      const row = document.createElement('div');
+      row.className = 'd-flex justify-content-between align-items-center border rounded p-2 mb-2';
+
+      const info = document.createElement('div');
+      const nameLine = document.createElement('div');
+      nameLine.className = 'fw-semibold';
+      nameLine.textContent = pdf.display_name;
+      info.appendChild(nameLine);
+
+      const meta = document.createElement('div');
+      meta.className = 'small text-muted';
+      meta.textContent = new Date(pdf.created_at.replace(' ', 'T')).toLocaleString();
+      info.appendChild(meta);
+
+      row.appendChild(info);
+
+      const actions = document.createElement('div');
+      actions.className = 'd-flex align-items-center gap-2';
+
+      const downloadLink = document.createElement('a');
+      downloadLink.href = `php/download_songbook_pdf.php?id=${pdf.id}`;
+      downloadLink.className = 'btn btn-sm btn-outline-primary';
+      downloadLink.textContent = '⬇️ Download';
+      actions.appendChild(downloadLink);
+
+      if (admin) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.title = 'Delete this saved PDF';
+        deleteBtn.addEventListener('click', () => deleteSongbookPdf(pdf.id, pdf.display_name));
+        actions.appendChild(deleteBtn);
+      }
+
+      row.appendChild(actions);
+      listWrapper.appendChild(row);
+    });
+  } catch (err) {
+    console.error('Failed to load saved PDFs', err);
+    listWrapper.textContent = 'Unable to load saved PDFs.';
+  }
+}
+
+async function saveSongbookPdfToServer() {
+  const titleInput = document.getElementById('pdf-title-input');
+  const title = titleInput?.value.trim();
+  if (!title) {
+    alert('Enter a title for this PDF.');
+    return;
+  }
+
+  const hasPages = document.querySelectorAll('#a4-preview-container .a4-page').length > 0;
+  if (!hasPages) {
+    alert("Render something first - there's nothing in the preview to save.");
+    return;
+  }
+
+  const saveBtn = document.getElementById('save-pdf-to-server-btn');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = '⏳ Generating...';
+  }
+
+  try {
+    const blob = await generatePdfBlob();
+
+    const formData = new FormData();
+    formData.append('songbook_id', songbook.id);
+    formData.append('title', title);
+    formData.append('pdf', blob, 'songbook.pdf');
+
+    const res = await fetch('php/save_songbook_pdf.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: formData
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.message || 'Failed to save PDF.');
+      return;
+    }
+
+    await renderSavedPdfsList();
+  } catch (err) {
+    console.error('Failed to save PDF to server', err);
+    alert('Failed to save PDF.');
+  } finally {
+    // saveBtn no longer exists if renderSavedPdfsList() already rebuilt the
+    // list (the success path) - only need to reset it on the error/early-out paths.
+    const stillThere = document.getElementById('save-pdf-to-server-btn');
+    if (stillThere) {
+      stillThere.disabled = false;
+      stillThere.textContent = '💾 Save current render as PDF';
+    }
+  }
+}
+
+async function deleteSongbookPdf(id, displayName) {
+  if (!confirm(`Delete saved PDF "${displayName}"?`)) return;
+
+  try {
+    const res = await fetch('php/delete_songbook_pdf.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || 'Failed to delete PDF.');
+      return;
+    }
+    await renderSavedPdfsList();
+  } catch (err) {
+    console.error('Failed to delete PDF', err);
+    alert('Failed to delete PDF.');
+  }
+}
 
 
 

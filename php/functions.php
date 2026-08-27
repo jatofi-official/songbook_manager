@@ -2204,6 +2204,40 @@ function get_number_of_songbooks($mysqli, $only_public = 1) {
 }
 
 
+// Whether the current session (from $_SESSION - guest, logged-in user, or
+// admin-view override) is allowed to view $songbook (as returned by
+// get_songbook). Mirrors the visibility rule songbook.php enforces on page
+// load, factored out so every endpoint that serves songbook-scoped data
+// (e.g. saved PDFs) enforces the exact same rule instead of each
+// reimplementing it.
+function can_view_songbook($mysqli, $songbook) {
+    if (!empty($_SESSION['admin_view'])) {
+        return true;
+    }
+
+    $userId = $_SESSION['id'] ?? null;
+    $userGroupId = $userId ? get_user_group($mysqli, (int)$userId) : null;
+
+    if (!$userId) {
+        // Guest: only fully-public songbooks.
+        return (int)$songbook['is_public'] === 2;
+    }
+
+    if ((int)$songbook['is_public'] === 1) {
+        // Group-access: same group, or an admin of this songbook.
+        return (!is_null($userGroupId) && (int)$userGroupId === (int)$songbook['group_id'])
+            || in_array($userId, $songbook['admins']);
+    }
+
+    if ((int)$songbook['is_public'] === 0) {
+        // Private: admins only.
+        return in_array($userId, $songbook['admins']);
+    }
+
+    // is_public === 2 (fully public): anyone.
+    return true;
+}
+
 // Get user group
 function get_user_group($mysqli, $userId) {
     // Prepare statement to avoid SQL injection

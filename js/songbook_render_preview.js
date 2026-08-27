@@ -1040,7 +1040,10 @@ async function exportToPDF() {
   }
 }
 
-async function doExportLogic(filename = 'songbook.pdf') {
+// Builds a jsPDF document from whatever's currently in #a4-preview-container.
+// Shared by the local "Export to PDF" download and by saving a copy to the
+// server (see songbook.php's "Save PDF" flow) so both produce identical output.
+async function generatePdfDocument() {
   const { jsPDF } = window.jspdf;
 
   const container = document.getElementById('a4-preview-container');
@@ -1094,9 +1097,21 @@ async function doExportLogic(filename = 'songbook.pdf') {
     document.body.removeChild(wrapper);
   }
 
+  return pdf;
+}
+
+async function doExportLogic(filename = 'songbook.pdf') {
+  const pdf = await generatePdfDocument();
   pdf.save(filename);
 }
 
-
+// Used by the "Save PDF to server" flow - same rendering as the local
+// download, just returned as a Blob for upload instead of triggering a
+// browser save.
+async function generatePdfBlob() {
+  const pdf = await generatePdfDocument();
+  return pdf.output('blob');
+}
 
 window.exportToPDF = exportToPDF;
+window.generatePdfBlob = generatePdfBlob;
