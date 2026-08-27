@@ -151,6 +151,44 @@ body {
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
+/* Per-user song display font (user_settings.php "Song display font").
+   .song-font-calibri's stack must match SONG_FONT_STACKS.calibri in
+   js/song_render.js exactly, since that inline style takes over once JS
+   renders (see renderProportionalInto) - this is just the pre-JS/no-JS
+   fallback so the font doesn't visibly flip right after load. */
+.song-font-monospace {
+    font-family: monospace;
+}
+
+.song-font-calibri {
+    font-family: Calibri, 'Segoe UI', Candara, Verdana, sans-serif;
+}
+
+/* Built by renderSongProportional() in js/chord_font_layout.js - each
+   chord/lyric line pair from the original space-aligned text becomes one of
+   these two row types instead of relying on monospace + literal whitespace
+   for alignment. */
+.chord-row {
+    position: relative;
+    height: 1.2em;
+}
+
+.chord-row .chord-token {
+    position: absolute;
+    top: 0;
+    line-height: 1.2; /* matches .chord-row's own height, so it can't overflow into the lyric row below */
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* No wrapping, ever - a wrapped continuation would no longer line up with
+   the chord-row above it, which was positioned assuming one unbroken line.
+   Long lines are instead handled by shrinking font-size to fit
+   (adjustFontSizeToFitWidth() in song_render.js, called after this renders). */
+.lyric-row {
+    white-space: pre;
+}
+
 #content {
     font-family: monospace;
     width: 100%;

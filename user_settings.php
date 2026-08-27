@@ -190,6 +190,15 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 									<?php endforeach; ?>
 								</select>
 							</div>
+							<div class="mb-3">
+								<label class="form-label" for="songFontSelect">Song display font</label>
+								<select class="form-select" id="songFontSelect">
+									<?php foreach (['monospace' => 'Monospace (original)', 'calibri' => 'Calibri'] as $value => $label): ?>
+										<option value="<?= $value ?>" <?= ($_SESSION['song_font'] ?? 'monospace') === $value ? 'selected' : '' ?>><?= $label ?></option>
+									<?php endforeach; ?>
+								</select>
+								<div class="form-text">Font used to display song lyrics/chords on a song's page. Chord positions are automatically recalculated to stay aligned above the lyrics.</div>
+							</div>
 							<button type="button" id="savePreferencesBtn" class="btn btn-primary">Save Preferences</button>
 							
 							<div id="preferencesMessage" class="mt-3"></div>
@@ -346,11 +355,12 @@ document.getElementById("passwordForm").addEventListener("submit", function(e) {
 document.getElementById("savePreferencesBtn").addEventListener("click", function () {
     const advanced = document.getElementById("advancedSwitch").checked ? 1 : 0;
     const theme = document.getElementById("themeSelect").value;
+    const songFont = document.getElementById("songFontSelect").value;
 
     fetch("php/update_preferences.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ advanced_view: advanced, theme: theme })
+        body: JSON.stringify({ advanced_view: advanced, theme: theme, song_font: songFont })
     })
     .then(res => res.json())
     .then(data => {

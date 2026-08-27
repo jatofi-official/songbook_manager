@@ -277,13 +277,60 @@ function enhanceSongDiv(el) {
     applyTranspose(el, 0);
 }
 
+// Font stacks for the non-monospace song-font choices in user_settings.php
+// (song_font DB column / $_SESSION['song_font']). 'monospace' isn't listed
+// here - it keeps the original <pre>-based renderSong() output untouched.
+const SONG_FONT_STACKS = {
+    calibri: "Calibri, 'Segoe UI', Candara, Verdana, sans-serif"
+};
+
+// Renders proportional-font-safe HTML into `el` via chord_font_layout.js:
+// chords get repositioned by measured text width (not column count) so they
+// stay above the right point in the lyrics, and the font-size is shrunk (via
+// computeFontScale) so no line ends up wider than it was in the original
+// monospace rendering - see chord_font_layout.js for why both of those matter.
+function renderProportionalInto(el, content, fontKey) {
+    const fontFamily = SONG_FONT_STACKS[fontKey] || SONG_FONT_STACKS.calibri;
+    const baseFontSize = parseFloat(window.getComputedStyle(el).fontSize) || 16;
+
+    // Monospace fonts are uniform-width by definition, so any character's
+    // measured width at the base size is the whole line's per-character
+    // budget - this is also what chord_font_layout.js uses to place chords
+    // on lines with no (or a too-short) lyric line to measure against,
+    // instead of the proportional font's own (much narrower) space width.
+    const monoCharWidth = createCanvasMeasurer("monospace", baseFontSize)("M", false);
+
+    const measureAtBase = createCanvasMeasurer(fontFamily, baseFontSize);
+    const scale = computeFontScale(content, monoCharWidth, measureAtBase);
+    const finalFontSize = Math.max(8, baseFontSize * scale);
+
+    const measure = createCanvasMeasurer(fontFamily, finalFontSize);
+    el.innerHTML = renderSongProportional(content, monoCharWidth * scale, measure);
+    el.style.fontFamily = fontFamily;
+    el.style.fontSize = finalFontSize + "px";
+    // Line breaks are now real block-level rows (.chord-row/.lyric-row), not
+    // literal "\n" characters relying on pre-wrap to render as line breaks.
+    el.style.whiteSpace = "normal";
+}
+
 function applyTranspose(el, steps) {
     if (!el) return;
     if (el.dataset.rawContent === undefined) {
         el.dataset.rawContent = el.textContent;
     }
     el.dataset.transposeSteps = String(steps);
-    el.innerHTML = renderSong(transposeContent(el.dataset.rawContent, steps));
+
+    const transposed = transposeContent(el.dataset.rawContent, steps);
+    const songFont = el.dataset.songFont;
+
+    if (songFont && songFont !== "monospace" && SONG_FONT_STACKS[songFont]) {
+        renderProportionalInto(el, transposed, songFont);
+    } else {
+        el.style.removeProperty("font-family");
+        el.style.removeProperty("font-size");
+        el.style.whiteSpace = "pre-wrap";
+        el.innerHTML = renderSong(transposed);
+    }
 
     document.querySelectorAll("[data-transpose-label]").forEach(label => {
         label.textContent = steps > 0 ? "+" + steps : String(steps);

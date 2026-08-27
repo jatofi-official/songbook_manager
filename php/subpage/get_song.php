@@ -230,7 +230,14 @@ if (isset($_GET['id'])) {
             </div>
         <?php endif; ?>
 
-        <div id="song-content-js" class="song-content mt-3" style="white-space: pre-wrap; font-family: monospace;"><?=
+        <?php
+            $songFont = $_SESSION['song_font'] ?? 'monospace';
+            if (!in_array($songFont, ['monospace', 'calibri'], true)) {
+                $songFont = 'monospace';
+            }
+        ?>
+        <div id="song-content-js" class="song-content mt-3 song-font-<?= $songFont ?>"
+             data-song-font="<?= $songFont ?>" style="white-space: pre-wrap;"><?=
             htmlspecialchars($song['content'])
         ?></div>
 

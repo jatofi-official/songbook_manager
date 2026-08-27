@@ -21,18 +21,26 @@ if (!in_array($theme, ['light', 'dark', 'system'], true)) {
     exit;
 }
 
+$songFont = $input['song_font'] ?? 'monospace';
+if (!in_array($songFont, ['monospace', 'calibri'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid song font.']);
+    exit;
+}
+
 try {
     // Update DB
-    $stmt = $mysqli->prepare("UPDATE user_settings SET advanced_view = ?, theme = ? WHERE user_id = ?");
-    $stmt->bind_param("isi", $advanced, $theme, $userId);
+    $stmt = $mysqli->prepare("UPDATE user_settings SET advanced_view = ?, theme = ?, song_font = ? WHERE user_id = ?");
+    $stmt->bind_param("issi", $advanced, $theme, $songFont, $userId);
     $stmt->execute();
     $stmt->close();
 
     // Update session
     $_SESSION["advanced_view"] = $advanced;
     $_SESSION['theme'] = $theme;
+    $_SESSION['song_font'] = $songFont;
 
-    echo json_encode(["success" => true, "advanced_view" => $advanced, 'theme' => $theme]);
+    echo json_encode(["success" => true, "advanced_view" => $advanced, 'theme' => $theme, 'song_font' => $songFont]);
 } catch (Exception $e) {
     echo json_encode(["success" => false, "error" => $e->getMessage()]);
 }

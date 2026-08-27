@@ -639,6 +639,7 @@ function goBackToSongs() {
     <script src="js/songbook_render_preview.js?v=<?= filemtime('js/songbook_render_preview.js') ?>"></script>
     <script src="js/song_ordering.js?v=<?= filemtime('js/song_ordering.js') ?>"></script>
     <script src="js/song_render.js?v=<?= filemtime('js/song_render.js') ?>"></script>
+    <script src="js/chord_font_layout.js?v=<?= filemtime('js/chord_font_layout.js') ?>"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
