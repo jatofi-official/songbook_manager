@@ -276,6 +276,16 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               </label>
             </div>
             <div class="mb-3">
+              <label class="form-label" for="ignored-instrument-select">Ignore default instrument</label>
+              <select id="ignored-instrument-select" class="form-select form-select-sm">
+                <option value="">None</option>
+                <?php foreach (get_all_instruments($mysqli) as $inst): ?>
+                  <option value="<?= htmlspecialchars($inst['name']) ?>"><?= htmlspecialchars($inst['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <div class="form-text">Hides this instrument's badge when a song has it; shows it struck-through when a song doesn't.</div>
+            </div>
+            <div class="mb-3">
               <label class="form-label" for="content-sort-select">Content order</label>
               <select id="content-sort-select" class="form-select form-select-sm">
                 <option value="manual">Manual / saved order</option>
@@ -1444,6 +1454,7 @@ function getCurrentRenderSettings() {
     showDifficulty: document.getElementById('extra-difficulty-checkbox')?.checked || false,
     showTags: document.getElementById('extra-tags-checkbox')?.checked || false,
     showInstruments: document.getElementById('extra-instruments-checkbox')?.checked || false,
+    ignoredInstrument: document.getElementById('ignored-instrument-select')?.value || '',
     sortMode: document.getElementById('content-sort-select')?.value || 'manual',
     renderedCategoryIds: [...selectedCategoryIds],
     numberedCategoryIds: [...numberedCategoryIds]
@@ -1466,6 +1477,9 @@ function applyRenderSettings(settings) {
   setChecked('extra-difficulty-checkbox', settings.showDifficulty);
   setChecked('extra-tags-checkbox', settings.showTags);
   setChecked('extra-instruments-checkbox', settings.showInstruments);
+
+  const ignoredInstrumentSelect = document.getElementById('ignored-instrument-select');
+  if (ignoredInstrumentSelect) ignoredInstrumentSelect.value = settings.ignoredInstrument || '';
 
   const sortSelect = document.getElementById('content-sort-select');
   if (sortSelect) sortSelect.value = settings.sortMode || 'manual';
@@ -1705,6 +1719,7 @@ async function beginRender(orderedIds, category, clearPages = true) {
   const showDifficulty = document.getElementById('extra-difficulty-checkbox')?.checked || false;
   const showTags = document.getElementById('extra-tags-checkbox')?.checked || false;
   const showInstruments = document.getElementById('extra-instruments-checkbox')?.checked || false;
+  const ignoredInstrument = document.getElementById('ignored-instrument-select')?.value || '';
   const sortMode = document.getElementById('content-sort-select')?.value || 'manual';
 
   const categoryTitle = includeRoman
@@ -1749,6 +1764,7 @@ async function beginRender(orderedIds, category, clearPages = true) {
     showDifficulty: showDifficulty,
     showTags: showTags,
     showInstruments: showInstruments,
+    ignoredInstrument: ignoredInstrument,
     showLockName: showLockName,
     lockNames: lockNames,
     categoryId: category.id
@@ -1785,7 +1801,16 @@ async function renderMultiple(categoryIds) {
   const container = document.getElementById('a4-preview-container');
   container.innerHTML = '';
 
-  for (const id of categoryIds) {
+  // Always render in the songbook's own category order, regardless of the
+  // order categories were clicked/selected in (selectedCategoryIds is built
+  // in click order, not display order) - selection order shouldn't control
+  // render order.
+  const categoryOrder = new Map(songbook.songs_categories.map((cat, i) => [cat.id, i]));
+  const orderedCategoryIds = [...categoryIds].sort(
+    (a, b) => (categoryOrder.get(a) ?? 0) - (categoryOrder.get(b) ?? 0)
+  );
+
+  for (const id of orderedCategoryIds) {
     const category = getCategoryById(id);
     if (!category) {
       console.warn(`Category with id ${id} not found.`);
