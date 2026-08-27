@@ -23,6 +23,7 @@ $songOwnerUsernames = get_song_owner_usernames($mysqli);
 <script src="js/songbook_render_preview.js?v=<?= filemtime('js/songbook_render_preview.js') ?>"></script>
 <script src="js/song_ordering.js?v=<?= filemtime('js/song_ordering.js') ?>"></script>
 <script src="js/song_render.js?v=<?= filemtime('js/song_render.js') ?>"></script>
+<script src="js/chord_font_layout.js?v=<?= filemtime('js/chord_font_layout.js') ?>"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
