@@ -116,6 +116,7 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
 
     <div class="d-flex flex-wrap gap-2 mb-4">
         <a href="songs.php" class="btn btn-outline-primary">Song catalog &amp; CSV</a>
+        <a href="anketa.php" class="btn btn-outline-primary">Survey forms</a>
     </div>
 
     <!-- Graphs -->
