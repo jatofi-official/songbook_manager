@@ -73,18 +73,19 @@ test('measurePrefixWidth extrapolation ignores the proportional font\'s own (nar
 test('computeChordPositions aligns each chord to the measured width of the lyric text preceding it', () => {
     const measure = fixedWidthMeasurer(10);
     // "C" at column 0, "G" at column 6, over lyric "Amazing grace"
-    const positions = computeChordPositions('C     G', 'Amazing grace', 10, measure);
+    const { positions, rowOffset } = computeChordPositions('C     G', 'Amazing grace', 10, measure);
     assert.deepEqual(positions, [
         { text: 'C', x: 0 },
         { text: 'G', x: 60 }
     ]);
+    assert.equal(rowOffset, 0);
 });
 
 test('computeChordPositions uses real per-character widths, not column count directly', () => {
     // "l" and "i" are narrow (4px), other letters are 10px, spaces are 5px.
     const measure = variableWidthMeasurer();
     // chord line: "A" at col 0, "D" at col 6 (after "little " which is narrower than 6*10)
-    const positions = computeChordPositions('A     D', 'little words', 10, measure);
+    const { positions } = computeChordPositions('A     D', 'little words', 10, measure);
     const littleWidth = measure('little'); // l(4)+i(4)+t(10)+t(10)+l(4)+e(10) = 42
     assert.equal(positions[0].x, 0);
     assert.equal(positions[1].x, littleWidth); // column 6 == exactly "little"
@@ -92,12 +93,13 @@ test('computeChordPositions uses real per-character widths, not column count dir
 
 test('computeChordPositions handles a chord-only line (no lyric line) via monoCharWidth-based spacing', () => {
     const measure = fixedWidthMeasurer(10);
-    const positions = computeChordPositions('C    G    Am', null, 10, measure);
+    const { positions, rowOffset } = computeChordPositions('C    G    Am', null, 10, measure);
     assert.deepEqual(positions, [
         { text: 'C', x: 0 },
         { text: 'G', x: 50 },
         { text: 'Am', x: 100 }
     ]);
+    assert.equal(rowOffset, 0);
 });
 
 test('computeChordPositions keeps a chord-only line spaced by the ORIGINAL monospace width, not the proportional font\'s own space width', () => {
@@ -106,7 +108,7 @@ test('computeChordPositions keeps a chord-only line spaced by the ORIGINAL monos
     // chord-only lines look garbled/bunched together.
     const measure = (text) => [...text].reduce((sum, ch) => sum + (ch === ' ' ? 2 : 10), 0);
     const monoCharWidth = 10;
-    const positions = computeChordPositions('C    G', null, monoCharWidth, measure);
+    const { positions } = computeChordPositions('C    G', null, monoCharWidth, measure);
     // "G" is at column 5 -> 5 * monoCharWidth = 50, not 5 * narrow-space (10)
     assert.equal(positions[1].x, 50);
 });
@@ -114,7 +116,7 @@ test('computeChordPositions keeps a chord-only line spaced by the ORIGINAL monos
 test('computeChordPositions places a chord past the end of a short lyric line correctly', () => {
     const measure = fixedWidthMeasurer(10);
     // lyric is only "Hi" (2 chars); chord at column 5 needs 3 extrapolated columns
-    const positions = computeChordPositions('     C', 'Hi', 10, measure);
+    const { positions } = computeChordPositions('     C', 'Hi', 10, measure);
     assert.equal(positions[0].x, measure('Hi') + 3 * 10);
 });
 
@@ -122,26 +124,54 @@ test('computeChordPositions pushes a chord label away from the previous one if t
     // Bold chords render much wider (20px/char) than the narrow lyric text
     // (2px/char) that determines their natural lyric-aligned position, so
     // "B"'s natural position would sit underneath "A"'s own rendered label.
+    // Both are anchored here (both column 0 and column 5 sit on real "i"
+    // characters), so the default push-right resolution applies.
     const measure = (text, isChord) => text.length * (isChord ? 20 : 2);
     const monoCharWidth = 10;
     // "A" at column 0, "B" at column 5, over a lyric line of narrow characters
-    const positions = computeChordPositions('A    B', 'iiiii', monoCharWidth, measure);
+    const { positions, rowOffset } = computeChordPositions('A    B', 'iiiiii', monoCharWidth, measure);
 
     assert.equal(positions[0].x, 0);
     // natural x for B would be measure('iiiii', false) = 10 - clamped instead to
     // A.x + A's bold width (20) + one space's width (measure(' ', false) = 2) = 22
     assert.equal(positions[1].x, 22);
+    assert.equal(rowOffset, 0); // resolved by pushing B right, not by shifting the row
+});
+
+test('computeChordPositions keeps an anchored chord exactly on its lyric syllable by shifting an unanchored chord before it left instead', () => {
+    // Mirrors a real reported case:
+    //   Em G     C         Asus2
+    //      Run a-way, I've got to;
+    // "G" sits directly above "Run" (a real lyric character - anchored) and
+    // must keep its position RELATIVE TO THE LYRIC TEXT; "Em" sits over blank
+    // leading space (unanchored - not tied to any specific syllable), so when
+    // its own bold label doesn't fit before "G", "Em" gives way instead.
+    const measure = (text, isChord) => text.length * (isChord ? 20 : 2);
+    const monoCharWidth = 10;
+    const lyricLine = '     Run'; // 5 leading spaces, "R" at column 5
+    const { positions, rowOffset } = computeChordPositions('Em   G', lyricLine, monoCharWidth, measure);
+
+    const gNaturalX = 5 * 2; // = 10, "G"'s position before any row-level shift
+    // "Em"'s bold width (40) + gap (2) leaves no room before "G" (natural x 10),
+    // so the whole row shifts right by 40 + 2 - 10 = 32 instead of clamping "Em"
+    // into an overlap with "G".
+    assert.equal(rowOffset, 32);
+    assert.equal(positions[0].x, 0); // "Em" pinned to the row's new left edge
+    assert.equal(positions[1].x, gNaturalX + rowOffset); // "G" keeps its natural offset relative to the lyric
+    // no overlap: "Em"'s rendered span ends right where "G" starts (or before)
+    assert.ok(positions[0].x + measure('Em', true) + measure(' ', false) <= positions[1].x);
 });
 
 test('computeChordPositions does not alter spacing that already has enough room', () => {
     // Wide (10px/char) lyric text this time, unlike the narrow (2px/char)
     // text in the previous test - "B"'s natural position ends up well clear
-    // of "A"'s own bold-rendered width, so nothing should get clamped.
+    // of "A"'s own bold-rendered width, so nothing should get clamped or shifted.
     const measure = (text, isChord) => text.length * (isChord ? 20 : 10);
     const monoCharWidth = 10;
-    const positions = computeChordPositions('A    B', 'wwwwwwwwww', monoCharWidth, measure);
+    const { positions, rowOffset } = computeChordPositions('A    B', 'wwwwwwwwww', monoCharWidth, measure);
     // natural x for B = measure('wwwww', false) = 50; min allowed = A.x(0) + A's bold width (20) + gap (10) = 30
     assert.equal(positions[1].x, 50);
+    assert.equal(rowOffset, 0);
 });
 
 test('computeFontScale is 1 when the proportional font is never wider than monospace', () => {
@@ -224,5 +254,16 @@ test('renderSongProportional preserves blank lyric lines', () => {
         '<div class="lyric-row">Verse one</div>'
         + '<div class="lyric-row">&nbsp;</div>'
         + '<div class="lyric-row">Verse two</div>'
+    );
+});
+
+test('renderSongProportional shifts the lyric row right by rowOffset when its chord row needed extra room', () => {
+    const measure = (text, isChord) => text.length * (isChord ? 20 : 2);
+    const html = renderSongProportional('Em   G\n     Run', 10, measure);
+    assert.equal(
+        html,
+        '<div class="chord-row"><span class="chord-token" style="left:0px;">Em</span>'
+        + '<span class="chord-token" style="left:42px;">G</span></div>'
+        + '<div class="lyric-row" style="margin-left:32px;">     Run</div>'
     );
 });

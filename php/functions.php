@@ -2348,7 +2348,7 @@ function load_user_settings_into_session($mysqli) {
         $_SESSION["advanced_view"] = (bool)$advancedView;
         $_SESSION["admin_view"] = (bool)$adminView;
         $_SESSION["theme"] = in_array($theme, ['light', 'dark', 'system'], true) ? $theme : 'light';
-        $_SESSION["song_font"] = in_array($songFont, ['monospace', 'calibri'], true) ? $songFont : 'monospace';
+        $_SESSION["song_font"] = in_array($songFont, ['monospace', 'calibri', 'arial', 'verdana', 'georgia', 'times'], true) ? $songFont : 'monospace';
         $stmt->close();
         return true;
     }
