@@ -193,12 +193,17 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 							<div class="mb-3">
 								<label class="form-label" for="songFontSelect">Song display font</label>
 								<select class="form-select" id="songFontSelect">
-									<?php foreach (['monospace' => 'Monospace (original)', 'calibri' => 'Calibri'] as $value => $label): ?>
+									<?php foreach ([
+										'monospace' => 'Monospace (original)',
+										'calibri' => 'Calibri',
+										'arial' => 'Arial',
+										'verdana' => 'Verdana',
+										'georgia' => 'Georgia',
+										'times' => 'Times New Roman'
+									] as $value => $label): ?>
 										<option value="<?= $value ?>" <?= ($_SESSION['song_font'] ?? 'monospace') === $value ? 'selected' : '' ?>><?= $label ?></option>
 									<?php endforeach; ?>
-								</select>
-								<div class="form-text">Font used to display song lyrics/chords on a song's page. Chord positions are automatically recalculated to stay aligned above the lyrics.</div>
-							</div>
+								</select>							</div>
 							<button type="button" id="savePreferencesBtn" class="btn btn-primary">Save Preferences</button>
 							
 							<div id="preferencesMessage" class="mt-3"></div>

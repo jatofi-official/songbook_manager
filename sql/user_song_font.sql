@@ -15,4 +15,4 @@ ALTER TABLE user_settings
 
 UPDATE user_settings
 SET song_font = 'monospace'
-WHERE song_font NOT IN ('monospace', 'calibri') OR song_font IS NULL;
+WHERE song_font NOT IN ('monospace', 'calibri', 'arial', 'verdana', 'georgia', 'times') OR song_font IS NULL;

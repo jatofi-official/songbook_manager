@@ -280,34 +280,51 @@ function enhanceSongDiv(el) {
 // Font stacks for the non-monospace song-font choices in user_settings.php
 // (song_font DB column / $_SESSION['song_font']). 'monospace' isn't listed
 // here - it keeps the original <pre>-based renderSong() output untouched.
+// Keys must match the whitelist in php/update_preferences.php,
+// php/subpage/get_song.php and php/functions.php (load_user_settings_into_session)
+// exactly, and each stack should match its .song-font-<key> CSS rule in
+// styles/songs_styles.css (that rule is only the pre-JS/no-JS fallback look -
+// this is what actually renders once JS takes over).
 const SONG_FONT_STACKS = {
-    calibri: "Calibri, 'Segoe UI', Candara, Verdana, sans-serif"
+    calibri: "Calibri, 'Segoe UI', Candara, Verdana, sans-serif",
+    arial: "Arial, Helvetica, sans-serif",
+    verdana: "Verdana, Geneva, sans-serif",
+    georgia: "Georgia, 'Times New Roman', serif",
+    times: "'Times New Roman', Times, serif"
 };
 
 // Renders proportional-font-safe HTML into `el` via chord_font_layout.js:
 // chords get repositioned by measured text width (not column count) so they
-// stay above the right point in the lyrics, and the font-size is shrunk (via
-// computeFontScale) so no line ends up wider than it was in the original
-// monospace rendering - see chord_font_layout.js for why both of those matter.
+// stay above the right point in the lyrics.
+//
+// Deliberately does NOT call chord_font_layout.js's computeFontScale here to
+// shrink the font down to the original monospace line width - that
+// constraint exists for the (separate, not-yet-touched) songbook/PDF
+// renderer, which lays out fixed-size printed pages where a wider line
+// would overflow. song.php has no such fixed budget; adjustFontSizeToFitWidth()
+// (called right after this, in song.php) already handles real overflow
+// based on the actual browser container width. Applying the monospace
+// budget here just meant proportionally-wide fonts (Georgia, Times New
+// Roman) got squeezed down further than the page ever needed - small enough
+// that browser font hinting (glyph stems snapping to whole device pixels
+// for crisper small-text rendering) started visibly distorting chord
+// alignment, since hinting makes the actually-rendered text subtly
+// different from its mathematically "true" proportional width - no amount
+// of measurement precision can predict or correct for that, only avoiding
+// the unnecessary shrink in the first place does.
 function renderProportionalInto(el, content, fontKey) {
     const fontFamily = SONG_FONT_STACKS[fontKey] || SONG_FONT_STACKS.calibri;
     const baseFontSize = parseFloat(window.getComputedStyle(el).fontSize) || 16;
 
-    // Monospace fonts are uniform-width by definition, so any character's
-    // measured width at the base size is the whole line's per-character
-    // budget - this is also what chord_font_layout.js uses to place chords
-    // on lines with no (or a too-short) lyric line to measure against,
-    // instead of the proportional font's own (much narrower) space width.
-    const monoCharWidth = createCanvasMeasurer("monospace", baseFontSize)("M", false);
+    // Still needed (unrelated to the shrink question above) to extrapolate
+    // chord positions past the end of a short/absent lyric line - see
+    // chord_font_layout.js measurePrefixWidth.
+    const monoCharWidth = createDomMeasurer("monospace", baseFontSize)("M", false);
 
-    const measureAtBase = createCanvasMeasurer(fontFamily, baseFontSize);
-    const scale = computeFontScale(content, monoCharWidth, measureAtBase);
-    const finalFontSize = Math.max(8, baseFontSize * scale);
-
-    const measure = createCanvasMeasurer(fontFamily, finalFontSize);
-    el.innerHTML = renderSongProportional(content, monoCharWidth * scale, measure);
+    const measure = createDomMeasurer(fontFamily, baseFontSize);
+    el.innerHTML = renderSongProportional(content, monoCharWidth, measure);
     el.style.fontFamily = fontFamily;
-    el.style.fontSize = finalFontSize + "px";
+    el.style.fontSize = baseFontSize + "px";
     // Line breaks are now real block-level rows (.chord-row/.lyric-row), not
     // literal "\n" characters relying on pre-wrap to render as line breaks.
     el.style.whiteSpace = "normal";

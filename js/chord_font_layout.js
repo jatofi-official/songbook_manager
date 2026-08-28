@@ -14,9 +14,11 @@
 // it; the chord line becomes a separate absolutely-positioned overlay row.
 // This needs a `measure(text, isChord) -> pixels` function (isChord picks
 // normal vs. bold weight, since chords render bold) - in the browser that's
-// a canvas measureText call (see createCanvasMeasurer), but every function
-// here takes it as a parameter so the positioning logic itself is plain,
-// synchronous, and unit-testable without a DOM (see
+// a hidden real DOM element (see createDomMeasurer - deliberately not
+// canvas measureText, which doesn't always exactly match actual CSS text
+// layout), but every function here takes it as a parameter so the
+// positioning logic itself is plain, synchronous, and unit-testable without
+// a real DOM (see
 // tests/chord_font_layout.test.js).
 
 // Node: pull in isChordLine/escapeHtml from song_render.js. Browser: `var`
@@ -75,23 +77,69 @@ function measurePrefixWidth(referenceLine, upToColumn, monoCharWidth, measureNor
 // proportional font can measure the lyric text between two chords as
 // narrower than either chord LABEL actually needs to render without
 // overlapping the next one, even though their monospace columns were fine.
+//
+// Which side gives way matters: a chord sitting directly above a real
+// lyric character ("anchored") is meaningfully tied to that syllable and
+// should keep its position RELATIVE TO THE LYRIC TEXT; a chord sitting over
+// blank space (leading space before the lyric starts, or a chord-only line)
+// isn't tied to anything specific and is the one that should move instead.
+// E.g.
+//   Em G     C         Asus2
+//      Run a-way, I've got to;
+// "G" sits directly above "Run" and must stay put; "Em" sits over blank
+// leading space, so if its own label doesn't fit before "G", "Em" is the one
+// that shifts left - not "G" getting shoved right off of "Run".
+//
+// If there still isn't room even at the very start of the line (e.g. "Em"'s
+// own label is simply wider than the blank space "G" left for it), the fix
+// isn't to clamp "Em" into overlapping "G" anyway - it's to shift the WHOLE
+// LINE right by however much extra room is needed (`rowOffset`), same as
+// physically inserting spaces before the lyric text. The caller is
+// responsible for applying that same offset to the paired lyric row (see
+// renderLyricRow) so the shifted chords and the shifted lyric text stay in
+// sync with each other - only their shared position relative to the page
+// moves, not their position relative to each other.
 function computeChordPositions(chordLine, lyricLine, monoCharWidth, measure) {
     const reference = lyricLine != null ? lyricLine : "";
     const measureNormal = (text) => measure(text, false);
 
     const positions = parseChordTokens(chordLine).map(({ text, column }) => ({
         text,
-        x: measurePrefixWidth(reference, column, monoCharWidth, measureNormal)
+        x: measurePrefixWidth(reference, column, monoCharWidth, measureNormal),
+        anchored: lyricLine != null && column < lyricLine.length && lyricLine[column] !== " "
     }));
 
     const minGap = measure(" ", false);
     for (let i = 1; i < positions.length; i++) {
         const prevWidth = measure(positions[i - 1].text, true);
         const minX = positions[i - 1].x + prevWidth + minGap;
-        if (positions[i].x < minX) positions[i].x = minX;
+        if (positions[i].x >= minX) continue;
+
+        if (positions[i].anchored && !positions[i - 1].anchored) {
+            // Keep the anchored chord exactly where it is; move the
+            // unanchored one out of its way instead. Deliberately NOT
+            // clamped to >= 0 here - see rowOffset below.
+            let newPrevX = positions[i].x - minGap - prevWidth;
+            if (i - 2 >= 0) {
+                // Don't let that push it into whatever comes before IT.
+                const prevPrevWidth = measure(positions[i - 2].text, true);
+                newPrevX = Math.max(newPrevX, positions[i - 2].x + prevPrevWidth + minGap);
+            }
+            positions[i - 1].x = newPrevX;
+        } else {
+            positions[i].x = minX;
+        }
     }
 
-    return positions;
+    // Bring everything back into non-negative territory by shifting the
+    // whole row right, rather than clamping the offending chord in place
+    // (which would just reintroduce the overlap it was trying to avoid).
+    const rowOffset = Math.max(0, -Math.min(0, ...positions.map((p) => p.x)));
+    if (rowOffset > 0) {
+        positions.forEach((p) => { p.x += rowOffset; });
+    }
+
+    return { positions: positions.map(({ text, x }) => ({ text, x })), rowOffset };
 }
 
 // The proportional font must never make any line WIDER than it was in the
@@ -137,11 +185,16 @@ function renderChordRow(positions) {
 
 // Same inline-{chord}/® handling as renderSong() in song_render.js, just
 // wrapped as its own row instead of relying on <pre> for line breaks.
-function renderLyricRow(line) {
+// `rowOffset` (see computeChordPositions) shifts the lyric text right by the
+// same amount its paired chord-row's chords were shifted, so an unanchored
+// chord that needed extra room still lines up with the (also-shifted)
+// anchored chord's real syllable.
+function renderLyricRow(line, rowOffset) {
     const escaped = escapeHtml(line)
         .replace(/®/g, "<strong>®</strong>")
         .replace(/\{([^}]+)\}/g, (match, inner) => ` <strong>${inner}</strong> `);
-    return `<div class="lyric-row">${escaped || "&nbsp;"}</div>`;
+    const style = rowOffset > 0 ? ` style="margin-left:${Math.round(rowOffset)}px;"` : "";
+    return `<div class="lyric-row"${style}>${escaped || "&nbsp;"}</div>`;
 }
 
 // Renders full song content as proportional-font-safe HTML: each
@@ -164,10 +217,11 @@ function renderSongProportional(content, monoCharWidth, measure) {
             const nextIsLyric = next !== undefined && !isChordLine(next);
             const lyricLine = nextIsLyric ? next : null;
 
-            out.push(renderChordRow(computeChordPositions(line, lyricLine, monoCharWidth, measure)));
+            const { positions, rowOffset } = computeChordPositions(line, lyricLine, monoCharWidth, measure);
+            out.push(renderChordRow(positions));
 
             if (nextIsLyric) {
-                out.push(renderLyricRow(next));
+                out.push(renderLyricRow(next, rowOffset));
                 i += 2;
                 continue;
             }
@@ -176,29 +230,63 @@ function renderSongProportional(content, monoCharWidth, measure) {
             continue;
         }
 
-        out.push(renderLyricRow(line));
+        out.push(renderLyricRow(line, 0));
         i += 1;
     }
 
     return out.join("");
 }
 
-// Browser-only: a fast measure(text, isChord) -> pixels function backed by a
-// shared <canvas> 2D context (no DOM reflow per call, unlike a hidden
-// <span>+getBoundingClientRect - important here since a full song can mean
-// hundreds of measure() calls per render). `boldFontWeight` defaults to
-// "bold", matching .chord-token's CSS font-weight.
-function createCanvasMeasurer(fontFamily, fontSizePx, boldFontWeight) {
-    if (!createCanvasMeasurer._canvas) {
-        createCanvasMeasurer._canvas = document.createElement("canvas");
+// Browser-only: a measure(text, isChord) -> pixels function backed by a
+// hidden, real DOM <span> (getBoundingClientRect, not canvas measureText).
+// Canvas's text shaping doesn't always exactly match the browser's own CSS
+// text layout - kerning/hinting can diverge slightly per font, more so for
+// kerning-heavy serif fonts (Georgia, Times) than sans-serif ones - and since
+// every chord's position is measured from the start of the line, even a
+// fraction of a pixel of per-character error compounds into a visible,
+// growing drift further into a long line. A real span, styled identically to
+// how the text actually renders, measures via the exact same layout engine
+// the lyric text itself uses, so it can't diverge from it.
+// white-space:pre is required, not optional - default collapses runs of
+// spaces to one, which would badly under-measure chord-line prefixes with
+// multiple leading/internal spaces (common - that's how the source columns
+// were spaced in the first place).
+//
+// Measures at a large, fixed REFERENCE_SIZE and scales the result down to
+// fontSizePx mathematically, rather than measuring directly at fontSizePx.
+// getBoundingClientRect() quantizes to a fairly coarse pixel grid, and that
+// quantization is a much larger RELATIVE error against a small measured
+// width than a large one - fonts that need heavy shrinking to fit the
+// monospace width budget (e.g. Georgia/Times New Roman, which are
+// noticeably wider than Calibri/Arial at the same nominal size, so
+// computeFontScale shrinks them more) end up measured at a small enough
+// size for this quantization to become visible as a growing chord drift.
+// Font metrics scale linearly with size, so measuring "big and scaling
+// down" preserves the true ratio while avoiding that small-size precision
+// loss entirely.
+const MEASURE_REFERENCE_SIZE = 256;
+
+function createDomMeasurer(fontFamily, fontSizePx, boldFontWeight) {
+    if (!createDomMeasurer._el) {
+        const el = document.createElement("span");
+        el.style.position = "absolute";
+        el.style.visibility = "hidden";
+        el.style.left = "-9999px";
+        el.style.top = "0";
+        el.style.whiteSpace = "pre";
+        document.body.appendChild(el);
+        createDomMeasurer._el = el;
     }
-    const ctx = createCanvasMeasurer._canvas.getContext("2d");
-    const normalFont = `normal ${fontSizePx}px ${fontFamily}`;
-    const boldFont = `${boldFontWeight || "bold"} ${fontSizePx}px ${fontFamily}`;
+    const el = createDomMeasurer._el;
+    const scaleDown = fontSizePx / MEASURE_REFERENCE_SIZE;
+    el.style.fontFamily = fontFamily;
+    el.style.fontSize = MEASURE_REFERENCE_SIZE + "px";
+    const boldWeight = boldFontWeight || "bold";
 
     return (text, isChord) => {
-        ctx.font = isChord ? boldFont : normalFont;
-        return ctx.measureText(text).width;
+        el.style.fontWeight = isChord ? boldWeight : "normal";
+        el.textContent = text;
+        return el.getBoundingClientRect().width * scaleDown;
     };
 }
 

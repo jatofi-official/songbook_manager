@@ -151,17 +151,33 @@ body {
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-/* Per-user song display font (user_settings.php "Song display font").
-   .song-font-calibri's stack must match SONG_FONT_STACKS.calibri in
+/* Per-user song display font (user_settings.php "Song display font"). Each
+   .song-font-<key> stack must match its SONG_FONT_STACKS entry in
    js/song_render.js exactly, since that inline style takes over once JS
-   renders (see renderProportionalInto) - this is just the pre-JS/no-JS
-   fallback so the font doesn't visibly flip right after load. */
+   renders (see renderProportionalInto) - these rules are just the pre-JS/
+   no-JS fallback so the font doesn't visibly flip right after load. */
 .song-font-monospace {
     font-family: monospace;
 }
 
 .song-font-calibri {
     font-family: Calibri, 'Segoe UI', Candara, Verdana, sans-serif;
+}
+
+.song-font-arial {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.song-font-verdana {
+    font-family: Verdana, Geneva, sans-serif;
+}
+
+.song-font-georgia {
+    font-family: Georgia, 'Times New Roman', serif;
+}
+
+.song-font-times {
+    font-family: 'Times New Roman', Times, serif;
 }
 
 /* Built by renderSongProportional() in js/chord_font_layout.js - each
