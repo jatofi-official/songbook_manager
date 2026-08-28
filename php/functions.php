@@ -1334,6 +1334,52 @@ function get_all_instruments($mysqli) {
     return $res->fetch_all(MYSQLI_ASSOC);
 }
 
+// Parses a songbook's `categories` column ("id-name,id-name,...") into [id => name].
+function get_songbook_categories(mysqli $mysqli, int $songbookId): array {
+    $stmt = $mysqli->prepare("SELECT categories FROM songbooks WHERE id = ?");
+    if (!$stmt) return [];
+    $stmt->bind_param("i", $songbookId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    $categories = [];
+    if ($row && !empty($row['categories'])) {
+        foreach (explode(',', $row['categories']) as $pair) {
+            $parts = explode('-', $pair, 2);
+            if (count($parts) === 2) {
+                $categories[intval($parts[0])] = trim($parts[1]);
+            }
+        }
+    }
+    return $categories;
+}
+
+// Fetches an anketa_forms row plus its ordered list of included category ids/names.
+// Returns null if the form doesn't exist.
+function get_anketa_form(mysqli $mysqli, int $formId): ?array {
+    $stmt = $mysqli->prepare("SELECT * FROM anketa_forms WHERE id = ?");
+    if (!$stmt) return null;
+    $stmt->bind_param("i", $formId);
+    $stmt->execute();
+    $form = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$form) return null;
+
+    $allCategoryNames = get_songbook_categories($mysqli, (int)$form['songbook_id']);
+
+    $stmt = $mysqli->prepare("SELECT category_id FROM anketa_form_categories WHERE form_id = ? ORDER BY sort_order ASC, category_id ASC");
+    $stmt->bind_param("i", $formId);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    $form['category_ids'] = array_map(fn($r) => (int)$r['category_id'], $rows);
+    $form['category_names'] = $allCategoryNames;
+
+    return $form;
+}
+
 function get_all_categories($mysqli) {
     $categories = [];
 

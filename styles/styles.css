@@ -313,7 +313,11 @@ font-size: 0.9rem;
     --bs-table-color: var(--text);
     --bs-table-border-color: var(--border);
     --bs-table-striped-bg: var(--surface-muted);
+    --bs-table-striped-color: var(--text);
     --bs-table-hover-bg: var(--hover);
+    --bs-table-hover-color: var(--text);
+    --bs-table-active-bg: var(--hover);
+    --bs-table-active-color: var(--text);
 }
 
 [data-theme="dark"] .text-muted,
