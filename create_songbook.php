@@ -13,6 +13,8 @@ ini_set('display_errors', 1);
 
 if (isset($_SESSION['user'])):
 
+$currentUser = get_user($mysqli, $_SESSION['id']);
+
 // Handle form submission
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -32,8 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $admins = implode(',', $adminsArray);
 
-        // Get current user info
-        $currentUser = get_user($mysqli, $_SESSION['id']);
         $groupId = $currentUser['group_id'] ?? null; // assign null if no group
 
         // Now call create_songbook with the group_id
@@ -90,9 +90,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <div class="mb-3">
-                            <label for="admins" class="form-label">Admin User IDs (comma-separated)</label>
-                            <input type="text" name="admins" id="admins" class="form-control"
-                                   value="<?= htmlspecialchars($_POST['admins'] ?? '') ?>">
+                            <label class="form-label">Songbook Admins</label>
+                            <div class="admin-picker" id="adminsPicker">
+                                <div class="admin-picker-chips d-flex flex-wrap gap-2 mb-2"></div>
+                                <div class="position-relative">
+                                    <input type="text" class="form-control admin-picker-input"
+                                           placeholder="Search users by name...">
+                                    <div class="list-group admin-picker-results position-absolute w-100 shadow-sm"
+                                         style="z-index: 1050; display: none; max-height: 220px; overflow-y: auto;"></div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="admins" id="adminsHidden">
                         </div>
 
                         <div class="d-flex justify-content-between">
@@ -108,7 +116,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </div>
 
-<?php 
+<script src="js/admin_picker.js?v=<?= filemtime('js/admin_picker.js') ?>"></script>
+<script>
+    const adminsHidden = document.getElementById('adminsHidden');
+    const adminPicker = createAdminPicker(document.getElementById('adminsPicker'), {
+        initialAdmins: [<?= json_encode([
+            'id' => (int)$currentUser['id'],
+            'name' => $currentUser['name'] ?? $currentUser['username'],
+            'username' => $currentUser['username'],
+        ]) ?>],
+        protectedIds: [<?= (int)$currentUser['id'] ?>],
+        onChange: (ids) => { adminsHidden.value = ids.join(','); }
+    });
+    adminsHidden.value = adminPicker.getIds().join(',');
+</script>
+
+<?php
 else:
     echo "<p>Oops... Nothing to see here</p>";
 endif;

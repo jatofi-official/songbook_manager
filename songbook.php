@@ -94,40 +94,40 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     <!-- Editable Header -->
     <div class="mb-4">
       <div class="row align-items-end">
+        <?php $canEditSongbook =
+            (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"])) ||
+            (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true);
+        ?>
         <div class="col-md-6">
-          <div class="d-flex align-items-center" id="songbook-name-wrapper">
+          <div class="d-flex align-items-center">
             <h3 class="me-2 mb-0" id="songbook-name-text"><?php echo htmlspecialchars($name); ?></h3>
           </div>
-          <input type="text" class="form-control form-control-lg d-none" id="songbook-name-input" value="<?php echo htmlspecialchars($name); ?>">
         </div>
         <div class="col-md-4">
             <?php echo $groupHtml; ?>
         </div>
-        <?php if (
-            (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"])) ||
-            (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true)
-        ): ?>
-        <div class="col-md-2 text-end mt-3 mt-md-0">
+        <?php if ($canEditSongbook): ?>
+        <div class="col-md-2 text-end mt-3 mt-md-0 d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-outline-secondary" id="editSongbookDetailsBtn"
+                    title="Edit songbook details" data-bs-toggle="modal" data-bs-target="#editSongbookDetailsModal">Edit</button>
             <button id="saveSongbookBtn" class="btn btn-success">💾 Save</button>
         </div>
         <?php endif; ?>
 
       </div>
       <div class="mt-3">
-        <div class="d-flex align-items-center" id="description-wrapper">
-          <p class="me-2 mb-0" id="description-text"><?php echo htmlspecialchars($description); ?></p>
-        </div>
+        <p class="mb-0" id="description-text"><?php echo htmlspecialchars($description); ?></p>
       </div>
-      <?php if ($adminProfiles): ?>
-        <div class="mt-2 d-flex flex-wrap align-items-center gap-1">
+      <div class="mt-2 d-flex flex-wrap align-items-center gap-1" id="admin-badges-container">
+        <?php if ($adminProfiles): ?>
           <span class="small text-muted me-1">Songbook admins:</span>
           <?php foreach ($adminProfiles as $admin): ?>
             <a href="user.php?id=<?= (int)$admin['id'] ?>" class="badge bg-primary text-decoration-none">
               <?= htmlspecialchars($admin['name'] ?? $admin['username']) ?>
             </a>
           <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
+        <?php endif; ?>
+      </div>
     </div>
 
     <div class="row">
@@ -497,11 +497,50 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
   </div>
 </div>
 
+<?php if ($canEditSongbook): ?>
+<div class="modal fade" id="editSongbookDetailsModal" tabindex="-1" aria-labelledby="editSongbookDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editSongbookDetailsModalLabel">Edit Songbook Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="editSongbookName" class="form-label">Name</label>
+          <input type="text" class="form-control" id="editSongbookName">
+        </div>
+        <div class="mb-3">
+          <label for="editSongbookDescription" class="form-label">Description</label>
+          <textarea class="form-control" id="editSongbookDescription" rows="3"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Songbook Admins</label>
+          <div class="admin-picker" id="adminsPicker">
+            <div class="admin-picker-chips d-flex flex-wrap gap-2 mb-2"></div>
+            <div class="position-relative">
+              <input type="text" class="form-control admin-picker-input" placeholder="Search users by name...">
+              <div class="list-group admin-picker-results position-absolute w-100 shadow-sm"
+                   style="z-index: 1060; display: none; max-height: 220px; overflow-y: auto;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="saveSongbookDetailsBtn" class="btn btn-success">💾 Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <!-- Adding scripts -->
 
 <script src="js/songbook_render_preview.js?v=<?= filemtime('js/songbook_render_preview.js') ?>"></script>
 <script src="js/song_render.js?v=<?= filemtime('js/song_render.js') ?>"></script>
 <script src="js/song_ordering.js?v=<?= filemtime('js/song_ordering.js') ?>"></script>
+<script src="js/admin_picker.js?v=<?= filemtime('js/admin_picker.js') ?>"></script>
 
 <!-- html2canvas for rendering DOM to image -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -558,6 +597,77 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
   const currentUserId = <?= isset($_SESSION["id"]) ? json_encode((string)$_SESSION["id"]) : 'null' ?>;
   const isAdminView = <?= isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true ? 'true' : 'false' ?>;
+
+  // Snapshot of the currently-persisted admins (with display names), used to
+  // reset the picker whenever the edit modal is (re)opened so a cancelled
+  // edit never leaks into the next time it's opened.
+  let adminsSnapshot = <?= json_encode(array_map(function ($admin) {
+      return [
+          'id' => (int)$admin['id'],
+          'name' => $admin['name'] ?? $admin['username'],
+          'username' => $admin['username'],
+      ];
+  }, $adminProfiles)) ?>;
+
+  const editDetailsModalEl = document.getElementById('editSongbookDetailsModal');
+  const adminsPickerEl = document.getElementById('adminsPicker');
+  let adminPicker = null;
+  if (adminsPickerEl) {
+    adminPicker = createAdminPicker(adminsPickerEl, {
+      initialAdmins: adminsSnapshot,
+      protectedIds: [<?= (int)$songbook['owner'] ?>]
+    });
+  }
+
+  if (editDetailsModalEl) {
+    editDetailsModalEl.addEventListener('show.bs.modal', () => {
+      document.getElementById('editSongbookName').value = songbook.name;
+      document.getElementById('editSongbookDescription').value = songbook.description || '';
+      if (adminPicker) adminPicker.setAdmins(adminsSnapshot);
+    });
+
+    document.getElementById('saveSongbookDetailsBtn').addEventListener('click', async () => {
+      const newName = document.getElementById('editSongbookName').value.trim();
+      if (!newName) {
+        alert('Songbook name cannot be empty.');
+        return;
+      }
+      const newDescription = document.getElementById('editSongbookDescription').value;
+      const newAdmins = adminPicker ? adminPicker.getAdmins() : adminsSnapshot;
+
+      songbook.name = newName;
+      songbook.description = newDescription;
+      songbook.admins = newAdmins.map(a => String(a.id));
+
+      const result = await saveSongbookToServer();
+      if (!result.success) {
+        alert('❌ Failed to save songbook: ' + (result.error || result.message));
+        return;
+      }
+
+      adminsSnapshot = newAdmins;
+      document.getElementById('songbook-name-text').textContent = songbook.name;
+      document.getElementById('description-text').textContent = songbook.description;
+
+      const badgesContainer = document.getElementById('admin-badges-container');
+      badgesContainer.innerHTML = '';
+      if (newAdmins.length) {
+        const label = document.createElement('span');
+        label.className = 'small text-muted me-1';
+        label.textContent = 'Songbook admins:';
+        badgesContainer.appendChild(label);
+        newAdmins.forEach(admin => {
+          const link = document.createElement('a');
+          link.href = 'user.php?id=' + admin.id;
+          link.className = 'badge bg-primary text-decoration-none';
+          link.textContent = admin.name || admin.username;
+          badgesContainer.appendChild(link);
+        });
+      }
+
+      bootstrap.Modal.getInstance(editDetailsModalEl).hide();
+    });
+  }
 
   function isCurrentUserAdmin() {
   return isAdminView || (currentUserId && songbook.admins.includes(currentUserId));
@@ -1237,7 +1347,8 @@ document.getElementById("createCategoryBtn").addEventListener("click", () => {
 // members of the songbook first, otherwise a layout can end up pointing at
 // songs the database doesn't actually consider part of the songbook (they'd
 // render today from the in-memory state, but vanish on next page load/render
-// since the membership was never persisted).
+// since the membership was never persisted). Also used by the "Edit Songbook
+// Details" modal to persist name/description/admins changes.
 async function saveSongbookToServer() {
   const categories = songbook.songs_categories.map(cat => ({
     id: cat.id,
