@@ -247,6 +247,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
               <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
             </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="render-stats-checkbox">
+              <label class="form-check-label" for="render-stats-checkbox">Stats page</label>
+            </div>
 
             <hr>
             <p class="text-muted small mb-2"><strong>Extra Display</strong></p>
@@ -398,6 +402,10 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
               <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="render-stats-checkbox">
+              <label class="form-check-label" for="render-stats-checkbox">Stats page</label>
             </div>
 
             <!-- Not user-editable, but still readable/writable by beginRender()
@@ -1566,6 +1574,7 @@ function getCurrentRenderSettings() {
     showLockName: document.getElementById('render-lock-name-checkbox')?.checked || false,
     transposeCapoZero: document.getElementById('transpose-capo-zero-checkbox')?.checked || false,
     showToc: document.getElementById('render-toc-checkbox')?.checked || false,
+    showStats: document.getElementById('render-stats-checkbox')?.checked || false,
     showDifficulty: document.getElementById('extra-difficulty-checkbox')?.checked || false,
     showTags: document.getElementById('extra-tags-checkbox')?.checked || false,
     showInstruments: document.getElementById('extra-instruments-checkbox')?.checked || false,
@@ -1589,6 +1598,7 @@ function applyRenderSettings(settings) {
   setChecked('render-lock-name-checkbox', settings.showLockName);
   setChecked('transpose-capo-zero-checkbox', settings.transposeCapoZero);
   setChecked('render-toc-checkbox', settings.showToc);
+  setChecked('render-stats-checkbox', settings.showStats);
   setChecked('extra-difficulty-checkbox', settings.showDifficulty);
   setChecked('extra-tags-checkbox', settings.showTags);
   setChecked('extra-instruments-checkbox', settings.showInstruments);
@@ -2106,6 +2116,428 @@ function getCategoryById(id) {
 }
 
 
+// STATS PAGE
+//
+// A generated "Štatistiky" (stats) page summarizing only the categories
+// currently being rendered (not necessarily the whole songbook) - song
+// counts per category, song ownership (pie chart), lock/difficulty
+// breakdowns, and the most-used tags. Always ends up as the very first page
+// of the rendered book - see its call site in renderMultiple(), whose
+// prepend runs after addTableOfContents's own prepend, so stats end up in
+// front of the table of contents too. A single page (createPage(1, ...)),
+// so it always renders as the book's lone standalone opening page - the
+// same slot/convention real content's own page 1 uses.
+//
+// The pie chart is hand-drawn SVG (arc <path> elements), not a charting
+// library - it needs to rasterize reliably through html2canvas for PDF
+// export, and (per blackAndWhite below) switch from a color palette to
+// hatch-pattern fills so slices stay distinguishable without color at all.
+
+const STATS_DIFFICULTY_LABELS = { easy: 'Ľahká', normal: 'Stredná', hard: 'Náročná', none: 'Bez náročnosti' };
+const STATS_COLOR_PALETTE = [
+  '#4361ee', '#f72585', '#4cc9f0', '#f8961e', '#43aa8b',
+  '#9b5de5', '#ffca3a', '#ef476f', '#06d6a0', '#118ab2'
+];
+// Cycled per pie slice in black-and-white mode - distinct hatch angles read
+// apart reliably even in grayscale print, unlike color or gray-shade alone.
+const STATS_BW_HATCH_ANGLES = [45, 135, 0, 90, 22, 112, 67, 157];
+
+function statsSliceColor(i) {
+  return STATS_COLOR_PALETTE[i % STATS_COLOR_PALETTE.length];
+}
+
+function statsSliceHatchAngle(i) {
+  return STATS_BW_HATCH_ANGLES[i % STATS_BW_HATCH_ANGLES.length];
+}
+
+// CSS-only hatch swatch for legend rows (kept separate from the SVG chart's
+// own <pattern> defs, which only resolve within their own <svg> root -
+// repeating-linear-gradient reproduces the same angle without needing to
+// share SVG pattern definitions across elements).
+function statsSliceLegendStyle(i, blackAndWhite) {
+  if (!blackAndWhite) {
+    return `background:${statsSliceColor(i)};`;
+  }
+  const angle = statsSliceHatchAngle(i);
+  return `background-image:repeating-linear-gradient(${angle}deg,#000,#000 1.5px,#fff 1.5px,#fff 5px);`
+    + 'background-color:#fff;border:1px solid #000;';
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function buildStatsPieChart(slices, size, blackAndWhite) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+
+  const radius = size / 2;
+  const cx = radius;
+  const cy = radius;
+  const total = slices.reduce((sum, s) => sum + s.count, 0);
+
+  if (total <= 0) {
+    const circle = document.createElementNS(SVG_NS, 'circle');
+    circle.setAttribute('cx', cx);
+    circle.setAttribute('cy', cy);
+    circle.setAttribute('r', radius - 1.5);
+    circle.setAttribute('fill', 'none');
+    circle.setAttribute('stroke', '#ccc');
+    circle.setAttribute('stroke-width', 2);
+    svg.appendChild(circle);
+    return svg;
+  }
+
+  if (blackAndWhite) {
+    const defs = document.createElementNS(SVG_NS, 'defs');
+    slices.forEach((_, i) => {
+      const pattern = document.createElementNS(SVG_NS, 'pattern');
+      pattern.setAttribute('id', `stats-hatch-${i}`);
+      pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+      pattern.setAttribute('width', 6);
+      pattern.setAttribute('height', 6);
+      pattern.setAttribute('patternTransform', `rotate(${statsSliceHatchAngle(i)})`);
+      const bg = document.createElementNS(SVG_NS, 'rect');
+      bg.setAttribute('width', 6);
+      bg.setAttribute('height', 6);
+      bg.setAttribute('fill', '#fff');
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', 0);
+      line.setAttribute('y1', 0);
+      line.setAttribute('x2', 0);
+      line.setAttribute('y2', 6);
+      line.setAttribute('stroke', '#000');
+      line.setAttribute('stroke-width', 2);
+      pattern.append(bg, line);
+      defs.appendChild(pattern);
+    });
+    svg.appendChild(defs);
+  }
+
+  // -90deg (12 o'clock) start, sweeping clockwise - the standard SVG
+  // pie-slice formula. A single 100%-share slice is drawn as a full circle
+  // via two half-arcs, since one <path> arc command can't sweep a full 360deg.
+  let angle = -Math.PI / 2;
+  slices.forEach((slice, i) => {
+    const fraction = slice.count / total;
+    const nextAngle = angle + fraction * Math.PI * 2;
+
+    const path = document.createElementNS(SVG_NS, 'path');
+    if (fraction >= 0.9999) {
+      path.setAttribute('d', `M ${cx} ${cy - radius} A ${radius} ${radius} 0 1 1 ${cx - 0.01} ${cy - radius} Z`);
+    } else {
+      const x1 = cx + radius * Math.cos(angle);
+      const y1 = cy + radius * Math.sin(angle);
+      const x2 = cx + radius * Math.cos(nextAngle);
+      const y2 = cy + radius * Math.sin(nextAngle);
+      const largeArc = fraction > 0.5 ? 1 : 0;
+      path.setAttribute('d', `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`);
+    }
+    path.setAttribute('fill', blackAndWhite ? `url(#stats-hatch-${i})` : statsSliceColor(i));
+    path.setAttribute('stroke', '#fff');
+    path.setAttribute('stroke-width', 2);
+    svg.appendChild(path);
+
+    angle = nextAngle;
+  });
+
+  return svg;
+}
+
+async function computeSongbookStats(categoryIds) {
+  const categories = categoryIds.map(id => getCategoryById(id)).filter(Boolean);
+
+  const allSongs = [];
+  categories.forEach(cat => cat.songs.forEach(song => allSongs.push(song)));
+  const totalSongs = allSongs.length;
+
+  const ownerCounts = new Map();
+  allSongs.forEach(song => {
+    const owner = song.owner || {};
+    const key = owner.id != null ? `id:${owner.id}` : `name:${owner.username || owner.name || 'neznámy'}`;
+    const label = owner.name || owner.username || 'Neznámy';
+    if (!ownerCounts.has(key)) ownerCounts.set(key, { label, count: 0 });
+    ownerCounts.get(key).count += 1;
+  });
+
+  const categoryCounts = categories.map(cat => ({ name: cat.name, count: cat.songs.length }));
+
+  // Difficulty and tags aren't in the seed songbook.songs_categories data -
+  // same as beginRender(), they only come back from get_songs_by_ids_extended.php.
+  const allSongIds = allSongs.map(s => s.id);
+  const extendedSongs = allSongIds.length ? await fetchSongsByIds(allSongIds) : [];
+
+  const difficultyCounts = new Map();
+  extendedSongs.forEach(song => {
+    const key = song.difficulty && STATS_DIFFICULTY_LABELS[song.difficulty] ? song.difficulty : 'none';
+    difficultyCounts.set(key, (difficultyCounts.get(key) || 0) + 1);
+  });
+
+  const tagCounts = new Map();
+  extendedSongs.forEach(song => {
+    (song.tags || '').split(',').map(t => t.trim()).filter(Boolean).forEach(tag => {
+      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+    });
+  });
+  const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  // Lock info is only exposed per-category (get_song_lock_info.php), and
+  // Uncategorized (id 0) is never locked by design - see get_song_lock_names.
+  const lockCounts = new Map();
+  let lockedSongs = 0;
+  for (const cat of categories) {
+    if (cat.id === 0) continue;
+    try {
+      const res = await fetch(`php/get_song_lock_info.php?songbook_id=${songbook.id}&category_id=${cat.id}`);
+      const data = await res.json();
+      if (data.success) {
+        Object.values(data.lock_names || {}).forEach(info => {
+          const name = info.name || 'Originálne';
+          lockCounts.set(name, (lockCounts.get(name) || 0) + 1);
+          lockedSongs += 1;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load lock info for stats page', err);
+    }
+  }
+
+  return {
+    totalSongs,
+    owners: [...ownerCounts.values()].sort((a, b) => b.count - a.count),
+    categoryCounts,
+    difficultyCounts: [...difficultyCounts.entries()]
+      .map(([key, count]) => ({ key, label: STATS_DIFFICULTY_LABELS[key], count }))
+      .sort((a, b) => b.count - a.count),
+    topTags,
+    locks: [...lockCounts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
+    unlockedSongs: totalSongs - lockedSongs
+  };
+}
+
+function statPercent(count, total) {
+  return total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
+}
+
+// A bordered, rounded "dashboard tile" - the site's own card convention
+// (.card / .card-header, e.g. the sidebar's 🗂️ Categories & Songs card),
+// reproduced with inline styles since this renders inside an .a4-page meant
+// for html2canvas, not the live page's own stylesheet-driven layout.
+function buildStatsCard(titleText, blackAndWhite) {
+  const card = document.createElement('div');
+  card.style.cssText = 'border:1px solid ' + (blackAndWhite ? '#000' : '#e2e5ea') + ';border-radius:10px;'
+    + 'background:' + (blackAndWhite ? '#fff' : '#fafbfc') + ';padding:10px 14px 12px;margin-bottom:12px;';
+
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;gap:6px;font-family:system-ui,sans-serif;'
+    + 'font-weight:700;font-size:13px;margin-bottom:8px;padding-bottom:6px;'
+    + 'border-bottom:2px solid ' + (blackAndWhite ? '#000' : '#4361ee') + ';color:#212529;';
+  header.textContent = titleText;
+  card.appendChild(header);
+
+  const body = document.createElement('div');
+  card.appendChild(body);
+
+  return { card, body };
+}
+
+// total === null means "no percentage" (e.g. the "Spolu" totals row, or
+// tags - which aren't a share of a whole the way owners/categories/locks/
+// difficulty are). barMax draws the bar relative to a given max instead of
+// `total` - used for tags, ranked by count with no natural "whole" to be a
+// share of. options.labelElement, if given, replaces the plain-text label
+// with a DOM element (e.g. a difficulty/tag badge) - see buildDifficultyBadge/
+// buildTagBadge in songbook_render_preview.js.
+//
+// The label column is a FIXED width (not 1fr) specifically so every row's
+// bar starts at the same X position - a flexible label column would resize
+// per-row based on that row's own trailing count text width, throwing off
+// alignment between rows even within the same card.
+const STATS_ROW_LABEL_WIDTH = 150;
+
+// Count column is also a FIXED width, same reasoning as the label column -
+// it now sits BEFORE the bar, so if it were content-sized ("auto") the bar
+// would drift per-row again, just like the original label-column bug.
+const STATS_ROW_COUNT_WIDTH = 70;
+
+function buildStatsRow(label, count, total, options) {
+  options = options || {};
+  const row = document.createElement('div');
+  row.style.cssText = `display:grid;grid-template-columns:${STATS_ROW_LABEL_WIDTH}px ${STATS_ROW_COUNT_WIDTH}px 60px;`
+    + 'align-items:center;gap:8px;padding:2.5px 0;font-family:system-ui,sans-serif;font-size:11.5px;';
+
+  const labelCell = document.createElement('div');
+  labelCell.style.cssText = 'overflow:hidden;white-space:nowrap;';
+  if (options.labelElement) {
+    labelCell.appendChild(options.labelElement);
+  } else {
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = label;
+    labelSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+      + (options.bold ? 'font-weight:700;' : '');
+    labelCell.appendChild(labelSpan);
+  }
+
+  const countSpan = document.createElement('span');
+  countSpan.style.cssText = 'white-space:nowrap;text-align:right;overflow:hidden;' + (options.bold ? 'font-weight:700;' : '');
+  countSpan.textContent = total !== null ? `${count} (${statPercent(count, total)}%)` : String(count);
+
+  const barTrack = document.createElement('div');
+  if (options.showBar) {
+    barTrack.style.cssText = 'width:60px;height:6px;border-radius:3px;background:#eceef1;overflow:hidden;';
+    const ratio = options.barMax
+      ? Math.max(0, Math.min(1, count / options.barMax))
+      : (total ? Math.max(0, Math.min(1, count / total)) : 0);
+    const bar = document.createElement('div');
+    bar.style.cssText = `width:${Math.round(ratio * 100)}%;height:100%;background:${options.blackAndWhite ? '#000' : '#4361ee'};`;
+    barTrack.appendChild(bar);
+  }
+
+  row.append(labelCell, countSpan, barTrack);
+  return row;
+}
+
+// Owner rows get a color/hatch swatch (matching the pie slice it corresponds
+// to) instead of a bar - the requested "show which user is which part of the chart".
+function buildStatsOwnerRow(index, label, count, total, blackAndWhite) {
+  const row = document.createElement('div');
+  row.style.cssText = 'display:grid;grid-template-columns:13px minmax(0,1fr) auto;align-items:center;gap:8px;'
+    + 'padding:2.5px 0;font-family:system-ui,sans-serif;font-size:11.5px;';
+
+  const swatch = document.createElement('span');
+  swatch.style.cssText = 'width:12px;height:12px;border-radius:3px;display:inline-block;'
+    + statsSliceLegendStyle(index, blackAndWhite);
+
+  const labelSpan = document.createElement('span');
+  labelSpan.textContent = label;
+  labelSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+  const countSpan = document.createElement('span');
+  countSpan.style.cssText = 'white-space:nowrap;text-align:right;';
+  countSpan.textContent = `${count} (${statPercent(count, total)}%)`;
+
+  row.append(swatch, labelSpan, countSpan);
+  return row;
+}
+
+function buildStatsEmptyNote(text) {
+  const p = document.createElement('p');
+  p.style.cssText = 'font-family:system-ui,sans-serif;font-size:11.5px;color:#666;margin:2px 0;';
+  p.textContent = text;
+  return p;
+}
+
+async function addStatsPages(container, categoryIds, blackAndWhite) {
+  const stats = await computeSongbookStats(categoryIds);
+
+  const page = createPage(1, 'Štatistiky');
+  page.dataset.categoryLabel = 'Štatistiky';
+  page.style.fontFamily = 'system-ui, sans-serif';
+
+  // Header banner - the same gradient-tile look as the site's own
+  // .songbook-icon (linear-gradient(135deg, var(--primary), var(--accent))),
+  // collapsed to solid black in blackAndWhite mode like every other
+  // colored element in this renderer (see buildDifficultyBadge/buildTagBadge).
+  const header = document.createElement('div');
+  header.style.cssText = 'border-radius:10px;padding:14px 18px;margin-bottom:16px;color:#fff;'
+    + (blackAndWhite ? 'background:#000;' : 'background:linear-gradient(135deg,#4361ee,#3f37c9);');
+  const headerTitle = document.createElement('div');
+  headerTitle.textContent = 'Štatistiky';
+  headerTitle.style.cssText = 'font-size:22px;font-weight:700;font-family:system-ui,sans-serif;';
+  const headerSubtitle = document.createElement('div');
+  headerSubtitle.textContent = `${stats.totalSongs} piesní · ${stats.categoryCounts.length} kategórií`;
+  headerSubtitle.style.cssText = 'font-size:12px;opacity:0.85;margin-top:2px;font-family:system-ui,sans-serif;';
+  header.append(headerTitle, headerSubtitle);
+  page.appendChild(header);
+
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;';
+  page.appendChild(grid);
+
+  // Left column: song ownership pie chart + legend.
+  const leftCol = document.createElement('div');
+  const ownerCard = buildStatsCard('Kontribúcie', blackAndWhite);
+  if (stats.owners.length === 0) {
+    ownerCard.body.appendChild(buildStatsEmptyNote('Žiadne piesne.'));
+  } else {
+    const chartRow = document.createElement('div');
+    chartRow.style.cssText = 'display:flex;justify-content:center;margin-bottom:10px;';
+    chartRow.appendChild(buildStatsPieChart(stats.owners, 160, blackAndWhite));
+    ownerCard.body.appendChild(chartRow);
+    stats.owners.forEach((owner, i) => {
+      ownerCard.body.appendChild(buildStatsOwnerRow(i, owner.label, owner.count, stats.totalSongs, blackAndWhite));
+    });
+  }
+  leftCol.appendChild(ownerCard.card);
+  grid.appendChild(leftCol);
+
+  // Right column: categories, locks, difficulty, top tags.
+  const rightCol = document.createElement('div');
+
+  const categoryCard = buildStatsCard('Kategórie', blackAndWhite);
+  stats.categoryCounts.forEach(cat => {
+    categoryCard.body.appendChild(buildStatsRow(cat.name, cat.count, stats.totalSongs, { showBar: true, blackAndWhite }));
+  });
+  categoryCard.body.appendChild(buildStatsRow('Spolu', stats.totalSongs, null, { bold: true }));
+  rightCol.appendChild(categoryCard.card);
+
+  const lockCard = buildStatsCard('Rok pridania', blackAndWhite);
+  if (stats.locks.length === 0) {
+    lockCard.body.appendChild(buildStatsEmptyNote('Žiadne piesne nie sú uzamknuté.'));
+  } else {
+    stats.locks.forEach(lock => {
+      lockCard.body.appendChild(buildStatsRow(lock.name, lock.count, stats.totalSongs, { showBar: true, blackAndWhite }));
+    });
+    lockCard.body.appendChild(buildStatsRow('Nezaradené', stats.unlockedSongs, stats.totalSongs, { showBar: true, blackAndWhite }));
+  }
+  rightCol.appendChild(lockCard.card);
+
+  const difficultyCard = buildStatsCard('Náročnosť', blackAndWhite);
+  if (stats.difficultyCounts.length === 0) {
+    difficultyCard.body.appendChild(buildStatsEmptyNote('Žiadne piesne.'));
+  } else {
+    stats.difficultyCounts.forEach(d => {
+      // buildDifficultyBadge (songbook_render_preview.js) is the same
+      // colored Easy/Normal/Hard badge used on rendered song headers -
+      // returns null for the "no difficulty set" bucket, which has no
+      // established badge of its own, so that one row keeps a plain label.
+      const badge = buildDifficultyBadge(d.key === 'none' ? '' : d.key, blackAndWhite);
+      difficultyCard.body.appendChild(buildStatsRow(d.label, d.count, stats.totalSongs, {
+        showBar: true, blackAndWhite, labelElement: badge || undefined
+      }));
+    });
+  }
+  rightCol.appendChild(difficultyCard.card);
+
+  const tagsCard = buildStatsCard('Tagy', blackAndWhite);
+  if (stats.topTags.length === 0) {
+    tagsCard.body.appendChild(buildStatsEmptyNote('Žiadne tagy.'));
+  } else {
+    const maxTagCount = stats.topTags[0][1];
+    stats.topTags.forEach(([tag, count]) => {
+      // buildTagBadge (songbook_render_preview.js) is the same pill badge
+      // used for a song's tags elsewhere in the renderer.
+      tagsCard.body.appendChild(buildStatsRow(tag, count, null, {
+        showBar: true, barMax: maxTagCount, blackAndWhite, labelElement: buildTagBadge(tag, blackAndWhite)
+      }));
+    });
+  }
+  rightCol.appendChild(tagsCard.card);
+
+  grid.appendChild(rightCol);
+
+  // A single standalone page, same convention as real content's own page 1
+  // (createPage right-aligns an odd page's footer number) - a lone centered
+  // row, not paired with anything.
+  const fragment = document.createDocumentFragment();
+  const row = document.createElement('div');
+  row.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+  row.appendChild(page);
+  fragment.appendChild(row);
+
+  container.prepend(fragment);
+}
+
 
 async function renderMultiple(categoryIds) {
   // Clear container once before rendering all categories
@@ -2138,6 +2570,19 @@ async function renderMultiple(categoryIds) {
     addTableOfContents(container);
   } else {
     renumberRenderedPages(container);
+  }
+
+  // Runs last so its own prepend() ends up in front of the table of
+  // contents too - the stats page is meant to be the very first page of the
+  // book. Scoped to just the categories in this render (categoryIds), not
+  // the whole songbook - see computeSongbookStats.
+  if (document.getElementById('render-stats-checkbox')?.checked) {
+    try {
+      const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
+      await addStatsPages(container, orderedCategoryIds, blackAndWhite);
+    } catch (err) {
+      console.error('Failed to build stats page', err);
+    }
   }
 }
 
