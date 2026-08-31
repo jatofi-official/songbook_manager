@@ -94,8 +94,12 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
     <!-- Editable Header -->
     <div class="mb-4">
       <div class="row align-items-end">
-        <?php $canEditSongbook =
+        <?php
+        $canEditSongbook =
             (isset($_SESSION["id"]) && in_array((string)$_SESSION["id"], $songbook["admins"])) ||
+            (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true);
+        $canEditAdmins =
+            (isset($_SESSION["id"]) && (int)$_SESSION["id"] === (int)$songbook["owner"]) ||
             (isset($_SESSION["admin_view"]) && $_SESSION["admin_view"] === true);
         ?>
         <div class="col-md-6">
@@ -516,6 +520,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
         </div>
         <div class="mb-3">
           <label class="form-label">Songbook Admins</label>
+          <?php if ($canEditAdmins): ?>
           <div class="admin-picker" id="adminsPicker">
             <div class="admin-picker-chips d-flex flex-wrap gap-2 mb-2"></div>
             <div class="position-relative">
@@ -524,6 +529,14 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                    style="z-index: 1060; display: none; max-height: 220px; overflow-y: auto;"></div>
             </div>
           </div>
+          <?php else: ?>
+          <div class="d-flex flex-wrap gap-1">
+            <?php foreach ($adminProfiles as $admin): ?>
+              <span class="badge bg-secondary"><?= htmlspecialchars($admin['name'] ?? $admin['username']) ?></span>
+            <?php endforeach; ?>
+          </div>
+          <div class="form-text">Only the songbook owner or a site admin can change admins.</div>
+          <?php endif; ?>
         </div>
       </div>
       <div class="modal-footer">

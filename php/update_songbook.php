@@ -35,18 +35,47 @@ if (!$id) {
 
 $userId = $_SESSION['id'];
 
-// Permission check: admins must include current user
+$existing = get_songbook($mysqli, (int)$id);
+if (!$existing) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Songbook not found']);
+    exit;
+}
+
+$isOwner = (int)$existing['owner'] === (int)$userId;
+$isSiteAdmin = isset($_SESSION['admin_view']) && $_SESSION['admin_view'] === true;
+
+// Permission check: current user must already be an admin (or owner/site admin)
+if (!in_array((string)$userId, $existing['admins'], true) && !$isOwner && !$isSiteAdmin) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Permission denied']);
+    exit;
+}
+
 if (is_array($admins)) {
     $adminsStr = implode(',', array_map('intval', $admins));
 } else {
     $adminsStr = $admins; // fallback if string
 }
-$adminsArr = explode(',', $adminsStr);
-if (!in_array($userId, $adminsArr)) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Permission denied']);
-    exit;
+$adminsArr = array_filter(explode(',', $adminsStr), 'strlen');
+
+// Only the owner or a site admin may change who the admins are. The owner
+// must also always remain an admin, regardless of what was posted.
+$existingAdminsSorted = $existing['admins'];
+sort($existingAdminsSorted);
+$postedAdminsSorted = $adminsArr;
+sort($postedAdminsSorted);
+if ($postedAdminsSorted !== $existingAdminsSorted) {
+    if (!$isOwner && !$isSiteAdmin) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Only the songbook owner or a site admin can change admins']);
+        exit;
+    }
+    if (!in_array((string)$existing['owner'], $adminsArr, true)) {
+        $adminsArr[] = (string)$existing['owner'];
+    }
 }
+$adminsStr = implode(',', $adminsArr);
 
 // Prepare categories string: id-name
 $categoriesStrParts = [];
