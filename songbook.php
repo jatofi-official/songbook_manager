@@ -2165,16 +2165,15 @@ function getCategoryById(id) {
 
 const STATS_DIFFICULTY_LABELS = { easy: 'Ľahká', normal: 'Stredná', hard: 'Náročná', none: 'Bez náročnosti' };
 
-// Slovak (like other Slavic languages) needs a different noun/adjective form
-// depending on the count: 1 -> singular, 2-4 -> "few" plural, everything else
-// (0, 5+) -> genitive plural. The x1/x11 and x2-4/x12-14 exceptions below
-// handle compound numbers (21, 22, 111, 112...) the same way, not just 1-4.
-// forms = [singular, few, many], e.g. ['kategória', 'kategórie', 'kategórií'].
+// Slovak needs a different noun/adjective form depending on the count: 1 ->
+// singular, 2-4 -> "few" plural, everything else (0, 5+) -> genitive plural.
+// Unlike Russian, this does NOT reset every decade - 21, 61, 101 etc. all
+// still take the genitive-plural "many" form, only literal 1/2/3/4 are
+// special-cased. forms = [singular, few, many], e.g.
+// ['kategória', 'kategórie', 'kategórií'].
 function slovakForm(n, forms) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return forms[0];
-  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return forms[1];
+  if (n === 1) return forms[0];
+  if (n >= 2 && n <= 4) return forms[1];
   return forms[2];
 }
 const STATS_COLOR_PALETTE = [
