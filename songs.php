@@ -409,6 +409,22 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
 </div>
 
+<?php if (($_SESSION["admin_view"] ?? false) === true): ?>
+<div class="modal fade" id="songHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Song History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="songHistoryModalBody">
+                <p>Loading history...</p>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Simplified options for the PDF export, which runs the song through the
      same A4-page renderer/export path used for full songbooks. Shared by
      whichever song is currently loaded into .song-detail-container. -->
