@@ -247,10 +247,6 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
               <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
             </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="render-stats-checkbox">
-              <label class="form-check-label" for="render-stats-checkbox">Stats page</label>
-            </div>
 
             <hr>
             <p class="text-muted small mb-2"><strong>Extra Display</strong></p>
@@ -293,6 +289,21 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
                 <option value="difficulty">Difficulty</option>
               </select>
             </div>
+
+            <hr>
+            <p class="text-muted small mb-2"><strong>Stats Page</strong></p>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="render-stats-checkbox">
+              <label class="form-check-label" for="render-stats-checkbox">Generate stats page</label>
+            </div>
+            <!-- <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="render-stats-qr-checkbox">
+              <label class="form-check-label" for="render-stats-qr-checkbox">Include QR code</label>
+            </div> -->
+            <!-- <div class="mb-3">
+              <label class="form-label" for="stats-qr-url-input">QR code link (optional)</label>
+              <input type="text" id="stats-qr-url-input" class="form-control form-control-sm" placeholder="Defaults to this songbook's page">
+            </div> -->
 
             <hr>
             <p class="text-muted small mb-2"><strong>Presets</strong></p>
@@ -403,10 +414,6 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
               <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
             </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="render-stats-checkbox">
-              <label class="form-check-label" for="render-stats-checkbox">Stats page</label>
-            </div>
 
             <!-- Not user-editable, but still readable/writable by beginRender()
                  and applyRenderSettings() so a loaded preset can still set it. -->
@@ -432,6 +439,21 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <label class="form-check-label" for="extra-instruments-checkbox">
                 Instruments
               </label>
+            </div>
+
+            <hr>
+            <p class="text-muted small mb-2"><strong>Stats Page</strong></p>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="render-stats-checkbox">
+              <label class="form-check-label" for="render-stats-checkbox">Generate stats page</label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="render-stats-qr-checkbox">
+              <label class="form-check-label" for="render-stats-qr-checkbox">Include QR code</label>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="stats-qr-url-input">QR code link (optional)</label>
+              <input type="text" id="stats-qr-url-input" class="form-control form-control-sm" placeholder="Defaults to this songbook's page">
             </div>
 
             <hr>
@@ -568,6 +590,9 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
 <!-- jsPDF core library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- QR code generation for the songbook stats page's optional QR code card -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 
 
@@ -1575,6 +1600,8 @@ function getCurrentRenderSettings() {
     transposeCapoZero: document.getElementById('transpose-capo-zero-checkbox')?.checked || false,
     showToc: document.getElementById('render-toc-checkbox')?.checked || false,
     showStats: document.getElementById('render-stats-checkbox')?.checked || false,
+    showStatsQr: document.getElementById('render-stats-qr-checkbox')?.checked || false,
+    statsQrUrl: document.getElementById('stats-qr-url-input')?.value || '',
     showDifficulty: document.getElementById('extra-difficulty-checkbox')?.checked || false,
     showTags: document.getElementById('extra-tags-checkbox')?.checked || false,
     showInstruments: document.getElementById('extra-instruments-checkbox')?.checked || false,
@@ -1599,6 +1626,9 @@ function applyRenderSettings(settings) {
   setChecked('transpose-capo-zero-checkbox', settings.transposeCapoZero);
   setChecked('render-toc-checkbox', settings.showToc);
   setChecked('render-stats-checkbox', settings.showStats);
+  setChecked('render-stats-qr-checkbox', settings.showStatsQr);
+  const qrUrlInput = document.getElementById('stats-qr-url-input');
+  if (qrUrlInput) qrUrlInput.value = settings.statsQrUrl || '';
   setChecked('extra-difficulty-checkbox', settings.showDifficulty);
   setChecked('extra-tags-checkbox', settings.showTags);
   setChecked('extra-instruments-checkbox', settings.showInstruments);
@@ -2134,6 +2164,19 @@ function getCategoryById(id) {
 // hatch-pattern fills so slices stay distinguishable without color at all.
 
 const STATS_DIFFICULTY_LABELS = { easy: 'Ľahká', normal: 'Stredná', hard: 'Náročná', none: 'Bez náročnosti' };
+
+// Slovak (like other Slavic languages) needs a different noun/adjective form
+// depending on the count: 1 -> singular, 2-4 -> "few" plural, everything else
+// (0, 5+) -> genitive plural. The x1/x11 and x2-4/x12-14 exceptions below
+// handle compound numbers (21, 22, 111, 112...) the same way, not just 1-4.
+// forms = [singular, few, many], e.g. ['kategória', 'kategórie', 'kategórií'].
+function slovakForm(n, forms) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return forms[0];
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return forms[1];
+  return forms[2];
+}
 const STATS_COLOR_PALETTE = [
   '#4361ee', '#f72585', '#4cc9f0', '#f8961e', '#43aa8b',
   '#9b5de5', '#ffca3a', '#ef476f', '#06d6a0', '#118ab2'
@@ -2260,10 +2303,23 @@ async function computeSongbookStats(categoryIds) {
     ownerCounts.get(key).count += 1;
   });
 
-  const categoryCounts = categories.map(cat => ({ name: cat.name, count: cat.songs.length }));
+  const categoryCounts = categories
+    .map(cat => ({ name: cat.name, count: cat.songs.length }))
+    .filter(cat => cat.count > 0);
 
-  // Difficulty and tags aren't in the seed songbook.songs_categories data -
-  // same as beginRender(), they only come back from get_songs_by_ids_extended.php.
+  const artistCounts = new Map();
+  allSongs.forEach(song => {
+    const name = (song.artist || '').trim();
+    if (!name) return;
+    artistCounts.set(name, (artistCounts.get(name) || 0) + 1);
+  });
+  const sortedArtists = [...artistCounts.entries()].sort((a, b) => b[1] - a[1]);
+  const topArtists = sortedArtists.slice(0, 5);
+  const restArtistsCount = sortedArtists.slice(5).reduce((sum, [, count]) => sum + count, 0);
+
+  // Difficulty, tags, instruments and capo aren't in the seed
+  // songbook.songs_categories data - same as beginRender(), they only come
+  // back from get_songs_by_ids_extended.php.
   const allSongIds = allSongs.map(s => s.id);
   const extendedSongs = allSongIds.length ? await fetchSongsByIds(allSongIds) : [];
 
@@ -2280,6 +2336,24 @@ async function computeSongbookStats(categoryIds) {
     });
   });
   const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  const instrumentCounts = new Map();
+  extendedSongs.forEach(song => {
+    (song.instruments || '').split(',').map(i => i.trim()).filter(Boolean).forEach(instrument => {
+      instrumentCounts.set(instrument, (instrumentCounts.get(instrument) || 0) + 1);
+    });
+  });
+  const topInstruments = [...instrumentCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const capoCounts = new Map();
+  extendedSongs.forEach(song => {
+    const capo = parseInt(song.capo, 10);
+    const key = capo > 0 ? String(capo) : 'none';
+    capoCounts.set(key, (capoCounts.get(key) || 0) + 1);
+  });
+  const capoStats = [...capoCounts.entries()]
+    .map(([key, count]) => ({ label: key === 'none' ? 'Capo 0' : `Capo ${key}`, count, sortKey: key === 'none' ? -1 : Number(key) }))
+    .sort((a, b) => a.sortKey - b.sortKey);
 
   // Lock info is only exposed per-category (get_song_lock_info.php), and
   // Uncategorized (id 0) is never locked by design - see get_song_lock_names.
@@ -2306,10 +2380,15 @@ async function computeSongbookStats(categoryIds) {
     totalSongs,
     owners: [...ownerCounts.values()].sort((a, b) => b.count - a.count),
     categoryCounts,
+    topArtists,
+    restArtistsCount,
     difficultyCounts: [...difficultyCounts.entries()]
       .map(([key, count]) => ({ key, label: STATS_DIFFICULTY_LABELS[key], count }))
       .sort((a, b) => b.count - a.count),
     topTags,
+    uniqueTagCount: tagCounts.size,
+    topInstruments,
+    capoStats,
     locks: [...lockCounts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
     unlockedSongs: totalSongs - lockedSongs
   };
@@ -2323,14 +2402,18 @@ function statPercent(count, total) {
 // (.card / .card-header, e.g. the sidebar's 🗂️ Categories & Songs card),
 // reproduced with inline styles since this renders inside an .a4-page meant
 // for html2canvas, not the live page's own stylesheet-driven layout.
-function buildStatsCard(titleText, blackAndWhite) {
+// `compact` is used for Capo/Nástroje when they need to squeeze into two
+// half-width mini-cards inside a single masonry slot instead of each having
+// a full slot to itself - see addStatsPages' space-based decision.
+function buildStatsCard(titleText, blackAndWhite, compact) {
   const card = document.createElement('div');
-  card.style.cssText = 'border:1px solid ' + (blackAndWhite ? '#000' : '#e2e5ea') + ';border-radius:10px;'
-    + 'background:' + (blackAndWhite ? '#fff' : '#fafbfc') + ';padding:10px 14px 12px;margin-bottom:12px;';
+  card.style.cssText = 'border:1px solid ' + (blackAndWhite ? '#000' : '#e2e5ea') + ';'
+    + `border-radius:${compact ? 8 : 10}px;background:` + (blackAndWhite ? '#fff' : '#fafbfc') + ';'
+    + `padding:${compact ? '8px 10px 9px' : '10px 14px 12px'};` + (compact ? '' : 'margin-bottom:12px;');
 
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;align-items:center;gap:6px;font-family:system-ui,sans-serif;'
-    + 'font-weight:700;font-size:13px;margin-bottom:8px;padding-bottom:6px;'
+    + `font-weight:700;font-size:${compact ? 11 : 13}px;margin-bottom:${compact ? 6 : 8}px;padding-bottom:${compact ? 4 : 6}px;`
     + 'border-bottom:2px solid ' + (blackAndWhite ? '#000' : '#4361ee') + ';color:#212529;';
   header.textContent = titleText;
   card.appendChild(header);
@@ -2342,17 +2425,22 @@ function buildStatsCard(titleText, blackAndWhite) {
 }
 
 // total === null means "no percentage" (e.g. the "Spolu" totals row, or
-// tags - which aren't a share of a whole the way owners/categories/locks/
-// difficulty are). barMax draws the bar relative to a given max instead of
-// `total` - used for tags, ranked by count with no natural "whole" to be a
-// share of. options.labelElement, if given, replaces the plain-text label
-// with a DOM element (e.g. a difficulty/tag badge) - see buildDifficultyBadge/
-// buildTagBadge in songbook_render_preview.js.
+// tags/instruments - which aren't a share of a whole the way
+// owners/categories/locks/difficulty/capo/artists are, since one song can
+// have several of each). barMax draws the bar relative to a given max
+// instead of `total` - used for tags, ranked by count with no natural
+// "whole" to be a share of. options.labelElement, if given, replaces the
+// plain-text label with a DOM element (e.g. a difficulty/tag badge) - see
+// buildDifficultyBadge/buildTagBadge in songbook_render_preview.js.
 //
 // The label column is a FIXED width (not 1fr) specifically so every row's
 // bar starts at the same X position - a flexible label column would resize
 // per-row based on that row's own trailing count text width, throwing off
-// alignment between rows even within the same card.
+// alignment between rows even within the same card. options.compact drops
+// the bar column and percentage text entirely and shrinks everything else,
+// for when a row needs to fit in a half-width squeezed mini-card (see
+// buildStatsCard) - with no bar there's nothing for a flexible label column
+// to misalign, so it's safe to go back to 1fr there.
 const STATS_ROW_LABEL_WIDTH = 150;
 
 // Count column is also a FIXED width, same reasoning as the label column -
@@ -2362,9 +2450,16 @@ const STATS_ROW_COUNT_WIDTH = 70;
 
 function buildStatsRow(label, count, total, options) {
   options = options || {};
+  const compact = !!options.compact;
+  const showBar = options.showBar && !compact;
+
   const row = document.createElement('div');
-  row.style.cssText = `display:grid;grid-template-columns:${STATS_ROW_LABEL_WIDTH}px ${STATS_ROW_COUNT_WIDTH}px 60px;`
-    + 'align-items:center;gap:8px;padding:2.5px 0;font-family:system-ui,sans-serif;font-size:11.5px;';
+  const gridTemplate = compact
+    ? 'minmax(0,1fr) 32px'
+    : `${STATS_ROW_LABEL_WIDTH}px ${STATS_ROW_COUNT_WIDTH}px 60px`;
+  row.style.cssText = `display:grid;grid-template-columns:${gridTemplate};align-items:center;`
+    + `gap:${compact ? 6 : 8}px;padding:${compact ? 1.5 : 2.5}px 0;font-family:system-ui,sans-serif;`
+    + `font-size:${compact ? 10 : 11.5}px;`;
 
   const labelCell = document.createElement('div');
   labelCell.style.cssText = 'overflow:hidden;white-space:nowrap;';
@@ -2380,20 +2475,24 @@ function buildStatsRow(label, count, total, options) {
 
   const countSpan = document.createElement('span');
   countSpan.style.cssText = 'white-space:nowrap;text-align:right;overflow:hidden;' + (options.bold ? 'font-weight:700;' : '');
-  countSpan.textContent = total !== null ? `${count} (${statPercent(count, total)}%)` : String(count);
+  countSpan.textContent = (total !== null && !compact) ? `${count} (${statPercent(count, total)}%)` : String(count);
 
-  const barTrack = document.createElement('div');
-  if (options.showBar) {
-    barTrack.style.cssText = 'width:60px;height:6px;border-radius:3px;background:#eceef1;overflow:hidden;';
-    const ratio = options.barMax
-      ? Math.max(0, Math.min(1, count / options.barMax))
-      : (total ? Math.max(0, Math.min(1, count / total)) : 0);
-    const bar = document.createElement('div');
-    bar.style.cssText = `width:${Math.round(ratio * 100)}%;height:100%;background:${options.blackAndWhite ? '#000' : '#4361ee'};`;
-    barTrack.appendChild(bar);
+  row.append(labelCell, countSpan);
+
+  if (!compact) {
+    const barTrack = document.createElement('div');
+    if (showBar) {
+      barTrack.style.cssText = 'width:60px;height:6px;border-radius:3px;background:#eceef1;overflow:hidden;';
+      const ratio = options.barMax
+        ? Math.max(0, Math.min(1, count / options.barMax))
+        : (total ? Math.max(0, Math.min(1, count / total)) : 0);
+      const bar = document.createElement('div');
+      bar.style.cssText = `width:${Math.round(ratio * 100)}%;height:100%;background:${options.blackAndWhite ? '#000' : '#4361ee'};`;
+      barTrack.appendChild(bar);
+    }
+    row.appendChild(barTrack);
   }
 
-  row.append(labelCell, countSpan, barTrack);
   return row;
 }
 
@@ -2420,14 +2519,14 @@ function buildStatsOwnerRow(index, label, count, total, blackAndWhite) {
   return row;
 }
 
-function buildStatsEmptyNote(text) {
+function buildStatsFootnote(text) {
   const p = document.createElement('p');
-  p.style.cssText = 'font-family:system-ui,sans-serif;font-size:11.5px;color:#666;margin:2px 0;';
+  p.style.cssText = 'font-family:system-ui,sans-serif;font-size:10.5px;color:#888;margin:6px 0 0;';
   p.textContent = text;
   return p;
 }
 
-async function addStatsPages(container, categoryIds, blackAndWhite) {
+async function addStatsPages(container, categoryIds, blackAndWhite, qrUrl) {
   const stats = await computeSongbookStats(categoryIds);
 
   const page = createPage(1, 'Štatistiky');
@@ -2445,57 +2544,83 @@ async function addStatsPages(container, categoryIds, blackAndWhite) {
   headerTitle.textContent = 'Štatistiky';
   headerTitle.style.cssText = 'font-size:22px;font-weight:700;font-family:system-ui,sans-serif;';
   const headerSubtitle = document.createElement('div');
-  headerSubtitle.textContent = `${stats.totalSongs} piesní · ${stats.categoryCounts.length} kategórií`;
+  const songWord = slovakForm(stats.totalSongs, ['pieseň', 'piesne', 'piesní']);
+  const categoryWord = slovakForm(stats.categoryCounts.length, ['kategória', 'kategórie', 'kategórií']);
+  headerSubtitle.textContent = `${stats.totalSongs} ${songWord} · ${stats.categoryCounts.length} ${categoryWord}`;
   headerSubtitle.style.cssText = 'font-size:12px;opacity:0.85;margin-top:2px;font-family:system-ui,sans-serif;';
   header.append(headerTitle, headerSubtitle);
   page.appendChild(header);
 
-  const grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;';
-  page.appendChild(grid);
+  // Masonry-style layout: every card is a sibling in a 2-column CSS
+  // multi-column flow (not a fixed chart-column/list-column grid) so cards
+  // pack tightly next to each other and the browser balances the two
+  // columns by total content height, instead of leaving one column mostly
+  // empty under a short card while the other overflows.
+  const columns = document.createElement('div');
+  columns.style.cssText = 'column-count:2;column-gap:20px;column-fill:balance;';
+  page.appendChild(columns);
 
-  // Left column: song ownership pie chart + legend.
-  const leftCol = document.createElement('div');
-  const ownerCard = buildStatsCard('Kontribúcie', blackAndWhite);
-  if (stats.owners.length === 0) {
-    ownerCard.body.appendChild(buildStatsEmptyNote('Žiadne piesne.'));
-  } else {
+  // Appends any masonry item (a real bordered card, or the title-less QR
+  // block below) and keeps it from being split across the two columns.
+  function addItem(el) {
+    el.style.breakInside = 'avoid';
+    el.style.webkitColumnBreakInside = 'avoid';
+    columns.appendChild(el);
+  }
+
+  // Every card is entirely omitted (not just shown with an empty-state
+  // note) when it has nothing to show - e.g. no version locks were ever
+  // made ("Rok pridania"), or this render has no songs with any instruments
+  // tagged at all.
+
+  if (stats.owners.length) {
+    // Keeps both the pie chart and the page itself bounded regardless of how
+    // many different people have contributed songs: only the top 5 get
+    // their own slice/row, everyone else is folded into one "Ostatní" slice
+    // (so the chart still accounts for 100% of songs) - named right in that
+    // same row's label, rather than costing an extra row of its own.
+    const STATS_TOP_OWNERS = 5;
+    const shownOwners = stats.owners.slice(0, STATS_TOP_OWNERS);
+    const restOwners = stats.owners.slice(STATS_TOP_OWNERS);
+    const restCount = restOwners.reduce((sum, o) => sum + o.count, 0);
+    const restLabel = restOwners.length ? `Ostatní: ${restOwners.map(o => o.label).join(', ')}` : 'Ostatní';
+    const chartOwners = restOwners.length
+      ? [...shownOwners, { label: restLabel, count: restCount }]
+      : shownOwners;
+
+    const ownerCard = buildStatsCard('Kontribúcie', blackAndWhite);
     const chartRow = document.createElement('div');
     chartRow.style.cssText = 'display:flex;justify-content:center;margin-bottom:10px;';
-    chartRow.appendChild(buildStatsPieChart(stats.owners, 160, blackAndWhite));
+    chartRow.appendChild(buildStatsPieChart(chartOwners, 140, blackAndWhite));
     ownerCard.body.appendChild(chartRow);
-    stats.owners.forEach((owner, i) => {
+    chartOwners.forEach((owner, i) => {
       ownerCard.body.appendChild(buildStatsOwnerRow(i, owner.label, owner.count, stats.totalSongs, blackAndWhite));
     });
+    addItem(ownerCard.card);
   }
-  leftCol.appendChild(ownerCard.card);
-  grid.appendChild(leftCol);
 
-  // Right column: categories, locks, difficulty, top tags.
-  const rightCol = document.createElement('div');
+  if (stats.categoryCounts.length) {
+    const categoryCard = buildStatsCard('Kategórie', blackAndWhite);
+    stats.categoryCounts.forEach(cat => {
+      categoryCard.body.appendChild(buildStatsRow(cat.name, cat.count, stats.totalSongs, { showBar: true, blackAndWhite }));
+    });
+    categoryCard.body.appendChild(buildStatsRow('Spolu', stats.totalSongs, null, { bold: true }));
+    addItem(categoryCard.card);
+  }
 
-  const categoryCard = buildStatsCard('Kategórie', blackAndWhite);
-  stats.categoryCounts.forEach(cat => {
-    categoryCard.body.appendChild(buildStatsRow(cat.name, cat.count, stats.totalSongs, { showBar: true, blackAndWhite }));
-  });
-  categoryCard.body.appendChild(buildStatsRow('Spolu', stats.totalSongs, null, { bold: true }));
-  rightCol.appendChild(categoryCard.card);
-
-  const lockCard = buildStatsCard('Rok pridania', blackAndWhite);
-  if (stats.locks.length === 0) {
-    lockCard.body.appendChild(buildStatsEmptyNote('Žiadne piesne nie sú uzamknuté.'));
-  } else {
+  if (stats.locks.length) {
+    const lockCard = buildStatsCard('Rok pridania', blackAndWhite);
     stats.locks.forEach(lock => {
       lockCard.body.appendChild(buildStatsRow(lock.name, lock.count, stats.totalSongs, { showBar: true, blackAndWhite }));
     });
-    lockCard.body.appendChild(buildStatsRow('Nezaradené', stats.unlockedSongs, stats.totalSongs, { showBar: true, blackAndWhite }));
+    if (stats.unlockedSongs > 0) {
+      lockCard.body.appendChild(buildStatsRow('Nezaradené', stats.unlockedSongs, stats.totalSongs, { showBar: true, blackAndWhite }));
+    }
+    addItem(lockCard.card);
   }
-  rightCol.appendChild(lockCard.card);
 
-  const difficultyCard = buildStatsCard('Náročnosť', blackAndWhite);
-  if (stats.difficultyCounts.length === 0) {
-    difficultyCard.body.appendChild(buildStatsEmptyNote('Žiadne piesne.'));
-  } else {
+  if (stats.difficultyCounts.length) {
+    const difficultyCard = buildStatsCard('Náročnosť', blackAndWhite);
     stats.difficultyCounts.forEach(d => {
       // buildDifficultyBadge (songbook_render_preview.js) is the same
       // colored Easy/Normal/Hard badge used on rendered song headers -
@@ -2506,14 +2631,15 @@ async function addStatsPages(container, categoryIds, blackAndWhite) {
         showBar: true, blackAndWhite, labelElement: badge || undefined
       }));
     });
+    addItem(difficultyCard.card);
   }
-  rightCol.appendChild(difficultyCard.card);
 
-  const tagsCard = buildStatsCard('Tagy', blackAndWhite);
-  if (stats.topTags.length === 0) {
-    tagsCard.body.appendChild(buildStatsEmptyNote('Žiadne tagy.'));
-  } else {
+  if (stats.topTags.length) {
+    // Bar is purely a rough visual aid here (relative to the top tag's own
+    // count, via barMax) - no percentage text, since a song can have
+    // several tags at once so "share of total songs" wouldn't mean much.
     const maxTagCount = stats.topTags[0][1];
+    const tagsCard = buildStatsCard('Tagy', blackAndWhite);
     stats.topTags.forEach(([tag, count]) => {
       // buildTagBadge (songbook_render_preview.js) is the same pill badge
       // used for a song's tags elsewhere in the renderer.
@@ -2521,10 +2647,86 @@ async function addStatsPages(container, categoryIds, blackAndWhite) {
         showBar: true, barMax: maxTagCount, blackAndWhite, labelElement: buildTagBadge(tag, blackAndWhite)
       }));
     });
+    const tagPhrase = slovakForm(stats.uniqueTagCount, ['unikátny tag', 'unikátne tagy', 'unikátnych tagov']);
+    tagsCard.body.appendChild(buildStatsFootnote(`${stats.uniqueTagCount} ${tagPhrase}`));
+    addItem(tagsCard.card);
   }
-  rightCol.appendChild(tagsCard.card);
 
-  grid.appendChild(rightCol);
+  if (stats.topArtists.length) {
+    // Unlike tags/instruments, each song has exactly one artist, so (like
+    // owners/categories/locks/difficulty/capo) "share of total songs" is a
+    // real percentage here - bar and % are both relative to stats.totalSongs,
+    // not to the top artist's own count.
+    const artistCard = buildStatsCard('Top interpreti', blackAndWhite);
+    stats.topArtists.forEach(([artist, count]) => {
+      artistCard.body.appendChild(buildStatsRow(artist, count, stats.totalSongs, { showBar: true, blackAndWhite }));
+    });
+    if (stats.restArtistsCount > 0) {
+      artistCard.body.appendChild(buildStatsRow('Ostatní', stats.restArtistsCount, stats.totalSongs, { showBar: true, blackAndWhite }));
+    }
+    addItem(artistCard.card);
+  }
+
+  // Capo and Nástroje each start as their own full masonry item (spacious -
+  // matches every other card). Only if that ends up not fitting one A4 page
+  // do they get squeezed together into a single masonry slot as two
+  // half-width mini-cards - "squeeze based on how much free space there is",
+  // not unconditionally. Deciding that requires actually measuring the
+  // rendered height, which needs `page` briefly attached to the document
+  // (an unattached element has no layout) - see below.
+  function buildCapoCard(compact) {
+    const c = buildStatsCard('Capo', blackAndWhite, compact);
+    stats.capoStats.forEach(cap => {
+      c.body.appendChild(buildStatsRow(cap.label, cap.count, stats.totalSongs, { showBar: !compact, blackAndWhite, compact }));
+    });
+    return c;
+  }
+  function buildInstrumentCard(compact) {
+    const c = buildStatsCard('Nástroje', blackAndWhite, compact);
+    stats.topInstruments.forEach(([instrument, count]) => {
+      // Badges are dropped in compact mode - a pill's own padding/border
+      // doesn't leave enough of the ~150px half-slot for the instrument
+      // name itself, so it falls back to plain (still ellipsis-safe) text.
+      c.body.appendChild(buildStatsRow(instrument, count, null, {
+        compact, labelElement: compact ? undefined : buildTagBadge(instrument, blackAndWhite)
+      }));
+    });
+    return c;
+  }
+
+  let capoCard = stats.capoStats.length ? buildCapoCard(false) : null;
+  let instrumentCard = stats.topInstruments.length ? buildInstrumentCard(false) : null;
+  if (capoCard) addItem(capoCard.card);
+  if (instrumentCard) addItem(instrumentCard.card);
+
+  if (capoCard && instrumentCard) {
+    const measureWrapper = document.createElement('div');
+    measureWrapper.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:0;';
+    document.body.appendChild(measureWrapper);
+    measureWrapper.appendChild(page);
+    const headerHeight = header.getBoundingClientRect().height;
+    const columnsHeight = columns.getBoundingClientRect().height;
+    document.body.removeChild(measureWrapper); // detaches `page` again - reattached for real via container.prepend below
+
+    // .a4-page's own content box: 1123px tall minus Bootstrap's p-4 (24px)
+    // padding on top and bottom (see createPage).
+    const PAGE_CONTENT_BUDGET = 1123 - 24 * 2;
+    const usedHeight = headerHeight + 16 /* header's own margin-bottom */ + columnsHeight;
+
+    if (usedHeight > PAGE_CONTENT_BUDGET) {
+      columns.removeChild(capoCard.card);
+      columns.removeChild(instrumentCard.card);
+
+      const pairItem = document.createElement('div');
+      pairItem.style.cssText = 'display:flex;gap:10px;';
+      capoCard = buildCapoCard(true);
+      instrumentCard = buildInstrumentCard(true);
+      capoCard.card.style.cssText += 'flex:1 1 0;min-width:0;';
+      instrumentCard.card.style.cssText += 'flex:1 1 0;min-width:0;';
+      pairItem.append(capoCard.card, instrumentCard.card);
+      addItem(pairItem);
+    }
+  }
 
   // A single standalone page, same convention as real content's own page 1
   // (createPage right-aligns an odd page's footer number) - a lone centered
@@ -2536,6 +2738,32 @@ async function addStatsPages(container, categoryIds, blackAndWhite) {
   fragment.appendChild(row);
 
   container.prepend(fragment);
+
+  if (qrUrl) {
+    // No card border/header/title, deliberately - just the code itself
+    // (bigger than a card content item would allow) and the link it
+    // encodes, pinned to the page's bottom-right corner (createPage already
+    // sets position:relative on .a4-page). Built only now, after the real
+    // container.prepend() above - QRCode (js/qrcode.min.js) needs its
+    // container actually attached to the document to size itself; the
+    // capo/instrument measurement pass above attaches `page` only
+    // temporarily (and detaches it again), which is NOT enough for this.
+    const qrWrapper = document.createElement('div');
+    qrWrapper.style.cssText = 'position:absolute;bottom:24px;right:24px;'
+      + 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+    const qrBox = document.createElement('div');
+    qrWrapper.appendChild(qrBox);
+    const qrCaption = document.createElement('div');
+    qrCaption.textContent = qrUrl;
+    qrCaption.style.cssText = 'font-family:system-ui,sans-serif;font-size:9px;color:#666;'
+      + 'word-break:break-all;text-align:center;max-width:190px;';
+    qrWrapper.appendChild(qrCaption);
+    page.appendChild(qrWrapper);
+
+    if (window.QRCode) {
+      new QRCode(qrBox, { text: qrUrl, width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M });
+    }
+  }
 }
 
 
@@ -2579,7 +2807,14 @@ async function renderMultiple(categoryIds) {
   if (document.getElementById('render-stats-checkbox')?.checked) {
     try {
       const blackAndWhite = document.getElementById('render-bw-checkbox')?.checked || false;
-      await addStatsPages(container, orderedCategoryIds, blackAndWhite);
+      let qrUrl = null;
+      if (document.getElementById('render-stats-qr-checkbox')?.checked) {
+        const customUrl = document.getElementById('stats-qr-url-input')?.value.trim();
+        // Defaults to this songbook's own page - a clean canonical link
+        // rather than whatever the current address bar happens to contain.
+        qrUrl = customUrl || `${window.location.origin}${window.location.pathname}?id=${songbook.id}`;
+      }
+      await addStatsPages(container, orderedCategoryIds, blackAndWhite, qrUrl);
     } catch (err) {
       console.error('Failed to build stats page', err);
     }
