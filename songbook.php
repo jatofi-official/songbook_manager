@@ -2336,23 +2336,31 @@ async function computeSongbookStats(categoryIds) {
   });
   const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
 
+  const capoCounts = new Map();
+  extendedSongs.forEach(song => {
+    const capo = parseInt(song.capo, 10);
+    // Negative capo values are real data (not "no capo"), so they get their
+    // own "Capo -N" bucket same as any positive value - only a genuinely
+    // missing/non-numeric capo falls back to 0.
+    const key = Number.isFinite(capo) ? String(capo) : '0';
+    capoCounts.set(key, (capoCounts.get(key) || 0) + 1);
+  });
+  const capoStats = [...capoCounts.entries()]
+    .map(([key, count]) => ({ label: `Capo ${key}`, count, sortKey: Number(key) }))
+    .sort((a, b) => a.sortKey - b.sortKey);
+
   const instrumentCounts = new Map();
   extendedSongs.forEach(song => {
     (song.instruments || '').split(',').map(i => i.trim()).filter(Boolean).forEach(instrument => {
       instrumentCounts.set(instrument, (instrumentCounts.get(instrument) || 0) + 1);
     });
   });
-  const topInstruments = [...instrumentCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-  const capoCounts = new Map();
-  extendedSongs.forEach(song => {
-    const capo = parseInt(song.capo, 10);
-    const key = capo > 0 ? String(capo) : 'none';
-    capoCounts.set(key, (capoCounts.get(key) || 0) + 1);
-  });
-  const capoStats = [...capoCounts.entries()]
-    .map(([key, count]) => ({ label: key === 'none' ? 'Capo 0' : `Capo ${key}`, count, sortKey: key === 'none' ? -1 : Number(key) }))
-    .sort((a, b) => a.sortKey - b.sortKey);
+  // Capo and Nástroje are shown side by side (see addStatsPages), so a
+  // short Nástroje list under a much longer Capo list looks lopsided -
+  // Nástroje's cutoff grows to match Capo's row count when there are more
+  // than 5 distinct instruments to show, capped at whatever actually exists.
+  const instrumentLimit = Math.max(5, capoStats.length);
+  const topInstruments = [...instrumentCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, instrumentLimit);
 
   // Lock info is only exposed per-category (get_song_lock_info.php), and
   // Uncategorized (id 0) is never locked by design - see get_song_lock_names.
