@@ -130,12 +130,18 @@ function check_is_fixed($data, $category = null) {
 
 function save_song_snapshot($mysqli, $songId, $action, $changedBy = null) {
     $stmt = $mysqli->prepare("SELECT * FROM songs WHERE id = ?");
-    if (!$stmt) return;
+    if (!$stmt) {
+        error_log("save_song_snapshot: failed to prepare SELECT for song_id=$songId: " . $mysqli->error);
+        return;
+    }
     $stmt->bind_param("i", $songId);
     $stmt->execute();
     $song = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-    if (!$song) return;
+    if (!$song) {
+        error_log("save_song_snapshot: no song found for song_id=$songId");
+        return;
+    }
 
     $columns = ['category', 'title', 'artist', 'capo', 'capo_alt', 'owner', 'is_public',
         'create_date', 'modified_date', 'tags', 'instruments', 'content', 'is_fixed',
@@ -148,7 +154,10 @@ function save_song_snapshot($mysqli, $songId, $action, $changedBy = null) {
     $sql = "INSERT INTO songs_history (" . implode(',', $insertColumns) . ") VALUES ($placeholders)";
 
     $stmt = $mysqli->prepare($sql);
-    if (!$stmt) return;
+    if (!$stmt) {
+        error_log("save_song_snapshot: failed to prepare INSERT for song_id=$songId, action=$action: " . $mysqli->error);
+        return;
+    }
 
     $types = 'iss'; // song_id, action, changed_by
     $params = [$songId, $action, $changedBy];
@@ -162,7 +171,9 @@ function save_song_snapshot($mysqli, $songId, $action, $changedBy = null) {
         $bind[] = &$params[$k];
     }
     call_user_func_array([$stmt, 'bind_param'], $bind);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        error_log("save_song_snapshot: failed to insert history for song_id=$songId, action=$action: " . $stmt->error);
+    }
     $stmt->close();
 }
 
