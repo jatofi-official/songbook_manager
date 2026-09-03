@@ -55,3 +55,42 @@
   background-color: white;
   color: #111;
 }
+
+/* Proportional-font ("Songbook font" render option) song bodies - built by
+   renderSongProportional() in js/chord_font_layout.js via
+   buildSongBodyElement() in js/songbook_render_preview.js, same
+   chord-row/lyric-row structure as the per-song font choice
+   (styles/songs_styles.css), just scoped under .a4-page instead - songbook.php
+   doesn't load songs_styles.css (that file is for $website == "songs" pages),
+   so these rules are self-contained here rather than shared.
+
+   Row heights are em/ratio-based (font-size-relative), deliberately: they
+   need to shrink together with font-size, since buildSongBodyElement
+   measures each body's real rendered height against the Fira Mono target
+   song_ordering.js already paginated against, then scales font-size down
+   until the two match - relying on these rows scaling proportionally along
+   with it, rather than being pinned to some fixed number of pixels
+   independent of font-size. chord-row's 0.85em (vs. lyric-row's inherited
+   1.5 line-height) is intentionally shorter than a full line, so a chord
+   sits snug above its lyric line instead of a whole line's worth of empty
+   space away from it. */
+.a4-page .song-body-proportional {
+  color: #111;
+}
+
+.a4-page .chord-row {
+  position: relative;
+  height: 0.85em;
+}
+
+.a4-page .chord-row .chord-token {
+  position: absolute;
+  top: 0;
+  line-height: 0.85;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.a4-page .lyric-row {
+  white-space: pre;
+}

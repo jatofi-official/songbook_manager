@@ -5,6 +5,94 @@
 // visibly closer together than intended instead of moving to a new page.
 const MAX_MARGIN_SQUEEZE_PX = 25;
 
+// Font key for the "Songbook font" render option (songbook.php sidebar) -
+// same whitelist/stacks as the per-song font choice (user_settings.php /
+// SONG_FONT_STACKS in song_render.js). 'monospace' is the only key that
+// keeps the original <pre> + Fira Mono rendering; every other key routes
+// through buildSongBodyElement() below, which reuses the chord/lyric-row
+// layout engine already built for that feature (js/chord_font_layout.js).
+const A4_FONT_SIZE_PX = 14; // matches .a4-page's own font-size (styles/a4_page.css)
+
+// Builds one song body element - a full-width single-column body, or one
+// half of a two-column body - as either the original monospace <pre>
+// (fontKey === 'monospace'/unrecognized) or a proportional-font chord/lyric
+// -row block. The layout - which lines land in this chunk, and therefore on
+// this page - was already decided by song_ordering.js entirely in Fira Mono,
+// so this function's real job isn't just "paint these lines in a different
+// font" but "paint them so the result is no taller than that same layout
+// already assumed". Earlier attempts tried to GUARANTEE that indirectly -
+// first by reasoning that an em/ratio-based row height (font-size * a fixed
+// ratio) would always predict at least as much space as any font actually
+// needs, then by pinning row heights to fixed CSS pixels chosen by eye - but
+// both are still just predictions about how tall a given font/glyph
+// combination renders, and real fonts (fallback substitution for a glyph
+// the chosen font doesn't cover, unusual metrics, etc.) can render taller
+// than either prediction expects.
+//
+// So instead of predicting, this MEASURES: build the proportional rendering
+// once at the page's base font-size, measure its real height the exact same
+// way song_ordering.js measured the Fira Mono target (measureHeight, same
+// availableWidthPx), and scale the font-size down by whatever ratio makes
+// the two match - i.e. "calculate/paginate in monospace, render in the
+// chosen font, scaled to the same vertical size as the monospace version"
+// (both row heights, chord-row's em and lyric-row's inherited ratio - see
+// styles/a4_page.css - scale together with font-size, so shrinking font-size
+// shrinks the real measured height right along with it). Never scales UP
+// past the base size even if a font happens to measure shorter than Fira
+// Mono - that's a harmless bit of unused space, whereas growing the font
+// would grow its width too, past whatever margin the separate width-fit
+// scale below already assumed.
+function buildSongBodyElement(content, fontKey, availableWidthPx, tempContainer) {
+  const pre = document.createElement('pre');
+  if (!fontKey || fontKey === 'monospace' || !SONG_FONT_STACKS[fontKey]) {
+    pre.style.margin = 0;
+    pre.innerHTML = renderSong(content);
+    return pre;
+  }
+
+  const fontFamily = SONG_FONT_STACKS[fontKey];
+
+  const buildAt = (fontSizePx) => {
+    const monoCharWidth = createDomMeasurer('Fira Mono, monospace', fontSizePx)('M', false);
+    const measure = createDomMeasurer(fontFamily, fontSizePx);
+    const div = document.createElement('div');
+    div.className = 'song-body-proportional';
+    div.style.fontFamily = fontFamily;
+    div.style.fontSize = fontSizePx + 'px';
+    div.innerHTML = renderSongProportional(content, monoCharWidth, measure);
+    return div;
+  };
+
+  // The exact height song_ordering.js already measured (and split pages
+  // against) for this same chunk of lines, in Fira Mono at this same
+  // availableWidthPx - see measureHeight (song_ordering.js, a global
+  // function shared across these scripts). This is the target, not just an
+  // upper bound to reason about.
+  const targetHeight = measureHeight(content, tempContainer, availableWidthPx);
+
+  const probe = buildAt(A4_FONT_SIZE_PX);
+  tempContainer.appendChild(probe);
+  const naturalHeight = probe.getBoundingClientRect().height;
+  tempContainer.removeChild(probe);
+
+  const heightScale = naturalHeight > 0 ? Math.min(1, targetHeight / naturalHeight) : 1;
+
+  // Width-fit scale: chord-row/lyric-row never wrap (a wrapped line would no
+  // longer line up with the chord row positioned above it - see
+  // chord_font_layout.js), so a line wider than availableWidthPx has to be
+  // shrunk to fit rather than left to overflow the page/column edge.
+  const measureAtBase = createDomMeasurer(fontFamily, A4_FONT_SIZE_PX);
+  let widthScale = 1;
+  String(content ?? '').split(/\r?\n/).forEach(line => {
+    if (!line.trim()) return;
+    const width = measureAtBase(line, isChordLine(line));
+    if (width > availableWidthPx) widthScale = Math.min(widthScale, availableWidthPx / width);
+  });
+
+  const fontSizePx = A4_FONT_SIZE_PX * Math.min(heightScale, widthScale);
+  return buildAt(fontSizePx);
+}
+
 function renderA4Preview(songs, orderedIds, options = {}) {
   const debug = options.debug || false;
   const category = options.category;
@@ -17,6 +105,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   const ignoredInstrument = options.ignoredInstrument || '';
   const showLockName = options.showLockName || false;
   const lockNames = options.lockNames || {}; // song_id (string) -> { lock_id, name, locked_at }
+  const fontKey = options.fontFamily || 'monospace';
 
   const container = document.getElementById('a4-preview-container');
   const pagesCreatedThisCall = []; // { page, pageNumber } - for the post-render lock-name label pass
@@ -49,6 +138,8 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   // matches song_ordering.js's PAGE_CONTENT_HEIGHT (that budget is what
   // pre-splits a song across pages in the first place, so both need to agree).
   const contentBudget = maxHeight - 2 * pagePadding;
+  const pageContentWidth = 794 - 2 * pagePadding; // A4 width minus p-4 - see buildSongBodyElement
+  const columnWidthPx = measureColumnWidth(tempContainer); // song_ordering.js - real two-column content width
   let currentPageNum = 1;
 
   let pageRow = document.createElement('div');
@@ -195,10 +286,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       }
 
       if (!partSong.right_content) {
-        const pre = document.createElement('pre');
-        pre.style.margin = 0;
-        pre.innerHTML = renderSong(partSong.left_content);
-        songDiv.appendChild(pre);
+        songDiv.appendChild(buildSongBodyElement(partSong.left_content, fontKey, pageContentWidth, tempContainer));
       } else {
         songDiv.classList.add('split-song');
         songDiv.style.display = 'flex';
@@ -209,17 +297,11 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
         const leftCol = document.createElement('div');
         leftCol.className = 'left-column flex-grow-1 pe-3';
-        const leftPre = document.createElement('pre');
-        leftPre.style.margin = 0;
-        leftPre.innerHTML = renderSong(partSong.left_content);
-        leftCol.appendChild(leftPre);
+        leftCol.appendChild(buildSongBodyElement(partSong.left_content, fontKey, columnWidthPx, tempContainer));
 
         const rightCol = document.createElement('div');
         rightCol.className = 'right-column flex-grow-1 ps-3';
-        const rightPre = document.createElement('pre');
-        rightPre.style.margin = 0;
-        rightPre.innerHTML = renderSong(partSong.right_content);
-        rightCol.appendChild(rightPre);
+        rightCol.appendChild(buildSongBodyElement(partSong.right_content, fontKey, columnWidthPx, tempContainer));
 
         columns.appendChild(leftCol);
         columns.appendChild(rightCol);
@@ -228,12 +310,14 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
       tempContainer.appendChild(songDiv);
 
-      // Measure max line width
+      // Measure max line width. Reads the raw content strings directly
+      // (not the rendered DOM) since a proportional-font body (fontKey !==
+      // 'monospace' - see buildSongBodyElement) is chord-row/lyric-row divs,
+      // not a <pre> whose textContent reconstructs line breaks - this stays
+      // correct regardless of which body element type was actually built.
       let maxLineWidth = 0;
-      const preElements = songDiv.querySelectorAll('pre');
-      preElements.forEach(pre => {
-        const lines = pre.textContent.split('\n');
-        lines.forEach(line => {
+      [partSong.left_content, partSong.right_content].filter(Boolean).forEach(content => {
+        content.split('\n').forEach(line => {
           const trimmed = line.replace(/\s+$/, '');
           const span = document.createElement('span');
           span.style.visibility = 'hidden';
@@ -272,9 +356,9 @@ function renderA4Preview(songs, orderedIds, options = {}) {
           const rightColHeight = rightColEl ? rightColEl.getBoundingClientRect().height : 0;
           debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Left: ${leftColHeight.toFixed(0)}px Right: ${rightColHeight.toFixed(0)}px)`;
         } else {
-          const preEl = songDiv.querySelector('pre');
-          const preHeight = preEl ? preEl.getBoundingClientRect().height : 0;
-          debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Body: ${preHeight.toFixed(0)}px)`;
+          const bodyEl = songDiv.querySelector('pre, .song-body-proportional');
+          const bodyHeight = bodyEl ? bodyEl.getBoundingClientRect().height : 0;
+          debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Body: ${bodyHeight.toFixed(0)}px)`;
         }
       }
 

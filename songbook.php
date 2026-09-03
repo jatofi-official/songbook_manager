@@ -12,6 +12,25 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Default selection for the "Songbook font" render option - the user's own
+// song-display font preference (user_settings.php), same whitelist as
+// php/update_preferences.php / php/subpage/get_song.php / php/functions.php.
+// Purely a starting value here; the render option itself is independent and
+// travels with the songbook (readable/writable via presets), not tied back
+// to the user's session preference once changed.
+$songbookFontOptions = [
+    'monospace' => 'Monospace (original)',
+    'calibri'   => 'Calibri',
+    'arial'     => 'Arial',
+    'verdana'   => 'Verdana',
+    'georgia'   => 'Georgia',
+    'times'     => 'Times New Roman',
+];
+$songbookFontDefault = $_SESSION['song_font'] ?? 'monospace';
+if (!array_key_exists($songbookFontDefault, $songbookFontOptions)) {
+    $songbookFontDefault = 'monospace';
+}
+
 
 
 
@@ -247,6 +266,15 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
               <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
               <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
             </div>
+            <div class="mb-3">
+              <label class="form-label" for="songbook-font-select">Songbook font</label>
+              <select id="songbook-font-select" class="form-select form-select-sm">
+                <?php foreach ($songbookFontOptions as $value => $label): ?>
+                  <option value="<?= htmlspecialchars($value) ?>" <?= $value === $songbookFontDefault ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <div class="form-text">Only changes how text looks - page breaks and song ordering are calculated the same way regardless of font, so switching fonts never reflows an already-locked/saved layout.</div>
+            </div>
 
             <hr>
             <p class="text-muted small mb-2"><strong>Extra Display</strong></p>
@@ -413,6 +441,15 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" id="render-toc-checkbox" checked>
               <label class="form-check-label" for="render-toc-checkbox">Table of contents</label>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="songbook-font-select">Songbook font</label>
+              <select id="songbook-font-select" class="form-select form-select-sm">
+                <?php foreach ($songbookFontOptions as $value => $label): ?>
+                  <option value="<?= htmlspecialchars($value) ?>" <?= $value === $songbookFontDefault ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <div class="form-text">Only changes how text looks - page breaks and song ordering are calculated the same way regardless of font, so switching fonts never reflows an already-locked/saved layout.</div>
             </div>
 
             <!-- Not user-editable, but still readable/writable by beginRender()
@@ -582,6 +619,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
 
 <script src="js/songbook_render_preview.js?v=<?= filemtime('js/songbook_render_preview.js') ?>"></script>
 <script src="js/song_render.js?v=<?= filemtime('js/song_render.js') ?>"></script>
+<script src="js/chord_font_layout.js?v=<?= filemtime('js/chord_font_layout.js') ?>"></script>
 <script src="js/song_ordering.js?v=<?= filemtime('js/song_ordering.js') ?>"></script>
 <script src="js/admin_picker.js?v=<?= filemtime('js/admin_picker.js') ?>"></script>
 
@@ -1599,6 +1637,7 @@ function getCurrentRenderSettings() {
     showLockName: document.getElementById('render-lock-name-checkbox')?.checked || false,
     transposeCapoZero: document.getElementById('transpose-capo-zero-checkbox')?.checked || false,
     showToc: document.getElementById('render-toc-checkbox')?.checked || false,
+    fontFamily: document.getElementById('songbook-font-select')?.value || 'monospace',
     showStats: document.getElementById('render-stats-checkbox')?.checked || false,
     showStatsQr: document.getElementById('render-stats-qr-checkbox')?.checked || false,
     statsQrUrl: document.getElementById('stats-qr-url-input')?.value || '',
@@ -1625,6 +1664,8 @@ function applyRenderSettings(settings) {
   setChecked('render-lock-name-checkbox', settings.showLockName);
   setChecked('transpose-capo-zero-checkbox', settings.transposeCapoZero);
   setChecked('render-toc-checkbox', settings.showToc);
+  const fontSelect = document.getElementById('songbook-font-select');
+  if (fontSelect) fontSelect.value = settings.fontFamily || 'monospace';
   setChecked('render-stats-checkbox', settings.showStats);
   setChecked('render-stats-qr-checkbox', settings.showStatsQr);
   const qrUrlInput = document.getElementById('stats-qr-url-input');
@@ -2072,6 +2113,7 @@ async function beginRender(orderedIds, category, clearPages = true) {
   const showInstruments = document.getElementById('extra-instruments-checkbox')?.checked || false;
   const ignoredInstrument = document.getElementById('ignored-instrument-select')?.value || '';
   const sortMode = document.getElementById('content-sort-select')?.value || 'manual';
+  const fontFamily = document.getElementById('songbook-font-select')?.value || 'monospace';
 
   const categoryTitle = includeRoman
     ? `${toRoman(category.id)}. ${category.name}`
@@ -2118,7 +2160,8 @@ async function beginRender(orderedIds, category, clearPages = true) {
     ignoredInstrument: ignoredInstrument,
     showLockName: showLockName,
     lockNames: lockNames,
-    categoryId: category.id
+    categoryId: category.id,
+    fontFamily: fontFamily
   });
 
   console.log(`✅ Rendered ${pageCount} pages.`);
