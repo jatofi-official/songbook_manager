@@ -1056,7 +1056,14 @@ function wrapWithDebug(div, height) {
 // area reads the same way a song block does instead of as a floating label.
 function addPageRemainingSpaceLabel(page, usedHeight, pageMaxHeight) {
   const pagePadding = 24; // matches createPage's `p-4` (1.5rem)
-  const remainingPx = pageMaxHeight - usedHeight;
+  // pageMaxHeight (1123) is the page's OUTER height (createPage: box-sizing
+  // border-box, min-height 1123px, p-4 padding) - the content area inside the
+  // top+bottom padding is only pageMaxHeight - 2*pagePadding tall. `top` below
+  // already accounts for the top padding, but the old `remainingPx` never
+  // subtracted the bottom padding too, so the box ran 24px past the real
+  // bottom of the content area (and past the visible page on a nearly-full page).
+  const contentHeight = pageMaxHeight - 2 * pagePadding;
+  const remainingPx = contentHeight - usedHeight;
 
   const box = document.createElement('div');
   box.style.position = 'absolute';
