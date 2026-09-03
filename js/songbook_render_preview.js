@@ -1088,7 +1088,8 @@ function createPage(pageNumber = null,category="") {
   const page = document.createElement('div');
   page.className = 'a4-page mb-4 p-4 bg-white position-relative';
   page.style.width = '794px'; // A4 width in pixels
-  page.style.minHeight = '1123px'; // A4 height in pixels
+  page.style.height = '1123px'; // A4 height in pixels - fixed, not min-height, so overpacked content clips instead of stretching the page taller than a real A4 sheet
+  page.style.overflow = 'hidden';
   page.style.boxSizing = 'border-box';
   page.style.pageBreakAfter = 'always';
 
