@@ -46,11 +46,19 @@ function measureHeight(text, container, widthPx) {
   return height;
 }
 
-// Measures the real rendered width of one song column (.left-column/
-// .right-column live in a `.d-flex` row with `flex-grow-1` plus a fixed
-// `width: 48%` - actual resolved width depends on flex layout, not just the
-// 48%, so this builds the same structure and reads it back rather than
-// recomputing the percentage by hand.
+// Measures the real available width for TEXT inside one song column
+// (.left-column/.right-column live in a `.d-flex` row with `flex-grow-1`
+// plus a fixed `width: 48%` - actual resolved width depends on flex layout,
+// not just the 48%, so this builds the same structure and reads it back
+// rather than recomputing the percentage by hand). Reads the width of a
+// `<pre>` probe nested inside the column - not the column element itself -
+// since the column's own getBoundingClientRect().width is its border-box
+// width, which still includes its pe-3/ps-3 Bootstrap padding (16px). A bare
+// measureHeight() probe has no padding of its own, so feeding it the
+// column's full border-box width handed it 16px more room to wrap into than
+// a real <pre> (a child of the padded column) actually has - silently
+// under-predicting how many lines wrap, and therefore how tall the real
+// column ends up.
 function measureColumnWidth(container) {
   const row = document.createElement('div');
   row.className = 'd-flex';
@@ -58,9 +66,11 @@ function measureColumnWidth(container) {
   left.className = 'left-column flex-grow-1 pe-3';
   const right = document.createElement('div');
   right.className = 'right-column flex-grow-1 ps-3';
+  const probe = document.createElement('pre');
+  left.appendChild(probe);
   row.append(left, right);
   container.appendChild(row);
-  const width = left.getBoundingClientRect().width;
+  const width = probe.getBoundingClientRect().width;
   container.removeChild(row);
   return width;
 }
@@ -271,13 +281,83 @@ function splitLinesIntoPageChunks(lines, container, firstPageBudget, restPageBud
   return chunks;
 }
 
+// Finds the maximum number of leading lines from `lines` that fit within
+// `budget` height, via pure binary search - unlike splitLinesIntoPageChunks
+// (used for single-column pagination), which deliberately favors ending a
+// chunk on a blank line even when that leaves several lines' worth of budget
+// still unused before the next blank line would overflow it. The two-column
+// continuation packer wants the opposite: cram as much as possible into each
+// column/page so earlier pages carry as much of the song as they truly can,
+// rather than leaving a tidy-looking gap.
+function maxLinesFitting(lines, container, budget, widthPx) {
+  if (!lines.length) return 0;
+  if (measureHeight(lines.join('\n'), container, widthPx) <= budget) return lines.length;
+
+  let lo = 0, hi = lines.length; // lo always fits, hi never does (checked above)
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    const height = measureHeight(lines.slice(0, mid).join('\n'), container, widthPx);
+    if (height <= budget) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
+// A chorus marker line (® / "Ruty" - same detection splitSongIfNeeded uses
+// to keep a chorus's chord line attached to it) - see avoidChordOrphan.
+function isChorusMarkerLine(line) {
+  const trimmed = line?.trim() || '';
+  return trimmed.startsWith('®') || trimmed.startsWith('Ruty');
+}
+
+// maxLinesFitting is a pure pixel-max cut - it doesn't know a chord line
+// (isChordLine, song_render.js) is meant to stay paired with the lyric line
+// right after it, or that a chorus marker line is meant to stay with the
+// chorus body that follows it. Cutting right after either would strand it
+// alone at the bottom of one column/page while what belongs with it starts
+// the next one. If the raw cut lands there, back it off to just before that
+// line instead (moving the whole pair to the next column/page).
+//
+// A chorus marker always gets backed off, no matter how much of the column
+// that leaves unused - splitting a chorus's start from its body is worse
+// than a mostly-empty column. A chord line only backs off if that costs no
+// more than MAX_MARGIN_SQUEEZE_PX, since chord/lyric pairs are far more
+// common and always backing off there would waste a lot more space overall.
+function avoidChordOrphan(lines, count, container, widthPx) {
+  if (count >= lines.length) return count; // everything fit - nothing to protect
+
+  while (count > 1 && isChorusMarkerLine(lines[count - 1])) {
+    count -= 1;
+  }
+
+  if (count < lines.length) {
+    const rawHeight = measureHeight(lines.slice(0, count).join('\n'), container, widthPx);
+    while (count > 1 && isChordLine(lines[count - 1])) {
+      const candidateHeight = measureHeight(lines.slice(0, count - 1).join('\n'), container, widthPx);
+      if (rawHeight - candidateHeight > MAX_MARGIN_SQUEEZE_PX) break;
+      count -= 1;
+    }
+  }
+  return count;
+}
+
 // Two-column songs are built by splitSongIfNeeded assuming the whole song
-// fits on one page. If the resulting columns are still too tall, continue
-// each column independently with splitLinesIntoPageChunks (the exact same
-// per-column chunking a single-column song would get), then zip the two
-// columns' chunks back together page by page. A song whose columns already
-// fit (the overwhelming majority - the legacy one-page-two-column case) is
-// returned completely unchanged.
+// fits on one page: left_content is the first half of the song's lines,
+// right_content the second half - one continuous reading order (left column
+// top-to-bottom, then right column), just displayed side by side. If the
+// columns are still too tall for one page, that reading order still has to
+// be respected: a page's left column gets filled first, then that same
+// page's right column continues exactly where the left one stopped, then
+// whatever's left starts the next page's left column. (Chunking the left and
+// right streams independently and zipping them back together by index - the
+// previous approach - breaks that: it can show a page's right-column text,
+// which is later in the song, before earlier text that's still queued up in
+// a different page's left column.) A song whose columns already fit (the
+// overwhelming majority - the legacy one-page-two-column case) is returned
+// completely unchanged, with its original balanced 50/50-ish split intact.
 function splitTwoColumnSongAcrossPages(song, container, headerHeight) {
   const leftLines = (song.left_content || '').split('\n').map(line => line.replace(/\s+$/, ''));
   const rightLines = (song.right_content || '').split('\n').map(line => line.replace(/\s+$/, ''));
@@ -289,28 +369,48 @@ function splitTwoColumnSongAcrossPages(song, container, headerHeight) {
 
   if (Math.max(leftHeight, rightHeight) <= firstPageBudget) return [song];
 
-  const leftChunks = splitLinesIntoPageChunks(leftLines, container, firstPageBudget, PAGE_CONTENT_HEIGHT, columnWidth);
-  const rightChunks = splitLinesIntoPageChunks(rightLines, container, firstPageBudget, PAGE_CONTENT_HEIGHT, columnWidth);
+  // Re-derive the single sequential stream splitSongIfNeeded's balanced split
+  // came from, rather than the (still budget-bound, but no longer necessarily
+  // 50/50) column split it produced for the one-page case.
+  const allLines = (song.content != null ? song.content : (leftLines.join('\n') + '\n' + rightLines.join('\n')))
+    .split('\n').map(line => line.replace(/\s+$/, ''));
 
-  const pageCount = Math.max(leftChunks.length, rightChunks.length);
   const pages = [];
-  for (let i = 0; i < pageCount; i++) {
-    let leftPart = (leftChunks[i] || []).join('\n');
-    let rightPart = (rightChunks[i] || []).join('\n');
-    // If the columns finish unevenly (one runs out of content on an
-    // earlier page than the other), keep any remaining text on the left so
-    // a page never renders an empty left column next to a populated right one.
-    if (!leftPart && rightPart) {
-      leftPart = rightPart;
-      rightPart = '';
+  let remaining = allLines;
+  let isFirstPage = true;
+
+  while (remaining.length > 0) {
+    const pageBudget = isFirstPage ? firstPageBudget : PAGE_CONTENT_HEIGHT;
+
+    // Math.max(..., 1): even a single line taller than the budget (an
+    // unwrappable long chord line) still has to go somewhere, rather than
+    // looping forever placing zero lines per page.
+    let leftCount = Math.max(1, maxLinesFitting(remaining, container, pageBudget, columnWidth));
+    leftCount = Math.max(1, avoidChordOrphan(remaining, leftCount, container, columnWidth));
+    const pageLeftLines = remaining.slice(0, leftCount);
+    let rest = remaining.slice(leftCount);
+    while (rest.length && rest[0].trim() === '') rest.shift();
+
+    let pageRightLines = [];
+    if (rest.length) {
+      let rightCount = Math.max(1, maxLinesFitting(rest, container, pageBudget, columnWidth));
+      rightCount = Math.max(1, avoidChordOrphan(rest, rightCount, container, columnWidth));
+      pageRightLines = rest.slice(0, rightCount);
+      rest = rest.slice(rightCount);
+      while (rest.length && rest[0].trim() === '') rest.shift();
     }
+
     pages.push({
       ...song,
-      left_content: leftPart,
-      right_content: rightPart || null, // fall back to single column once one side runs out
-      continuation: i > 0,
+      left_content: pageLeftLines.join('\n'),
+      right_content: pageRightLines.length ? pageRightLines.join('\n') : null, // last page can end mid-left-column
+      continuation: !isFirstPage,
     });
+
+    remaining = rest;
+    isFirstPage = false;
   }
+
   return pages;
 }
 
