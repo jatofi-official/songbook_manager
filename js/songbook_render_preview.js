@@ -3,7 +3,7 @@
 // without this, a song could keep shrinking down to nothing on a page whose
 // remaining space happens to just barely exceed its margin, cramming content
 // visibly closer together than intended instead of moving to a new page.
-const MAX_MARGIN_SQUEEZE_PX = 20;
+const MAX_MARGIN_SQUEEZE_PX = 25;
 
 function renderA4Preview(songs, orderedIds, options = {}) {
   const debug = options.debug || false;
@@ -74,6 +74,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   }
 
   let currentHeight = 0;
+  let pageSqueezePx = 0; // total margin squeezed on the current page so far - see flagPageSqueezeIfAny
 
   for (const id of orderedIds) {
     let song = processedSongs.find(s => s.id === id);
@@ -289,6 +290,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         const squeezedMarginBottom = blockMarginBottom - overflow;
         songDiv.style.setProperty('margin-bottom', squeezedMarginBottom + 'px', 'important');
         blockHeight -= overflow;
+        pageSqueezePx += overflow;
         overflow = 0;
       }
 
@@ -296,10 +298,12 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         if (debug) {
           addPageRemainingSpaceLabel(currentPage, currentHeight, maxHeight);
           flagPageOverflowIfAny(currentPage, currentHeight, maxHeight, pagePadding);
+          flagPageSqueezeIfAny(currentPage, pageSqueezePx);
         }
 
         currentPageNum++;
         currentHeight = 0;
+        pageSqueezePx = 0;
 
         if (currentPageNum % 2 === 0) {
           pageRow = document.createElement('div');
@@ -383,6 +387,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   if (debug) {
     addPageRemainingSpaceLabel(currentPage, currentHeight, maxHeight);
     flagPageOverflowIfAny(currentPage, currentHeight, maxHeight, pagePadding);
+    flagPageSqueezeIfAny(currentPage, pageSqueezePx);
   }
 
   // Songbooks print double-sided, so pages are padded to an even count.
@@ -1150,6 +1155,32 @@ function flagPageOverflowIfAny(page, usedHeight, pageMaxHeight, pagePadding) {
   // Make the clipping itself obvious on the page too, not just the banner.
   page.style.outline = '4px solid #dc3545';
   page.style.outlineOffset = '-4px';
+}
+
+// Debug-only: same idea as flagPageOverflowIfAny, but for the sanctioned,
+// bounded case - a block's margin got squeezed (never by more than
+// MAX_MARGIN_SQUEEZE_PX per block, see the overflow-squeeze check above) to
+// make it fit instead of starting a new page. Not a real overflow (nothing
+// got clipped), so it's yellow/"ok" rather than red, and pinned to the
+// bottom edge so it can never overlap flagPageOverflowIfAny's banner if a
+// later block on the same page genuinely does overflow.
+function flagPageSqueezeIfAny(page, squeezedPx) {
+  if (squeezedPx <= 0) return;
+
+  const warning = document.createElement('div');
+  warning.style.position = 'absolute';
+  warning.style.left = '0';
+  warning.style.right = '0';
+  warning.style.bottom = '0';
+  warning.style.padding = '6px 10px';
+  warning.style.backgroundColor = '#ffc107';
+  warning.style.color = '#212529';
+  warning.style.fontSize = '13px';
+  warning.style.fontWeight = 'bold';
+  warning.style.textAlign = 'center';
+  warning.style.zIndex = '20';
+  warning.textContent = `⚠ SQUEEZED: margin reduced by ${Math.round(squeezedPx)}px total to fit`;
+  page.appendChild(warning);
 }
 
 function createPage(pageNumber = null,category="") {
