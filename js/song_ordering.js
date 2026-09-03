@@ -281,31 +281,6 @@ function splitLinesIntoPageChunks(lines, container, firstPageBudget, restPageBud
   return chunks;
 }
 
-// Finds the maximum number of leading lines from `lines` that fit within
-// `budget` height, via pure binary search - unlike splitLinesIntoPageChunks
-// (used for single-column pagination), which deliberately favors ending a
-// chunk on a blank line even when that leaves several lines' worth of budget
-// still unused before the next blank line would overflow it. The two-column
-// continuation packer wants the opposite: cram as much as possible into each
-// column/page so earlier pages carry as much of the song as they truly can,
-// rather than leaving a tidy-looking gap.
-function maxLinesFitting(lines, container, budget, widthPx) {
-  if (!lines.length) return 0;
-  if (measureHeight(lines.join('\n'), container, widthPx) <= budget) return lines.length;
-
-  let lo = 0, hi = lines.length; // lo always fits, hi never does (checked above)
-  while (hi - lo > 1) {
-    const mid = Math.floor((lo + hi) / 2);
-    const height = measureHeight(lines.slice(0, mid).join('\n'), container, widthPx);
-    if (height <= budget) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-  return lo;
-}
-
 // A chorus marker line (® / "Ruty" - same detection splitSongIfNeeded uses
 // to keep a chorus's chord line attached to it) - see avoidChordOrphan.
 function isChorusMarkerLine(line) {
@@ -313,13 +288,13 @@ function isChorusMarkerLine(line) {
   return trimmed.startsWith('®') || trimmed.startsWith('Ruty');
 }
 
-// maxLinesFitting is a pure pixel-max cut - it doesn't know a chord line
-// (isChordLine, song_render.js) is meant to stay paired with the lyric line
-// right after it, or that a chorus marker line is meant to stay with the
-// chorus body that follows it. Cutting right after either would strand it
-// alone at the bottom of one column/page while what belongs with it starts
-// the next one. If the raw cut lands there, back it off to just before that
-// line instead (moving the whole pair to the next column/page).
+// splitLinesIntoPageChunks's own blank-line preference doesn't know a chord
+// line (isChordLine, song_render.js) is meant to stay paired with the lyric
+// line right after it, or that a chorus marker line is meant to stay with
+// the chorus body that follows it. Cutting right after either would strand
+// it alone at the bottom of one column/page while what belongs with it
+// starts the next one. If the chosen cut lands there, back it off to just
+// before that line instead (moving the whole pair to the next column/page).
 //
 // A chorus marker always gets backed off, no matter how much of the column
 // that leaves unused - splitting a chorus's start from its body is worse
@@ -385,7 +360,7 @@ function splitTwoColumnSongAcrossPages(song, container, headerHeight) {
     // Math.max(..., 1): even a single line taller than the budget (an
     // unwrappable long chord line) still has to go somewhere, rather than
     // looping forever placing zero lines per page.
-    let leftCount = Math.max(1, maxLinesFitting(remaining, container, pageBudget, columnWidth));
+    let leftCount = Math.max(1, splitLinesIntoPageChunks(remaining, container, pageBudget, pageBudget, columnWidth)[0].length);
     leftCount = Math.max(1, avoidChordOrphan(remaining, leftCount, container, columnWidth));
     const pageLeftLines = remaining.slice(0, leftCount);
     let rest = remaining.slice(leftCount);
@@ -393,7 +368,7 @@ function splitTwoColumnSongAcrossPages(song, container, headerHeight) {
 
     let pageRightLines = [];
     if (rest.length) {
-      let rightCount = Math.max(1, maxLinesFitting(rest, container, pageBudget, columnWidth));
+      let rightCount = Math.max(1, splitLinesIntoPageChunks(rest, container, pageBudget, pageBudget, columnWidth)[0].length);
       rightCount = Math.max(1, avoidChordOrphan(rest, rightCount, container, columnWidth));
       pageRightLines = rest.slice(0, rightCount);
       rest = rest.slice(rightCount);
