@@ -9,7 +9,15 @@ measurer.style.fontSize = '14px';                   // Match preview font size
 measurer.style.lineHeight = '21px';                 // Match preview line height (.a4-page: font-size 14px * line-height 1.5)
 document.body.appendChild(measurer);
 
-const PAGE_HEIGHT = 1123;
+const PAGE_HEIGHT = 1123; // physical A4 page height (outer, matches createPage)
+const PAGE_PADDING = 24; // matches createPage's `.a4-page-content` p-4 (1.5rem)
+// How much a page can actually hold: createPage's content layer clips at
+// PAGE_HEIGHT minus its own top+bottom padding (see songbook_render_preview.js
+// createPage/flagPageOverflowIfAny) - budgeting against the bare PAGE_HEIGHT
+// here let songs get split/packed ~2*PAGE_PADDING px too generously per page,
+// so a chunk sized to "just fit" was actually already too tall for the real
+// padded, clipped page and silently lost content off the bottom.
+const PAGE_CONTENT_HEIGHT = PAGE_HEIGHT - 2 * PAGE_PADDING;
 
 
 
@@ -274,15 +282,15 @@ function splitTwoColumnSongAcrossPages(song, container, headerHeight) {
   const leftLines = (song.left_content || '').split('\n').map(line => line.replace(/\s+$/, ''));
   const rightLines = (song.right_content || '').split('\n').map(line => line.replace(/\s+$/, ''));
 
-  const firstPageBudget = PAGE_HEIGHT - headerHeight;
+  const firstPageBudget = PAGE_CONTENT_HEIGHT - headerHeight;
   const columnWidth = measureColumnWidth(container);
   const leftHeight = measureHeight(leftLines.join('\n'), container, columnWidth);
   const rightHeight = measureHeight(rightLines.join('\n'), container, columnWidth);
 
   if (Math.max(leftHeight, rightHeight) <= firstPageBudget) return [song];
 
-  const leftChunks = splitLinesIntoPageChunks(leftLines, container, firstPageBudget, PAGE_HEIGHT, columnWidth);
-  const rightChunks = splitLinesIntoPageChunks(rightLines, container, firstPageBudget, PAGE_HEIGHT, columnWidth);
+  const leftChunks = splitLinesIntoPageChunks(leftLines, container, firstPageBudget, PAGE_CONTENT_HEIGHT, columnWidth);
+  const rightChunks = splitLinesIntoPageChunks(rightLines, container, firstPageBudget, PAGE_CONTENT_HEIGHT, columnWidth);
 
   const pageCount = Math.max(leftChunks.length, rightChunks.length);
   const pages = [];
@@ -319,8 +327,8 @@ function splitPageIfNeeded(song, container, headerHeight = 0) {
   const lines = (song.left_content || song.content || '').split('\n').map(line => line.replace(/\s+$/, ''));
   if (lines.length === 0) return [song];
 
-  const firstPageBudget = PAGE_HEIGHT - headerHeight;
-  const chunks = splitLinesIntoPageChunks(lines, container, firstPageBudget, PAGE_HEIGHT);
+  const firstPageBudget = PAGE_CONTENT_HEIGHT - headerHeight;
+  const chunks = splitLinesIntoPageChunks(lines, container, firstPageBudget, PAGE_CONTENT_HEIGHT);
   if (chunks.length <= 1) return [song];
 
   return chunks.map((chunkLines, index) => ({
@@ -399,7 +407,7 @@ function orderSongs(songs, container) {
   });
 
   // Order artist groups by edges
-  const orderedArtistGroups = orderArtistsByEdges(measuredArtistGroups, PAGE_HEIGHT);
+  const orderedArtistGroups = orderArtistsByEdges(measuredArtistGroups, PAGE_CONTENT_HEIGHT);
 
   // Flatten final ordered song list
   const finalOrderedList = [];
@@ -484,7 +492,7 @@ function orderSongGroup(songs) {
     for (let i = 0; i < remainingSongs.length; i++) {
       const song = remainingSongs[i];
       
-      if (song.height > PAGE_HEIGHT) {
+      if (song.height > PAGE_CONTENT_HEIGHT) {
         // Song is too big, must be placed alone
         if (currentPage.length > 0) {
           packed.push(currentPage);
@@ -498,7 +506,12 @@ function orderSongGroup(songs) {
         break;
       }
 
-      if (currentHeight + song.height <= PAGE_HEIGHT) {
+      // + MAX_MARGIN_SQUEEZE_PX (songbook_render_preview.js): the real render
+      // loop can squeeze a block's own bottom margin down by up to that much
+      // to make it fit rather than starting a new page - matching that here
+      // keeps this pre-pass's page-count estimate in sync with what the real
+      // render actually does at the boundary.
+      if (currentHeight + song.height <= PAGE_CONTENT_HEIGHT + MAX_MARGIN_SQUEEZE_PX) {
         currentPage.push(song);
         currentHeight += song.height;
         remainingSongs.splice(i, 1);
@@ -578,7 +591,8 @@ function orderArtistsByEdges(artistGroups, PAGE_HEIGHT) {
       const isDoublePage = song.pages > 1;
 
       // If the song can't fit in the remaining space, move to next page
-      if (song.height > PAGE_HEIGHT - currentPageHeight) {
+      // (+ MAX_MARGIN_SQUEEZE_PX - see orderSongGroup's identical check above)
+      if (song.height > PAGE_HEIGHT - currentPageHeight + MAX_MARGIN_SQUEEZE_PX) {
         currentPage++;
         currentPageHeight = 0;
       }
@@ -634,7 +648,8 @@ function fillFirstPage(artistGroups, PAGE_HEIGHT) {
       if (usedArtistNames.has(group.artist)) continue;
       if (song.pages > 1) continue;
 
-      if (song.height <= PAGE_HEIGHT - usedSpace) {
+      // + MAX_MARGIN_SQUEEZE_PX - see orderSongGroup's identical check above.
+      if (song.height <= PAGE_HEIGHT - usedSpace + MAX_MARGIN_SQUEEZE_PX) {
         filledGroups.push({
           artist: group.artist,
           songs: [song]

@@ -1,3 +1,10 @@
+// Upper bound on how much a song block's own bottom margin can be squeezed
+// to make it fit the current page (see the overflow-squeeze check below) -
+// without this, a song could keep shrinking down to nothing on a page whose
+// remaining space happens to just barely exceed its margin, cramming content
+// visibly closer together than intended instead of moving to a new page.
+const MAX_MARGIN_SQUEEZE_PX = 20;
+
 function renderA4Preview(songs, orderedIds, options = {}) {
   const debug = options.debug || false;
   const category = options.category;
@@ -35,6 +42,13 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
   const maxHeight = 1123;
   const pagePadding = 24; // matches createPage's `.a4-page-content` p-4 (1.5rem)
+  // The real page content area (createPage: fixed 1123px, p-4 padding, and
+  // overflow:hidden - see createPage) is only maxHeight - 2*pagePadding tall.
+  // Comparing accumulated content against the bare outer maxHeight let a page
+  // pack up to 2*pagePadding px more than the padded area can actually show -
+  // matches song_ordering.js's PAGE_CONTENT_HEIGHT (that budget is what
+  // pre-splits a song across pages in the first place, so both need to agree).
+  const contentBudget = maxHeight - 2 * pagePadding;
   let currentPageNum = 1;
 
   let pageRow = document.createElement('div');
@@ -265,12 +279,13 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
       tempContainer.removeChild(songDiv);
 
-      let overflow = (currentHeight + blockHeight) - maxHeight;
+      let overflow = (currentHeight + blockHeight) - contentBudget;
 
       // If this block only misses fitting on the current (non-empty) page
-      // by a small margin - no more than its own bottom spacing - squeeze
-      // that spacing down instead of pushing it to a whole new page.
-      if (overflow > 0 && currentHeight > 0 && overflow <= blockMarginBottom) {
+      // by a small margin - no more than its own bottom spacing, and no more
+      // than MAX_MARGIN_SQUEEZE_PX - squeeze that spacing down instead of
+      // pushing it to a whole new page.
+      if (overflow > 0 && currentHeight > 0 && overflow <= blockMarginBottom && overflow <= MAX_MARGIN_SQUEEZE_PX) {
         const squeezedMarginBottom = blockMarginBottom - overflow;
         songDiv.style.setProperty('margin-bottom', squeezedMarginBottom + 'px', 'important');
         blockHeight -= overflow;
