@@ -14,13 +14,15 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
 }
 
 $categoryId = isset($_GET['category']) && $_GET['category'] !== '' ? (int)$_GET['category'] : null;
+$onlyPublic = isset($_GET['public']) && $_GET['public'] === '1' ? true : null;
+$onlyFinished = isset($_GET['finished']) && $_GET['finished'] === '1' ? true : null;
 
-$songsCounts = get_number_of_songs($mysqli, null, $categoryId);
-$topOwners = get_top_song_owners($mysqli, 10, $categoryId);
-$difficultyCounts = get_app_wide_difficulty_counts($mysqli, $categoryId);
-$topInstruments = get_app_wide_instrument_counts($mysqli, 15, $categoryId);
-$topTags = $categoryId !== null
-    ? get_song_tag_counts_for_category($mysqli, $categoryId, 20)
+$songsCounts = get_number_of_songs($mysqli, null, $categoryId, $onlyPublic, $onlyFinished);
+$topOwners = get_top_song_owners($mysqli, 10, $categoryId, $onlyPublic, $onlyFinished);
+$difficultyCounts = get_app_wide_difficulty_counts($mysqli, $categoryId, $onlyPublic, $onlyFinished);
+$topInstruments = get_app_wide_instrument_counts($mysqli, 15, $categoryId, $onlyPublic, $onlyFinished);
+$topTags = ($categoryId !== null || $onlyPublic || $onlyFinished)
+    ? get_filtered_song_tag_counts($mysqli, $categoryId, $onlyPublic, $onlyFinished, 20)
     : get_top_song_tags($mysqli, 20);
 
 // Top song contributors

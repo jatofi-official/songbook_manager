@@ -83,7 +83,7 @@ $allCategories = get_all_categories($mysqli);
     <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3 mb-4">
         <div class="col">
             <a href="../users.php" class="stat-card-link h-100">
-                <div class="stat-card p-3 h-100">
+                <div class="stat-card p-3 h-100 my-0">
                     <div class="number"><?= $totalUsers ?></div>
                     <div class="label">Users</div>
                 </div>
@@ -91,7 +91,7 @@ $allCategories = get_all_categories($mysqli);
         </div>
         <div class="col">
             <a href="../songbooks.php" class="stat-card-link h-100">
-                <div class="stat-card p-3 h-100">
+                <div class="stat-card p-3 h-100 my-0">
                     <div class="number"><?= $totalSongbooksAll ?></div>
                     <div class="label">Songbooks</div>
                 </div>
@@ -99,21 +99,21 @@ $allCategories = get_all_categories($mysqli);
         </div>
         <div class="col">
             <a href="../groups.php" class="stat-card-link h-100">
-                <div class="stat-card p-3 h-100">
+                <div class="stat-card p-3 h-100 my-0">
                     <div class="number"><?= $totalGroups ?></div>
                     <div class="label">Groups</div>
                 </div>
             </a>
         </div>
         <div class="col">
-            <div class="stat-card p-3 h-100">
+            <div class="stat-card p-3 h-100 my-0">
                 <div class="number"><?= $totalUniqueTags ?></div>
                 <div class="label">Unique tags</div>
             </div>
         </div>
         <div class="col">
             <a href="../wishlist.php" class="stat-card-link h-100">
-                <div class="stat-card p-3 h-100">
+                <div class="stat-card p-3 h-100 my-0">
                     <div class="number"><?= $totalWishlistSongs ?></div>
                     <div class="label">Wishlist requests</div>
                 </div>
@@ -255,14 +255,24 @@ $allCategories = get_all_categories($mysqli);
 
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3 border-top pt-4">
         <h4 class="mb-0">Category breakdown</h4>
-        <div>
-            <label for="category-filter" class="form-label small text-muted mb-1">Filter by category</label>
-            <select id="category-filter" class="form-select">
-                <option value="">All categories</option>
-                <?php foreach ($allCategories as $catId => $catName): ?>
-                    <option value="<?= (int)$catId ?>"><?= htmlspecialchars($catName) ?></option>
-                <?php endforeach; ?>
-            </select>
+        <div class="d-flex flex-wrap align-items-end gap-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="filter-public">
+                <label class="form-check-label small" for="filter-public">Public only</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="filter-finished">
+                <label class="form-check-label small" for="filter-finished">Finished only</label>
+            </div>
+            <div>
+                <label for="category-filter" class="form-label small text-muted mb-1">Filter by category</label>
+                <select id="category-filter" class="form-select">
+                    <option value="">All categories</option>
+                    <?php foreach ($allCategories as $catId => $catName): ?>
+                        <option value="<?= (int)$catId ?>"><?= htmlspecialchars($catName) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
         </div>
     </div>
 
@@ -270,7 +280,7 @@ $allCategories = get_all_categories($mysqli);
     <div class="row mb-4">
         <div class="col-6 col-md-3 col-lg-2">
             <a href="../songs.php" class="stat-card-link h-100">
-                <div class="stat-card p-3 h-100">
+                <div class="stat-card p-3 h-100 my-0">
                     <div class="number" id="stat-songs-count"><?= $songsCounts['total'] ?></div>
                     <div class="label">Songs</div>
                 </div>
@@ -364,9 +374,18 @@ $allCategories = get_all_categories($mysqli);
 </div>
 
 <script>
-document.getElementById('category-filter').addEventListener('change', function () {
-    const categoryId = this.value;
-    const url = 'ajax_stats.php' + (categoryId ? ('?category=' + encodeURIComponent(categoryId)) : '');
+function refreshCategoryStats() {
+    const categoryId = document.getElementById('category-filter').value;
+    const onlyPublic = document.getElementById('filter-public').checked;
+    const onlyFinished = document.getElementById('filter-finished').checked;
+
+    const params = new URLSearchParams();
+    if (categoryId) params.set('category', categoryId);
+    if (onlyPublic) params.set('public', '1');
+    if (onlyFinished) params.set('finished', '1');
+
+    const query = params.toString();
+    const url = 'ajax_stats.php' + (query ? ('?' + query) : '');
 
     fetch(url, { credentials: 'same-origin' })
         .then(res => res.json())
@@ -379,7 +398,11 @@ document.getElementById('category-filter').addEventListener('change', function (
             document.getElementById('stat-instruments').innerHTML = data.topInstruments;
         })
         .catch(err => console.error('Failed to update stats:', err));
-});
+}
+
+document.getElementById('category-filter').addEventListener('change', refreshCategoryStats);
+document.getElementById('filter-public').addEventListener('change', refreshCategoryStats);
+document.getElementById('filter-finished').addEventListener('change', refreshCategoryStats);
 </script>
 
 <?php
