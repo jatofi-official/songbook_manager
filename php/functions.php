@@ -436,10 +436,35 @@ function edit_song($mysqli, $id, $data) {
 
 
 
-// $categoryId is an additive optional filter (used by admin/stats.php's
-// dynamic category selector) - added as a new trailing parameter so every
-// existing $username-only call site keeps working unchanged.
-function get_number_of_songs(mysqli $mysqli, ?string $username = null, ?int $categoryId = null): array {
+// Shared "category / public / finished" WHERE-fragment builder for
+// admin/stats.php's dynamic filters (category dropdown + public-only /
+// finished-only checkboxes). $prefix lets callers that JOIN and alias the
+// songs table (e.g. get_top_song_owners' "s.") scope the column names.
+// Returns [conditions[], params[], types[]] for splicing into a caller's
+// own WHERE clause (which may already have a leading condition of its own).
+function build_song_filter_conditions(?int $categoryId, ?bool $onlyPublic, ?bool $onlyFinished, string $prefix = ''): array {
+    $conditions = [];
+    $params = [];
+    $types = "";
+    if ($categoryId !== null) {
+        $conditions[] = "{$prefix}category = ?";
+        $params[] = $categoryId;
+        $types .= "i";
+    }
+    if ($onlyPublic) {
+        $conditions[] = "{$prefix}is_public = 1";
+    }
+    if ($onlyFinished) {
+        $conditions[] = "{$prefix}is_fixed = 1";
+    }
+    return [$conditions, $params, $types];
+}
+
+// $categoryId/$onlyPublic/$onlyFinished are additive optional filters (used
+// by admin/stats.php's dynamic category selector) - added as new trailing
+// parameters so every existing $username-only call site keeps working
+// unchanged.
+function get_number_of_songs(mysqli $mysqli, ?string $username = null, ?int $categoryId = null, ?bool $onlyPublic = null, ?bool $onlyFinished = null): array {
     $conditions = [];
     $params = [];
     $types = "";
@@ -449,11 +474,10 @@ function get_number_of_songs(mysqli $mysqli, ?string $username = null, ?int $cat
         $params[] = $username;
         $types .= "s";
     }
-    if ($categoryId !== null) {
-        $conditions[] = "category = ?";
-        $params[] = $categoryId;
-        $types .= "i";
-    }
+    [$filterConditions, $filterParams, $filterTypes] = build_song_filter_conditions($categoryId, $onlyPublic, $onlyFinished);
+    $conditions = array_merge($conditions, $filterConditions);
+    $params = array_merge($params, $filterParams);
+    $types .= $filterTypes;
 
     $sql = "SELECT COUNT(*) AS total, SUM(is_fixed = 1) AS fixed, SUM(is_fixed = 0) AS not_fixed FROM songs";
     if ($conditions) {
@@ -1246,15 +1270,17 @@ function get_xp_by_day($mysqli, int $days = 30): array {
     return $series;
 }
 
-// App-wide (not per-songbook) song ownership leaderboard. $categoryId
-// (optional, used by admin/stats.php's dynamic category selector) scopes it
-// to just that song category.
-function get_top_song_owners($mysqli, int $limit = 10, ?int $categoryId = null): array {
+// App-wide (not per-songbook) song ownership leaderboard. $categoryId /
+// $onlyPublic / $onlyFinished (optional, used by admin/stats.php's dynamic
+// filters) scope it to just that song category and/or public/finished songs.
+function get_top_song_owners($mysqli, int $limit = 10, ?int $categoryId = null, ?bool $onlyPublic = null, ?bool $onlyFinished = null): array {
+    [$conditions, $params, $types] = build_song_filter_conditions($categoryId, $onlyPublic, $onlyFinished, 's.');
+
     $sql = "SELECT s.owner AS username, COALESCE(u.name, s.owner) AS name, COUNT(*) AS total
             FROM songs s
             LEFT JOIN users u ON u.username = s.owner";
-    if ($categoryId !== null) {
-        $sql .= " WHERE s.category = ?";
+    if ($conditions) {
+        $sql .= " WHERE " . implode(" AND ", $conditions);
     }
     $sql .= " GROUP BY s.owner, u.name ORDER BY total DESC LIMIT ?";
 
@@ -1263,11 +1289,9 @@ function get_top_song_owners($mysqli, int $limit = 10, ?int $categoryId = null):
         error_log("MySQL prepare error in get_top_song_owners: " . $mysqli->error);
         return [];
     }
-    if ($categoryId !== null) {
-        $stmt->bind_param('ii', $categoryId, $limit);
-    } else {
-        $stmt->bind_param('i', $limit);
-    }
+    $params[] = $limit;
+    $types .= 'i';
+    $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
@@ -1334,19 +1358,23 @@ function get_top_song_tags($mysqli, int $limit = 20): array {
 
 // App-wide difficulty distribution. Difficulty isn't its own column - same
 // as songbook.php's per-songbook stats, it's embedded in songs.tags and has
-// to be pulled out per row via filter_difficulty_tags(). $categoryId
-// (optional, used by admin/stats.php's dynamic category selector) scopes it
-// to just that song category.
-function get_app_wide_difficulty_counts($mysqli, ?int $categoryId = null): array {
+// to be pulled out per row via filter_difficulty_tags(). $categoryId /
+// $onlyPublic / $onlyFinished (optional, used by admin/stats.php's dynamic
+// filters) scope it to just that song category and/or public/finished songs.
+function get_app_wide_difficulty_counts($mysqli, ?int $categoryId = null, ?bool $onlyPublic = null, ?bool $onlyFinished = null): array {
     $counts = ['easy' => 0, 'normal' => 0, 'hard' => 0, 'none' => 0];
+    [$conditions, $params, $types] = build_song_filter_conditions($categoryId, $onlyPublic, $onlyFinished);
     $sql = "SELECT tags FROM songs";
-    if ($categoryId !== null) {
-        $stmt = $mysqli->prepare($sql . " WHERE category = ?");
+    if ($conditions) {
+        $sql .= " WHERE " . implode(" AND ", $conditions);
+    }
+    if ($params) {
+        $stmt = $mysqli->prepare($sql);
         if (!$stmt) {
             error_log("MySQL prepare error in get_app_wide_difficulty_counts: " . $mysqli->error);
             return $counts;
         }
-        $stmt->bind_param('i', $categoryId);
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $result = $stmt->get_result();
     } else {
@@ -1367,18 +1395,20 @@ function get_app_wide_difficulty_counts($mysqli, ?int $categoryId = null): array
 
 // App-wide instrument usage. Same reasoning as difficulty above - no
 // dedicated usage-count table for instruments (unlike song_tags), so this
-// tallies songs.instruments directly. $categoryId scopes it the same way as
-// get_app_wide_difficulty_counts.
-function get_app_wide_instrument_counts($mysqli, int $limit = 15, ?int $categoryId = null): array {
+// tallies songs.instruments directly. $categoryId / $onlyPublic /
+// $onlyFinished scope it the same way as get_app_wide_difficulty_counts.
+function get_app_wide_instrument_counts($mysqli, int $limit = 15, ?int $categoryId = null, ?bool $onlyPublic = null, ?bool $onlyFinished = null): array {
     $counts = [];
-    $sql = "SELECT instruments FROM songs WHERE instruments IS NOT NULL AND instruments != ''";
-    if ($categoryId !== null) {
-        $stmt = $mysqli->prepare($sql . " AND category = ?");
+    [$conditions, $params, $types] = build_song_filter_conditions($categoryId, $onlyPublic, $onlyFinished);
+    array_unshift($conditions, "instruments IS NOT NULL AND instruments != ''");
+    $sql = "SELECT instruments FROM songs WHERE " . implode(" AND ", $conditions);
+    if ($params) {
+        $stmt = $mysqli->prepare($sql);
         if (!$stmt) {
             error_log("MySQL prepare error in get_app_wide_instrument_counts: " . $mysqli->error);
             return [];
         }
-        $stmt->bind_param('i', $categoryId);
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $result = $stmt->get_result();
     } else {
@@ -1400,20 +1430,36 @@ function get_app_wide_instrument_counts($mysqli, int $limit = 15, ?int $category
     return array_slice($counts, 0, $limit, true);
 }
 
-// Tag usage WITHIN one song category specifically. song_tags.usage_count
-// (used by get_top_song_tags) is a GLOBAL counter across every song, so it
-// can't answer "which tags are common in category X" - this scans that
-// category's songs.tags directly instead, same technique as
-// get_app_wide_difficulty_counts/get_app_wide_instrument_counts above.
-function get_song_tag_counts_for_category($mysqli, int $categoryId, int $limit = 20): array {
-    $stmt = $mysqli->prepare("SELECT tags FROM songs WHERE category = ?");
-    if (!$stmt) {
-        error_log("MySQL prepare error in get_song_tag_counts_for_category: " . $mysqli->error);
-        return [];
+// Tag usage under an arbitrary category/public/finished filter combination.
+// song_tags.usage_count (used by get_top_song_tags) is a GLOBAL counter
+// across every song, so it can't answer "which tags are common in category
+// X" or "...among public songs" - this scans songs.tags directly instead,
+// same technique as get_app_wide_difficulty_counts/
+// get_app_wide_instrument_counts above. Used whenever any filter is active;
+// get_top_song_tags (the fast, precomputed-count version) is used otherwise.
+function get_filtered_song_tag_counts($mysqli, ?int $categoryId, ?bool $onlyPublic, ?bool $onlyFinished, int $limit = 20): array {
+    [$conditions, $params, $types] = build_song_filter_conditions($categoryId, $onlyPublic, $onlyFinished);
+    $sql = "SELECT tags FROM songs";
+    if ($conditions) {
+        $sql .= " WHERE " . implode(" AND ", $conditions);
     }
-    $stmt->bind_param('i', $categoryId);
-    $stmt->execute();
-    $result = $stmt->get_result();
+
+    if ($params) {
+        $stmt = $mysqli->prepare($sql);
+        if (!$stmt) {
+            error_log("MySQL prepare error in get_filtered_song_tag_counts: " . $mysqli->error);
+            return [];
+        }
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        $result = $mysqli->query($sql);
+        if (!$result) {
+            error_log("MySQL Error in get_filtered_song_tag_counts: " . $mysqli->error);
+            return [];
+        }
+    }
 
     $counts = [];
     while ($row = $result->fetch_assoc()) {
@@ -1424,7 +1470,7 @@ function get_song_tag_counts_for_category($mysqli, int $categoryId, int $limit =
             $counts[$tag] = ($counts[$tag] ?? 0) + 1;
         }
     }
-    $stmt->close();
+    if (isset($stmt)) $stmt->close();
 
     arsort($counts);
     $counts = array_slice($counts, 0, $limit, true);
