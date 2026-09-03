@@ -126,9 +126,7 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
             <div class="card">
                 <div class="card-header">Activity past week</div>
                 <div class="card-body">
-                    <div class="chart-placeholder d-flex align-items-center justify-content-center" style="height:250px;">
-                        Graph Placeholder
-                    </div>
+                    <?= render_admin_bar_chart_svg(get_activity_by_day($mysqli, 7, 'activity'), 'count', '#4361ee') ?>
                 </div>
             </div>
         </div>
@@ -138,15 +136,15 @@ if (!isset($_SESSION['admin']) || $_SESSION['admin'] != true) {
             <div class="card">
                 <div class="card-header">Logins pasts week</div>
                 <div class="card-body">
-                    <div class="chart-placeholder d-flex align-items-center justify-content-center" style="height:250px;">
-                        Graph Placeholder
-                    </div>
+                    <?= render_admin_bar_chart_svg(get_activity_by_day($mysqli, 7, 'logins'), 'count', '#4cc9f0') ?>
                 </div>
             </div>
         </div>
     </div>
 
-
+    <div class="mb-4">
+        <a href="stats.php" class="btn btn-outline-primary">📊 Detailed statistics</a>
+    </div>
 
 <style>
 .hover-scale:hover {
