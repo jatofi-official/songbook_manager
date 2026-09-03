@@ -331,21 +331,26 @@ function splitPageIfNeeded(song, container, headerHeight = 0) {
   }));
 }
 
-// Reuses the real page-shell builder (createPage(), songbook_render_preview.js)
-// as the measuring container instead of hand-duplicating .a4-page's CSS
-// (width, padding, font, line-height...) here. That duplication was the
+// Carries the real `.a4-page`/`p-4` classes instead of hand-duplicating their
+// CSS (width, padding, font, line-height...) here. That duplication was the
 // actual source of past measurement/render mismatches - any tweak to
 // styles/a4_page.css had to be remembered and copied here too, and every rule
 // scoped to `.a4-page` (e.g. `.a4-page pre`) silently didn't apply at all
-// since a bespoke div never carried that class. Building a real (hidden)
-// .a4-page means every such rule just applies, automatically, forever.
+// since a bespoke div never carried that class. Deliberately not built via
+// createPage() (songbook_render_preview.js): that returns a *fixed*-height,
+// overflow:hidden page (page.contentEl holds the real padded/clipped area) -
+// exactly wrong for measuring, since the point here is to find out how tall
+// content actually is even past one page's worth, not to clip it.
 function createHiddenMeasureContainer() {
-  const page = createPage();
-  page.style.position = 'absolute';
-  page.style.visibility = 'hidden';
-  page.style.left = '-9999px';
-  page.style.top = '0';
-  return page;
+  const container = document.createElement('div');
+  container.className = 'a4-page p-4';
+  container.style.position = 'absolute';
+  container.style.visibility = 'hidden';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.width = '794px';
+  container.style.boxSizing = 'border-box';
+  return container;
 }
 
 function orderSongs(songs, container) {

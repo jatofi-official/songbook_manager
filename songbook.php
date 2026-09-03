@@ -2556,7 +2556,7 @@ async function addStatsPages(container, categoryIds, blackAndWhite, qrUrl) {
   headerSubtitle.textContent = `${stats.totalSongs} ${songWord} · ${stats.categoryCounts.length} ${categoryWord}`;
   headerSubtitle.style.cssText = 'font-size:12px;opacity:0.85;margin-top:2px;font-family:system-ui,sans-serif;';
   header.append(headerTitle, headerSubtitle);
-  page.appendChild(header);
+  page.contentEl.appendChild(header);
 
   // Masonry-style layout: every card is a sibling in a 2-column CSS
   // multi-column flow (not a fixed chart-column/list-column grid) so cards
@@ -2565,7 +2565,7 @@ async function addStatsPages(container, categoryIds, blackAndWhite, qrUrl) {
   // empty under a short card while the other overflows.
   const columns = document.createElement('div');
   columns.style.cssText = 'column-count:2;column-gap:20px;column-fill:balance;';
-  page.appendChild(columns);
+  page.contentEl.appendChild(columns);
 
   // Appends any masonry item (a real bordered card, or the title-less QR
   // block below) and keeps it from being split across the two columns.
@@ -2715,8 +2715,8 @@ async function addStatsPages(container, categoryIds, blackAndWhite, qrUrl) {
     const columnsHeight = columns.getBoundingClientRect().height;
     document.body.removeChild(measureWrapper); // detaches `page` again - reattached for real via container.prepend below
 
-    // .a4-page's own content box: 1123px tall minus Bootstrap's p-4 (24px)
-    // padding on top and bottom (see createPage).
+    // .a4-page-content's own content box: 1123px tall minus Bootstrap's p-4
+    // (24px) padding on top and bottom (see createPage).
     const PAGE_CONTENT_BUDGET = 1123 - 24 * 2;
     const usedHeight = headerHeight + 16 /* header's own margin-bottom */ + columnsHeight;
 
@@ -2765,7 +2765,7 @@ async function addStatsPages(container, categoryIds, blackAndWhite, qrUrl) {
     qrCaption.style.cssText = 'font-family:system-ui,sans-serif;font-size:9px;color:#666;'
       + 'word-break:break-all;text-align:center;max-width:190px;';
     qrWrapper.appendChild(qrCaption);
-    page.appendChild(qrWrapper);
+    page.contentEl.appendChild(qrWrapper);
 
     if (window.QRCode) {
       new QRCode(qrBox, { text: qrUrl, width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M });

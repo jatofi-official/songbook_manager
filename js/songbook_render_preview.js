@@ -34,6 +34,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   document.body.appendChild(tempContainer);
 
   const maxHeight = 1123;
+  const pagePadding = 24; // matches createPage's `.a4-page-content` p-4 (1.5rem)
   let currentPageNum = 1;
 
   let pageRow = document.createElement('div');
@@ -279,6 +280,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       if (overflow > 0) {
         if (debug) {
           addPageRemainingSpaceLabel(currentPage, currentHeight, maxHeight);
+          flagPageOverflowIfAny(currentPage, currentHeight, maxHeight, pagePadding);
         }
 
         currentPageNum++;
@@ -313,7 +315,29 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       wrapper.style.position = 'relative';
       wrapper.appendChild(songDiv);
 
+      currentPage.contentEl.appendChild(wrapper);
+      // wrapper itself has no margin, and songDiv's mb-4 margin collapses
+      // through it (wrapper doesn't establish its own block-formatting
+      // context) - so re-measuring the wrapper here would silently drop the
+      // margin again. blockHeight above already accounts for it.
+      const blockTop = currentHeight; // this block's own top, before the increment below
+      currentHeight += blockHeight;
+
       if (debug) {
+        // The debug label used to live inside `wrapper`, but `wrapper` is now
+        // inside `page.contentEl`, which clips (overflow:hidden) so genuinely
+        // overflowing songs get cut off instead of silently stretching the
+        // page - and that would clip the label too, even though it's meant
+        // to be visible outside the page bounds (left/right:-200px). Instead,
+        // mount it on a same-sized, same-positioned overlay attached directly
+        // to the unclipped outer `page`.
+        const debugOverlay = document.createElement('div');
+        debugOverlay.style.position = 'absolute';
+        debugOverlay.style.left = pagePadding + 'px';
+        debugOverlay.style.width = `calc(100% - ${2 * pagePadding}px)`;
+        debugOverlay.style.top = (pagePadding + blockTop) + 'px';
+        debugOverlay.style.height = blockHeight + 'px';
+
         const debugLabel = document.createElement('div');
         debugLabel.style.position = 'absolute';
         // Pages sit side by side in a page-pair row - a label pushed off
@@ -330,15 +354,9 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         debugLabel.style.fontSize = '12px';
         debugLabel.style.color = '#007bff';
         debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px${debugBreakdown}`;
-        wrapper.appendChild(debugLabel);
+        debugOverlay.appendChild(debugLabel);
+        currentPage.appendChild(debugOverlay);
       }
-
-      currentPage.appendChild(wrapper);
-      // wrapper itself has no margin, and songDiv's mb-4 margin collapses
-      // through it (wrapper doesn't establish its own block-formatting
-      // context) - so re-measuring the wrapper here would silently drop the
-      // margin again. blockHeight above already accounts for it.
-      currentHeight += blockHeight;
     }
   }
 
@@ -349,6 +367,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
   // needs its own label here.
   if (debug) {
     addPageRemainingSpaceLabel(currentPage, currentHeight, maxHeight);
+    flagPageOverflowIfAny(currentPage, currentHeight, maxHeight, pagePadding);
   }
 
   // Songbooks print double-sided, so pages are padded to an even count.
@@ -491,10 +510,10 @@ function addTableOfContents(container) {
       // spill the listing onto several pages, and repeating a big "Contents"
       // heading on every one of them just eats space without adding anything.
       if (tocIndex === 0) {
-        page.appendChild(heading.cloneNode(true));
+        page.contentEl.appendChild(heading.cloneNode(true));
       }
 
-      pageEntrySlices[tocIndex].forEach(entry => page.appendChild(buildTocRow(entry)));
+      pageEntrySlices[tocIndex].forEach(entry => page.contentEl.appendChild(buildTocRow(entry)));
       pair.appendChild(page);
     }
     fragment.appendChild(pair);
@@ -1055,13 +1074,14 @@ function wrapWithDebug(div, height) {
 // dashed-border/`#fdfdfd` style used for the song boxes, so the leftover
 // area reads the same way a song block does instead of as a floating label.
 function addPageRemainingSpaceLabel(page, usedHeight, pageMaxHeight) {
-  const pagePadding = 24; // matches createPage's `p-4` (1.5rem)
+  const pagePadding = 24; // matches createPage's `.a4-page-content` p-4 (1.5rem)
   // pageMaxHeight (1123) is the page's OUTER height (createPage: box-sizing
-  // border-box, min-height 1123px, p-4 padding) - the content area inside the
-  // top+bottom padding is only pageMaxHeight - 2*pagePadding tall. `top` below
-  // already accounts for the top padding, but the old `remainingPx` never
-  // subtracted the bottom padding too, so the box ran 24px past the real
-  // bottom of the content area (and past the visible page on a nearly-full page).
+  // border-box, fixed height, p-4 padding on the inner content layer) - the
+  // content area inside the top+bottom padding is only
+  // pageMaxHeight - 2*pagePadding tall. `top` below already accounts for the
+  // top padding, but the old `remainingPx` never subtracted the bottom
+  // padding too, so the box ran 24px past the real bottom of the content area
+  // (and past the visible page on a nearly-full page).
   const contentHeight = pageMaxHeight - 2 * pagePadding;
   const remainingPx = contentHeight - usedHeight;
 
@@ -1084,14 +1104,64 @@ function addPageRemainingSpaceLabel(page, usedHeight, pageMaxHeight) {
   page.appendChild(box);
 }
 
+// Debug-only: the loop's own overflow threshold (maxHeight, checked against
+// currentHeight) doesn't account for the page's own padding, so a page can
+// end up with more real content than actually fits inside its padded area
+// without ever triggering a new page. createPage() now clips that content
+// (page.contentEl has overflow:hidden) instead of silently stretching the
+// page, which means it would otherwise just vanish - flag it loudly instead,
+// directly on the unclipped outer `page` so the warning itself is never
+// clipped away too.
+function flagPageOverflowIfAny(page, usedHeight, pageMaxHeight, pagePadding) {
+  const contentHeight = pageMaxHeight - 2 * pagePadding;
+  const overflowPx = usedHeight - contentHeight;
+  if (overflowPx <= 0) return;
+
+  const warning = document.createElement('div');
+  warning.style.position = 'absolute';
+  warning.style.left = '0';
+  warning.style.right = '0';
+  warning.style.top = '0';
+  warning.style.padding = '6px 10px';
+  warning.style.backgroundColor = '#dc3545';
+  warning.style.color = '#fff';
+  warning.style.fontSize = '13px';
+  warning.style.fontWeight = 'bold';
+  warning.style.textAlign = 'center';
+  warning.style.zIndex = '20';
+  warning.textContent = `⚠ OVERFLOW: content is ${Math.round(overflowPx)}px taller than the page - clipped`;
+  page.appendChild(warning);
+
+  // Make the clipping itself obvious on the page too, not just the banner.
+  page.style.outline = '4px solid #dc3545';
+  page.style.outlineOffset = '-4px';
+}
+
 function createPage(pageNumber = null,category="") {
   const page = document.createElement('div');
-  page.className = 'a4-page mb-4 p-4 bg-white position-relative';
+  page.className = 'a4-page mb-4 bg-white position-relative';
   page.style.width = '794px'; // A4 width in pixels
   page.style.height = '1123px'; // A4 height in pixels - fixed, not min-height, so overpacked content clips instead of stretching the page taller than a real A4 sheet
-  page.style.overflow = 'hidden';
   page.style.boxSizing = 'border-box';
   page.style.pageBreakAfter = 'always';
+
+  // Real content (song blocks, TOC rows...) lives in this inner layer, not
+  // directly on `page` - it carries the actual p-4 padding and is the thing
+  // that clips overflowing content (overflow:hidden), while `page` itself
+  // stays unclipped. That way debug-only decorations attached straight to
+  // `page` (remaining-space box, per-song labels, overflow warnings...) -
+  // some of which are deliberately positioned outside the page bounds, like
+  // the per-song debug labels at left/right:-200px - keep showing instead of
+  // being clipped along with genuinely overflowing content. Real content
+  // should be appended to `page.contentEl`, not `page`.
+  const content = document.createElement('div');
+  content.className = 'a4-page-content p-4';
+  content.style.position = 'absolute';
+  content.style.inset = '0';
+  content.style.boxSizing = 'border-box';
+  content.style.overflow = 'hidden';
+  page.appendChild(content);
+  page.contentEl = content;
 
   const bottomDistance="20px";
   const sideDistance="30px";
