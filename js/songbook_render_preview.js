@@ -66,9 +66,24 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
     if (song.right_content && song.part === 'right') continue;
 
-    const songParts = song.right_content
-      ? [song]
-      : splitPageIfNeeded(song, tempContainer, maxHeight);
+    // Measure the header once, ahead of splitting, so splitPageIfNeeded can
+    // reserve that space on the song's first page (it isn't reprinted on
+    // continuation pages). Header height isn't included via getBoundingClientRect()
+    // alone - createSongHeader sets its own marginBottom (default 10px)
+    // inline, which margins never count toward an element's own rect.
+    const songIsLocked = !!lockNames[String(song.id)];
+    const measuredHeader = createSongHeader(song, {
+      blackAndWhite, showDifficulty, showTags, showInstruments, ignoredInstrument,
+      locked: allowClicking && songIsLocked,
+      lockedName: songIsLocked ? lockNames[String(song.id)].name : null
+    });
+    tempContainer.appendChild(measuredHeader);
+    const headerRect = measuredHeader.getBoundingClientRect();
+    const headerMarginBottom = parseFloat(getComputedStyle(measuredHeader).marginBottom) || 0;
+    const headerHeight = headerRect.height + headerMarginBottom;
+    tempContainer.removeChild(measuredHeader);
+
+    const songParts = splitPageIfNeeded(song, tempContainer, headerHeight);
 
     for (const partSong of songParts) {
       const songDiv = document.createElement('div');
@@ -218,10 +233,54 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         });
       });
 
-      const blockHeight = songDiv.getBoundingClientRect().height;
+      // getBoundingClientRect() never includes margin, so songDiv's own
+      // mb-4 bottom margin (the gap the page actually reserves before the
+      // next block) has to be added back in explicitly. Left out, this
+      // under-counts every song block's real footprint - harmless for one
+      // song, but with many small songs on a page the missed margins add up
+      // and the loop packs more songs onto a page than actually fit.
+      const blockMarginBottom = parseFloat(getComputedStyle(songDiv).marginBottom) || 0;
+      let blockHeight = songDiv.getBoundingClientRect().height + blockMarginBottom;
+
+      // Debug-only breakdown so an over-tall measurement can be traced to
+      // its actual source (header vs. single body vs. one specific column)
+      // instead of only seeing the combined total.
+      let debugBreakdown = '';
+      if (debug) {
+        const headerEl = songDiv.querySelector('.song-header');
+        const headerElHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+        if (partSong.right_content) {
+          const leftColEl = songDiv.querySelector('.left-column');
+          const rightColEl = songDiv.querySelector('.right-column');
+          const leftColHeight = leftColEl ? leftColEl.getBoundingClientRect().height : 0;
+          const rightColHeight = rightColEl ? rightColEl.getBoundingClientRect().height : 0;
+          debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Left: ${leftColHeight.toFixed(0)}px Right: ${rightColHeight.toFixed(0)}px)`;
+        } else {
+          const preEl = songDiv.querySelector('pre');
+          const preHeight = preEl ? preEl.getBoundingClientRect().height : 0;
+          debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Body: ${preHeight.toFixed(0)}px)`;
+        }
+      }
+
       tempContainer.removeChild(songDiv);
 
-      if (currentHeight + blockHeight > maxHeight) {
+      let overflow = (currentHeight + blockHeight) - maxHeight;
+
+      // If this block only misses fitting on the current (non-empty) page
+      // by a small margin - no more than its own bottom spacing - squeeze
+      // that spacing down instead of pushing it to a whole new page.
+      if (overflow > 0 && currentHeight > 0 && overflow <= blockMarginBottom) {
+        const squeezedMarginBottom = blockMarginBottom - overflow;
+        songDiv.style.setProperty('margin-bottom', squeezedMarginBottom + 'px', 'important');
+        blockHeight -= overflow;
+        overflow = 0;
+      }
+
+      if (overflow > 0) {
+        if (debug) {
+          addPageRemainingSpaceLabel(currentPage, currentHeight, maxHeight);
+        }
+
         currentPageNum++;
         currentHeight = 0;
 
@@ -257,20 +316,40 @@ function renderA4Preview(songs, orderedIds, options = {}) {
       if (debug) {
         const debugLabel = document.createElement('div');
         debugLabel.style.position = 'absolute';
-        debugLabel.style.right = '-200px';
+        // Pages sit side by side in a page-pair row - a label pushed off
+        // the inner edge of a page (right edge of a LEFT/odd page, left
+        // edge of a RIGHT/even page) lands on top of the neighboring page
+        // instead of empty space. Push each page's label off its own
+        // outer edge instead, so it never renders under the other page.
+        if (currentPageNum % 2 === 1) {
+          debugLabel.style.right = '-200px';
+        } else {
+          debugLabel.style.left = '-200px';
+        }
         debugLabel.style.bottom = '50px';
         debugLabel.style.fontSize = '12px';
         debugLabel.style.color = '#007bff';
-        debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px`;
+        debugLabel.textContent = `Height: ${blockHeight.toFixed(0)}px Width: ${maxLineWidth.toFixed(0)}px${debugBreakdown}`;
         wrapper.appendChild(debugLabel);
       }
 
       currentPage.appendChild(wrapper);
-      currentHeight += wrapper.getBoundingClientRect().height;
+      // wrapper itself has no margin, and songDiv's mb-4 margin collapses
+      // through it (wrapper doesn't establish its own block-formatting
+      // context) - so re-measuring the wrapper here would silently drop the
+      // margin again. blockHeight above already accounts for it.
+      currentHeight += blockHeight;
     }
   }
 
   document.body.removeChild(tempContainer);
+
+  // The loop above only labels a page's remaining space when it's finalized
+  // by overflow - the very last page never overflows into a new one, so it
+  // needs its own label here.
+  if (debug) {
+    addPageRemainingSpaceLabel(currentPage, currentHeight, maxHeight);
+  }
 
   // Songbooks print double-sided, so pages are padded to an even count.
   // A standalone single-song export has no such constraint.
@@ -970,6 +1049,32 @@ function wrapWithDebug(div, height) {
   wrapper.appendChild(div);
   wrapper.appendChild(label);
   return wrapper;
+}
+
+// Debug-only: draws a box over a finished page's unused space, in the same
+// dashed-border/`#fdfdfd` style used for the song boxes, so the leftover
+// area reads the same way a song block does instead of as a floating label.
+function addPageRemainingSpaceLabel(page, usedHeight, pageMaxHeight) {
+  const pagePadding = 24; // matches createPage's `p-4` (1.5rem)
+  const remainingPx = pageMaxHeight - usedHeight;
+
+  const box = document.createElement('div');
+  box.style.position = 'absolute';
+  box.style.left = pagePadding + 'px';
+  box.style.right = pagePadding + 'px';
+  box.style.top = (pagePadding + usedHeight) + 'px';
+  box.style.height = Math.max(0, remainingPx) + 'px';
+  box.style.border = '1px dashed red';
+  box.style.backgroundColor = '#fdfdfd';
+  box.style.display = 'flex';
+  box.style.alignItems = 'center';
+  box.style.justifyContent = 'center';
+  box.style.fontSize = '12px';
+  box.style.fontWeight = 'bold';
+  box.style.color = remainingPx < 0 ? '#dc3545' : '#28a745';
+  box.style.zIndex = '5';
+  box.textContent = `${Math.round(remainingPx)}px left`;
+  page.appendChild(box);
 }
 
 function createPage(pageNumber = null,category="") {

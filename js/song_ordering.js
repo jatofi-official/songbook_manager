@@ -6,7 +6,7 @@ measurer.style.visibility = 'hidden';
 measurer.style.whiteSpace = 'pre';
 measurer.style.fontFamily = 'Fira Mono, monospace'; // Match preview
 measurer.style.fontSize = '14px';                   // Match preview font size
-measurer.style.lineHeight = '22px';                 // Match preview line height
+measurer.style.lineHeight = '21px';                 // Match preview line height (.a4-page: font-size 14px * line-height 1.5)
 document.body.appendChild(measurer);
 
 const PAGE_HEIGHT = 1123;
@@ -20,9 +20,41 @@ function measureTextWidth(line) {
   return measurer.getBoundingClientRect().width;
 }
 
-function measureHeight(text) {
-  measurer.textContent = text;
-  return measurer.getBoundingClientRect().height;
+// Measures the real rendered height of `text` inside `container`, built the
+// exact same way the real render builds a song body: same renderSong() HTML
+// (chord bolding can shift wrapping vs. raw text) inside a plain <pre>,
+// relying on `.a4-page pre`'s own white-space:pre-wrap;word-break:break-word
+// (styles/a4_page.css) to wrap it - which only applies because `container`
+// is itself a real .a4-page now (see createHiddenMeasureContainer). `widthPx`,
+// when given, constrains the probe to a column's width instead of the full
+// page width - see measureColumnWidth().
+function measureHeight(text, container, widthPx) {
+  const probe = document.createElement('pre');
+  probe.innerHTML = renderSong(text);
+  if (widthPx !== undefined) probe.style.width = widthPx + 'px';
+  container.appendChild(probe);
+  const height = probe.getBoundingClientRect().height;
+  container.removeChild(probe);
+  return height;
+}
+
+// Measures the real rendered width of one song column (.left-column/
+// .right-column live in a `.d-flex` row with `flex-grow-1` plus a fixed
+// `width: 48%` - actual resolved width depends on flex layout, not just the
+// 48%, so this builds the same structure and reads it back rather than
+// recomputing the percentage by hand.
+function measureColumnWidth(container) {
+  const row = document.createElement('div');
+  row.className = 'd-flex';
+  const left = document.createElement('div');
+  left.className = 'left-column flex-grow-1 pe-3';
+  const right = document.createElement('div');
+  right.className = 'right-column flex-grow-1 ps-3';
+  row.append(left, right);
+  container.appendChild(row);
+  const width = left.getBoundingClientRect().width;
+  container.removeChild(row);
+  return width;
 }
 
 
@@ -165,139 +197,156 @@ function splitSongIfNeeded(song) {
 
 
 
-function splitPageIfNeeded(song, container) {
-  if (song.right_content) return [song];
+// Splits an already-trimmed line array into page-sized chunks (array of
+// line arrays). Same empty-line-preferred / binary-search-fallback logic
+// that splitPageIfNeeded always used for its single split - just run in a
+// loop so a song (or a single column of one) can spill onto as many pages
+// as it actually needs instead of stopping after one split. The first
+// chunk is measured against firstPageBudget (page height minus the song
+// header, since only the first page carries it); every later chunk against
+// restPageBudget (the full page height).
+function splitLinesIntoPageChunks(lines, container, firstPageBudget, restPageBudget, widthPx) {
+  const chunks = [];
+  let remaining = lines;
+  let budget = firstPageBudget;
+
+  while (remaining.length > 0) {
+    const fullHeight = measureHeight(remaining.join('\n'), container, widthPx);
+    if (fullHeight <= budget) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Step 1: Find all empty lines that could be good split points
+    let bestSplit = -1;
+
+    for (let i = 1; i < remaining.length; i++) {
+      if (remaining[i].trim() !== '') continue; // not an empty line
+
+      const testLines = remaining.slice(0, i + 1); // include the empty line
+      const testHeight = measureHeight(testLines.join('\n'), container, widthPx);
+
+      if (testHeight <= budget) {
+        bestSplit = i + 1; // split after the empty line
+      } else {
+        break; // further lines will only be taller
+      }
+    }
+
+    // Step 2: Fallback — if no good empty line split found, do original logic
+    if (bestSplit === -1) {
+      // Binary search fallback
+      bestSplit = remaining.length;
+      for (let i = Math.floor(remaining.length / 2); i < remaining.length; i++) {
+        const leftLines = remaining.slice(0, i);
+        const leftHeight = measureHeight(leftLines.join('\n'), container, widthPx);
+        if (leftHeight > budget) {
+          bestSplit = i - 1;
+          break;
+        }
+      }
+    }
+
+    if (bestSplit <= 0) bestSplit = 1;
+
+    // Trim leading empty lines on the remaining part
+    let rest = remaining.slice(bestSplit);
+    while (rest.length && rest[0].trim() === '') {
+      rest.shift();
+    }
+
+    chunks.push(remaining.slice(0, bestSplit));
+    remaining = rest;
+    budget = restPageBudget; // only the very first page pays the header cost
+  }
+
+  return chunks;
+}
+
+// Two-column songs are built by splitSongIfNeeded assuming the whole song
+// fits on one page. If the resulting columns are still too tall, continue
+// each column independently with splitLinesIntoPageChunks (the exact same
+// per-column chunking a single-column song would get), then zip the two
+// columns' chunks back together page by page. A song whose columns already
+// fit (the overwhelming majority - the legacy one-page-two-column case) is
+// returned completely unchanged.
+function splitTwoColumnSongAcrossPages(song, container, headerHeight) {
+  const leftLines = (song.left_content || '').split('\n').map(line => line.replace(/\s+$/, ''));
+  const rightLines = (song.right_content || '').split('\n').map(line => line.replace(/\s+$/, ''));
+
+  const firstPageBudget = PAGE_HEIGHT - headerHeight;
+  const columnWidth = measureColumnWidth(container);
+  const leftHeight = measureHeight(leftLines.join('\n'), container, columnWidth);
+  const rightHeight = measureHeight(rightLines.join('\n'), container, columnWidth);
+
+  if (Math.max(leftHeight, rightHeight) <= firstPageBudget) return [song];
+
+  const leftChunks = splitLinesIntoPageChunks(leftLines, container, firstPageBudget, PAGE_HEIGHT, columnWidth);
+  const rightChunks = splitLinesIntoPageChunks(rightLines, container, firstPageBudget, PAGE_HEIGHT, columnWidth);
+
+  const pageCount = Math.max(leftChunks.length, rightChunks.length);
+  const pages = [];
+  for (let i = 0; i < pageCount; i++) {
+    let leftPart = (leftChunks[i] || []).join('\n');
+    let rightPart = (rightChunks[i] || []).join('\n');
+    // If the columns finish unevenly (one runs out of content on an
+    // earlier page than the other), keep any remaining text on the left so
+    // a page never renders an empty left column next to a populated right one.
+    if (!leftPart && rightPart) {
+      leftPart = rightPart;
+      rightPart = '';
+    }
+    pages.push({
+      ...song,
+      left_content: leftPart,
+      right_content: rightPart || null, // fall back to single column once one side runs out
+      continuation: i > 0,
+    });
+  }
+  return pages;
+}
+
+// $headerHeight (optional, in px) is the space the song's title/artist
+// header takes up on its first page - only the first page of a song pays
+// that cost, continuation pages start right at the top. Defaults to 0 to
+// keep existing callers (e.g. orderSongs' pre-pass) behaving exactly as
+// before.
+function splitPageIfNeeded(song, container, headerHeight = 0) {
+  if (song.right_content) {
+    return splitTwoColumnSongAcrossPages(song, container, headerHeight);
+  }
 
   const lines = (song.left_content || song.content || '').split('\n').map(line => line.replace(/\s+$/, ''));
   if (lines.length === 0) return [song];
 
-  const fullHeight = measureHeight(lines.join('\n'), container);
-  if (fullHeight <= PAGE_HEIGHT) return [song];
+  const firstPageBudget = PAGE_HEIGHT - headerHeight;
+  const chunks = splitLinesIntoPageChunks(lines, container, firstPageBudget, PAGE_HEIGHT);
+  if (chunks.length <= 1) return [song];
 
-  // Step 1: Find all empty lines that could be good split points
-  let bestSplit = -1;
-
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i].trim() !== '') continue; // not an empty line
-
-    const testLines = lines.slice(0, i + 1); // include the empty line
-    const testHeight = measureHeight(testLines.join('\n'), container);
-
-    if (testHeight <= PAGE_HEIGHT) {
-      bestSplit = i + 1; // split after the empty line
-    } else {
-      break; // further lines will only be taller
-    }
-  }
-
-  // Step 2: Fallback — if no good empty line split found, do original logic
-  if (bestSplit === -1) {
-    // Binary search fallback
-    bestSplit = lines.length;
-    for (let i = Math.floor(lines.length / 2); i < lines.length; i++) {
-      const leftLines = lines.slice(0, i);
-      const leftHeight = measureHeight(leftLines.join('\n'), container);
-      if (leftHeight > PAGE_HEIGHT) {
-        bestSplit = i - 1;
-        break;
-      }
-    }
-  }
-
-  if (bestSplit <= 0) bestSplit = 1;
-
-  // Trim leading empty lines on the right part
-  let rightLines = lines.slice(bestSplit);
-  while (rightLines.length && rightLines[0].trim() === '') {
-    rightLines.shift();
-  }
-
-    return [
-    {
-        ...song,
-        left_content: lines.slice(0, bestSplit).join('\n'),
-        right_content: null,
-    },
-    {
-        ...song,
-        left_content: rightLines.join('\n'),
-        right_content: null,
-        continuation: true, // 👈 NEW FLAG
-    },
-    ];
-
+  return chunks.map((chunkLines, index) => ({
+    ...song,
+    left_content: chunkLines.join('\n'),
+    right_content: null,
+    continuation: index > 0,
+  }));
 }
 
-// Creates shared song container
+// Reuses the real page-shell builder (createPage(), songbook_render_preview.js)
+// as the measuring container instead of hand-duplicating .a4-page's CSS
+// (width, padding, font, line-height...) here. That duplication was the
+// actual source of past measurement/render mismatches - any tweak to
+// styles/a4_page.css had to be remembered and copied here too, and every rule
+// scoped to `.a4-page` (e.g. `.a4-page pre`) silently didn't apply at all
+// since a bespoke div never carried that class. Building a real (hidden)
+// .a4-page means every such rule just applies, automatically, forever.
 function createHiddenMeasureContainer() {
-  const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.visibility = 'hidden';
-  container.style.width = '794px';
-  container.style.fontFamily = 'Fira Mono, monospace';
-  container.style.fontSize = '14px';
-  container.style.lineHeight = '22px';
-  container.style.whiteSpace = 'pre-wrap';
-  container.style.padding = '32px';
-  container.style.boxSizing = 'border-box';
-  container.style.zIndex = '-1';
-  return container;
+  const page = createPage();
+  page.style.position = 'absolute';
+  page.style.visibility = 'hidden';
+  page.style.left = '-9999px';
+  page.style.top = '0';
+  return page;
 }
-
-function measureSongHeight(pages, container, headerOptions = {}) {
-  let totalHeight = 0;
-
-  pages.forEach(page => {
-    const songDiv = document.createElement('div');
-    songDiv.className = page.right_content ? 'song-block split-song mb-4' : 'song-block mb-4';
-    songDiv.style.border = '1px dashed red';
-    songDiv.style.backgroundColor = '#fdfdfd';
-    songDiv.style.display = 'flex';
-    songDiv.style.flexDirection = 'column';
-
-    // Add title/artist header unless it's a continuation
-    if (!page.continuation) {
-      const header = createSongHeader(page, headerOptions);
-      songDiv.appendChild(header);
-    }
-
-    if (page.right_content) {
-      const columns = document.createElement('div');
-      columns.className = 'd-flex';
-
-      const leftCol = document.createElement('div');
-      leftCol.className = 'left-column flex-grow-1 pe-3';
-      const leftPre = document.createElement('pre');
-      leftPre.textContent = page.left_content;
-      leftPre.style.margin = 0;
-      leftCol.appendChild(leftPre);
-
-      const rightCol = document.createElement('div');
-      rightCol.className = 'right-column flex-grow-1 ps-3';
-      const rightPre = document.createElement('pre');
-      rightPre.textContent = page.right_content;
-      rightPre.style.margin = 0;
-      rightCol.appendChild(rightPre);
-
-      columns.appendChild(leftCol);
-      columns.appendChild(rightCol);
-      songDiv.appendChild(columns);
-    } else {
-      const pre = document.createElement('pre');
-      pre.textContent = page.left_content || page.content || '';
-      pre.style.margin = 0;
-      songDiv.appendChild(pre);
-    }
-
-    container.appendChild(songDiv);
-    const height = songDiv.getBoundingClientRect().height;
-    container.removeChild(songDiv);
-    totalHeight += height;
-  });
-
-  return totalHeight;
-}
-
 
 function orderSongs(songs, container) {
   const grouped = groupSongsByArtist(songs);
@@ -306,8 +355,20 @@ function orderSongs(songs, container) {
   const measuredArtistGroups = grouped.map(group => {
     const measuredSongs = group.map(song => {
       const splitSong = splitSongIfNeeded(song);
-      const pages = splitPageIfNeeded(splitSong, container);
-      const totalHeight = measureSongPages(pages, container);  // your existing function
+
+      // Real header height (title/artist row only - the ordering pre-pass
+      // doesn't know the eventual render's blackAndWhite/showDifficulty/etc.
+      // options, so it measures the plain default header; still the real
+      // createSongHeader markup/CSS, not a stand-in, so it's accurate for the
+      // common case of no extra badges).
+      const measuredHeader = createSongHeader(splitSong, {});
+      container.appendChild(measuredHeader);
+      const headerHeight = measuredHeader.getBoundingClientRect().height
+        + (parseFloat(getComputedStyle(measuredHeader).marginBottom) || 0);
+      container.removeChild(measuredHeader);
+
+      const pages = splitPageIfNeeded(splitSong, container, headerHeight);
+      const totalHeight = measureSongPages(pages, container);
 
       return {
         id: song.id,
@@ -345,40 +406,43 @@ function orderSongs(songs, container) {
 }
 
 
+// Builds each page of a song exactly the way the real render loop does
+// (createSongHeader for the header, renderSong() HTML inside plain <pre>s for
+// the body) and measures its real footprint (height + own margin-bottom),
+// same as songbook_render_preview.js's blockHeight. Only used by orderSongs'
+// pre-pass to estimate total height for bin-packing - not part of the real
+// render itself.
 function measureSongPages(pages, container) {
   let totalHeight = 0;
 
-  pages.forEach((page, index) => {
+  pages.forEach(page => {
     const songDiv = document.createElement('div');
     songDiv.className = page.right_content ? 'song-block split-song mb-4' : 'song-block mb-4';
-    songDiv.style.border = '1px dashed red';
-    songDiv.style.backgroundColor = '#fdfdfd';
-    songDiv.style.display = 'flex';
-    songDiv.style.flexDirection = 'column';
 
     if (!page.continuation) {
-      const header = document.createElement('div');
-      header.innerHTML = `<strong>${page.title}</strong> <em>${page.artist}</em>`;
-      header.style.marginBottom = '10px';
-      songDiv.appendChild(header);
+      songDiv.appendChild(createSongHeader(page, {}));
     }
 
     if (page.right_content) {
+      // .split-song's own CSS is a row (display:flex; justify-content:space-between) -
+      // the real render loop overrides it inline to stack the header above the
+      // columns row instead of beside it. Match that here too.
+      songDiv.style.display = 'flex';
+      songDiv.style.flexDirection = 'column';
+
       const columns = document.createElement('div');
       columns.className = 'd-flex';
 
       const leftCol = document.createElement('div');
       leftCol.className = 'left-column flex-grow-1 pe-3';
       const leftPre = document.createElement('pre');
-      leftPre.textContent = page.left_content;
-      leftPre.style.margin = 0;
+      leftPre.innerHTML = renderSong(page.left_content);
       leftCol.appendChild(leftPre);
 
       const rightCol = document.createElement('div');
       rightCol.className = 'right-column flex-grow-1 ps-3';
       const rightPre = document.createElement('pre');
-      rightPre.textContent = page.right_content;
-      rightPre.style.margin = 0;
+      rightPre.innerHTML = renderSong(page.right_content);
       rightCol.appendChild(rightPre);
 
       columns.appendChild(leftCol);
@@ -386,13 +450,13 @@ function measureSongPages(pages, container) {
       songDiv.appendChild(columns);
     } else {
       const pre = document.createElement('pre');
-      pre.textContent = page.left_content || page.content || '';
-      pre.style.margin = 0;
+      pre.innerHTML = renderSong(page.left_content || page.content || '');
       songDiv.appendChild(pre);
     }
 
     container.appendChild(songDiv);
-    const height = songDiv.getBoundingClientRect().height;
+    const marginBottom = parseFloat(getComputedStyle(songDiv).marginBottom) || 0;
+    const height = songDiv.getBoundingClientRect().height + marginBottom;
     container.removeChild(songDiv);
 
     totalHeight += height;
