@@ -51,13 +51,20 @@ background: linear-gradient(90deg, var(--primary), var(--secondary));
     margin-top: 20px;
     transition: transform 0.3s;
     transition: box-shadow 0.3s ease;
+}
+
+/* Hover/pointer affordance only makes sense when the card is actually
+   clickable - scoped to the .stat-card-link wrapper (every real link usage
+   already wraps its card in one) rather than the bare .stat-card, so a
+   card with no link (e.g. a plain stat with nowhere to go) doesn't look
+   interactive when it isn't. */
+.stat-card-link .stat-card {
     cursor: pointer;
 }
 
-.stat-card:hover {
+.stat-card-link:hover .stat-card {
     transform: scale(1.03);
     box-shadow: 0 0 0 2px var(--primary);
-
 }
 
 .stat-card .number {

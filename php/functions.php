@@ -436,16 +436,31 @@ function edit_song($mysqli, $id, $data) {
 
 
 
-function get_number_of_songs(mysqli $mysqli, ?string $username = null): array {
-    if ($username === null) {
-        // Count all songs, fixed and not fixed
-        $sql = "
-            SELECT 
-                COUNT(*) AS total,
-                SUM(is_fixed = 1) AS fixed,
-                SUM(is_fixed = 0) AS not_fixed
-            FROM songs
-        ";
+// $categoryId is an additive optional filter (used by admin/stats.php's
+// dynamic category selector) - added as a new trailing parameter so every
+// existing $username-only call site keeps working unchanged.
+function get_number_of_songs(mysqli $mysqli, ?string $username = null, ?int $categoryId = null): array {
+    $conditions = [];
+    $params = [];
+    $types = "";
+
+    if ($username !== null) {
+        $conditions[] = "owner = ?";
+        $params[] = $username;
+        $types .= "s";
+    }
+    if ($categoryId !== null) {
+        $conditions[] = "category = ?";
+        $params[] = $categoryId;
+        $types .= "i";
+    }
+
+    $sql = "SELECT COUNT(*) AS total, SUM(is_fixed = 1) AS fixed, SUM(is_fixed = 0) AS not_fixed FROM songs";
+    if ($conditions) {
+        $sql .= " WHERE " . implode(" AND ", $conditions);
+    }
+
+    if (!$params) {
         $result = $mysqli->query($sql);
         if (!$result) {
             error_log("MySQL Error: " . $mysqli->error);
@@ -457,37 +472,29 @@ function get_number_of_songs(mysqli $mysqli, ?string $username = null): array {
             'fixed' => (int)$row['fixed'],
             'not_fixed' => (int)$row['not_fixed'],
         ];
-    } else {
-        // Count songs for this username in 'owner' column
-        $stmt = $mysqli->prepare("
-            SELECT 
-                COUNT(*) AS total,
-                SUM(is_fixed = 1) AS fixed,
-                SUM(is_fixed = 0) AS not_fixed
-            FROM songs
-            WHERE owner = ?
-        ");
-        if (!$stmt) {
-            error_log("MySQL prepare error: " . $mysqli->error);
-            return ['total' => 0, 'fixed' => 0, 'not_fixed' => 0];
-        }
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if (!$result) {
-            error_log("MySQL execute error: " . $stmt->error);
-            $stmt->close();
-            return ['total' => 0, 'fixed' => 0, 'not_fixed' => 0];
-        }
-        $row = $result->fetch_assoc();
-        $stmt->close();
-
-        return [
-            'total' => (int)$row['total'],
-            'fixed' => (int)$row['fixed'],
-            'not_fixed' => (int)$row['not_fixed'],
-        ];
     }
+
+    $stmt = $mysqli->prepare($sql);
+    if (!$stmt) {
+        error_log("MySQL prepare error: " . $mysqli->error);
+        return ['total' => 0, 'fixed' => 0, 'not_fixed' => 0];
+    }
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if (!$result) {
+        error_log("MySQL execute error: " . $stmt->error);
+        $stmt->close();
+        return ['total' => 0, 'fixed' => 0, 'not_fixed' => 0];
+    }
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    return [
+        'total' => (int)$row['total'],
+        'fixed' => (int)$row['fixed'],
+        'not_fixed' => (int)$row['not_fixed'],
+    ];
 }
 
 
@@ -1161,6 +1168,445 @@ function get_xp_leaderboard(mysqli $mysqli, string $period = 'total', int $limit
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
     return $rows;
+}
+
+// ==========================================================================
+// SITE-WIDE ADMIN STATISTICS
+// Used by admin/index.php's activity/login charts and admin/stats.php's
+// detailed statistics page.
+// ==========================================================================
+
+// Day-bucketed activity_log counts for the last $days days (today included),
+// oldest first, with every day present (0 if nothing happened) so a bar
+// chart renders evenly spaced instead of skipping quiet days. 'activity'
+// excludes login noise (matches get_recent_activity_number()'s default);
+// 'logins' is only that login noise.
+function get_activity_by_day($mysqli, int $days = 7, string $mode = 'activity'): array {
+    $typeFilter = $mode === 'logins'
+        ? "AND type IN ('auto_login', 'manual_login', 'guest')"
+        : "AND type NOT IN ('auto_login', 'manual_login', 'guest')";
+
+    $stmt = $mysqli->prepare(
+        "SELECT DATE(time) AS day, COUNT(*) AS count
+         FROM activity_log
+         WHERE time >= DATE_SUB(CURDATE(), INTERVAL ? DAY) $typeFilter
+         GROUP BY DATE(time)"
+    );
+    $daysBack = $days - 1;
+    $counts = [];
+    if ($stmt) {
+        $stmt->bind_param('i', $daysBack);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $counts[$row['day']] = (int)$row['count'];
+        }
+        $stmt->close();
+    } else {
+        error_log("MySQL prepare error in get_activity_by_day: " . $mysqli->error);
+    }
+
+    $series = [];
+    for ($i = $days - 1; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-$i days"));
+        $series[] = ['date' => $date, 'count' => $counts[$date] ?? 0];
+    }
+    return $series;
+}
+
+// Same day-bucketing as get_activity_by_day, but summing xp_events.amount
+// instead of counting activity_log rows - both tables carry real
+// timestamps, so this is an actual trend, not a fabricated one.
+function get_xp_by_day($mysqli, int $days = 30): array {
+    $stmt = $mysqli->prepare(
+        "SELECT DATE(created_at) AS day, COALESCE(SUM(amount), 0) AS total
+         FROM xp_events
+         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+         GROUP BY DATE(created_at)"
+    );
+    $daysBack = $days - 1;
+    $sums = [];
+    if ($stmt) {
+        $stmt->bind_param('i', $daysBack);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $sums[$row['day']] = (int)$row['total'];
+        }
+        $stmt->close();
+    } else {
+        error_log("MySQL prepare error in get_xp_by_day: " . $mysqli->error);
+    }
+
+    $series = [];
+    for ($i = $days - 1; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-$i days"));
+        $series[] = ['date' => $date, 'amount' => $sums[$date] ?? 0];
+    }
+    return $series;
+}
+
+// App-wide (not per-songbook) song ownership leaderboard. $categoryId
+// (optional, used by admin/stats.php's dynamic category selector) scopes it
+// to just that song category.
+function get_top_song_owners($mysqli, int $limit = 10, ?int $categoryId = null): array {
+    $sql = "SELECT s.owner AS username, COALESCE(u.name, s.owner) AS name, COUNT(*) AS total
+            FROM songs s
+            LEFT JOIN users u ON u.username = s.owner";
+    if ($categoryId !== null) {
+        $sql .= " WHERE s.category = ?";
+    }
+    $sql .= " GROUP BY s.owner, u.name ORDER BY total DESC LIMIT ?";
+
+    $stmt = $mysqli->prepare($sql);
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_top_song_owners: " . $mysqli->error);
+        return [];
+    }
+    if ($categoryId !== null) {
+        $stmt->bind_param('ii', $categoryId, $limit);
+    } else {
+        $stmt->bind_param('i', $limit);
+    }
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    return $rows;
+}
+
+// Who has made the most 'edit'-type activity_log entries, app-wide.
+function get_top_editors($mysqli, int $limit = 10): array {
+    $stmt = $mysqli->prepare(
+        "SELECT a.username, COALESCE(u.name, a.username) AS name, COUNT(*) AS total
+         FROM activity_log a
+         LEFT JOIN users u ON u.username = a.username
+         WHERE a.type = 'edit'
+         GROUP BY a.username, u.name
+         ORDER BY total DESC
+         LIMIT ?"
+    );
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_top_editors: " . $mysqli->error);
+        return [];
+    }
+    $stmt->bind_param('i', $limit);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    return $rows;
+}
+
+// Songbook visibility breakdown: is_public 0/1/2 = private/group/public
+// (see songbook.php's own visibility check for this same mapping).
+function get_songbook_visibility_counts($mysqli): array {
+    $counts = ['private' => 0, 'group' => 0, 'public' => 0];
+    $result = $mysqli->query("SELECT is_public, COUNT(*) AS total FROM songbooks GROUP BY is_public");
+    if (!$result) {
+        error_log("MySQL Error in get_songbook_visibility_counts: " . $mysqli->error);
+        return $counts;
+    }
+    while ($row = $result->fetch_assoc()) {
+        $key = match ((int)$row['is_public']) {
+            1 => 'group',
+            2 => 'public',
+            default => 'private',
+        };
+        $counts[$key] = (int)$row['total'];
+    }
+    return $counts;
+}
+
+// App-wide most-used tags. song_tags.usage_count is already maintained
+// incrementally by add_tag()/remove_tag(), so this is a cheap direct read
+// rather than scanning every song's tags column.
+function get_top_song_tags($mysqli, int $limit = 20): array {
+    $stmt = $mysqli->prepare("SELECT name, usage_count FROM song_tags ORDER BY usage_count DESC LIMIT ?");
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_top_song_tags: " . $mysqli->error);
+        return [];
+    }
+    $stmt->bind_param('i', $limit);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    return $rows;
+}
+
+// App-wide difficulty distribution. Difficulty isn't its own column - same
+// as songbook.php's per-songbook stats, it's embedded in songs.tags and has
+// to be pulled out per row via filter_difficulty_tags(). $categoryId
+// (optional, used by admin/stats.php's dynamic category selector) scopes it
+// to just that song category.
+function get_app_wide_difficulty_counts($mysqli, ?int $categoryId = null): array {
+    $counts = ['easy' => 0, 'normal' => 0, 'hard' => 0, 'none' => 0];
+    $sql = "SELECT tags FROM songs";
+    if ($categoryId !== null) {
+        $stmt = $mysqli->prepare($sql . " WHERE category = ?");
+        if (!$stmt) {
+            error_log("MySQL prepare error in get_app_wide_difficulty_counts: " . $mysqli->error);
+            return $counts;
+        }
+        $stmt->bind_param('i', $categoryId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        $result = $mysqli->query($sql);
+    }
+    if (!$result) {
+        error_log("MySQL Error in get_app_wide_difficulty_counts: " . $mysqli->error);
+        return $counts;
+    }
+    while ($row = $result->fetch_assoc()) {
+        $filtered = filter_difficulty_tags($row['tags']);
+        $key = $filtered['difficulty'] !== '' ? $filtered['difficulty'] : 'none';
+        $counts[$key] = ($counts[$key] ?? 0) + 1;
+    }
+    if (isset($stmt)) $stmt->close();
+    return $counts;
+}
+
+// App-wide instrument usage. Same reasoning as difficulty above - no
+// dedicated usage-count table for instruments (unlike song_tags), so this
+// tallies songs.instruments directly. $categoryId scopes it the same way as
+// get_app_wide_difficulty_counts.
+function get_app_wide_instrument_counts($mysqli, int $limit = 15, ?int $categoryId = null): array {
+    $counts = [];
+    $sql = "SELECT instruments FROM songs WHERE instruments IS NOT NULL AND instruments != ''";
+    if ($categoryId !== null) {
+        $stmt = $mysqli->prepare($sql . " AND category = ?");
+        if (!$stmt) {
+            error_log("MySQL prepare error in get_app_wide_instrument_counts: " . $mysqli->error);
+            return [];
+        }
+        $stmt->bind_param('i', $categoryId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        $result = $mysqli->query($sql);
+    }
+    if (!$result) {
+        error_log("MySQL Error in get_app_wide_instrument_counts: " . $mysqli->error);
+        return [];
+    }
+    while ($row = $result->fetch_assoc()) {
+        foreach (explode(',', $row['instruments']) as $instrument) {
+            $instrument = trim($instrument);
+            if ($instrument === '') continue;
+            $counts[$instrument] = ($counts[$instrument] ?? 0) + 1;
+        }
+    }
+    if (isset($stmt)) $stmt->close();
+    arsort($counts);
+    return array_slice($counts, 0, $limit, true);
+}
+
+// Tag usage WITHIN one song category specifically. song_tags.usage_count
+// (used by get_top_song_tags) is a GLOBAL counter across every song, so it
+// can't answer "which tags are common in category X" - this scans that
+// category's songs.tags directly instead, same technique as
+// get_app_wide_difficulty_counts/get_app_wide_instrument_counts above.
+function get_song_tag_counts_for_category($mysqli, int $categoryId, int $limit = 20): array {
+    $stmt = $mysqli->prepare("SELECT tags FROM songs WHERE category = ?");
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_song_tag_counts_for_category: " . $mysqli->error);
+        return [];
+    }
+    $stmt->bind_param('i', $categoryId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $counts = [];
+    while ($row = $result->fetch_assoc()) {
+        $filtered = filter_difficulty_tags($row['tags']);
+        foreach (explode(',', $filtered['tags']) as $tag) {
+            $tag = trim($tag);
+            if ($tag === '') continue;
+            $counts[$tag] = ($counts[$tag] ?? 0) + 1;
+        }
+    }
+    $stmt->close();
+
+    arsort($counts);
+    $counts = array_slice($counts, 0, $limit, true);
+
+    $rows = [];
+    foreach ($counts as $name => $count) {
+        $rows[] = ['name' => $name, 'usage_count' => $count];
+    }
+    return $rows;
+}
+
+// Most-liked song requests on the wishlist, app-wide.
+function get_top_wishlist_songs($mysqli, int $limit = 10): array {
+    $stmt = $mysqli->prepare("SELECT name, artist, likes FROM wishlist_songs ORDER BY likes DESC, create_date ASC LIMIT ?");
+    if (!$stmt) {
+        error_log("MySQL prepare error in get_top_wishlist_songs: " . $mysqli->error);
+        return [];
+    }
+    $stmt->bind_param('i', $limit);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    return $rows;
+}
+
+function get_total_groups($mysqli): int {
+    $result = $mysqli->query("SELECT COUNT(*) AS total FROM group_list");
+    if (!$result) {
+        error_log("MySQL Error in get_total_groups: " . $mysqli->error);
+        return 0;
+    }
+    return (int)($result->fetch_assoc()['total'] ?? 0);
+}
+
+function get_total_unique_tags($mysqli): int {
+    $result = $mysqli->query("SELECT COUNT(*) AS total FROM song_tags");
+    if (!$result) {
+        error_log("MySQL Error in get_total_unique_tags: " . $mysqli->error);
+        return 0;
+    }
+    return (int)($result->fetch_assoc()['total'] ?? 0);
+}
+
+function get_total_wishlist_songs($mysqli): int {
+    $result = $mysqli->query("SELECT COUNT(*) AS total FROM wishlist_songs");
+    if (!$result) {
+        error_log("MySQL Error in get_total_wishlist_songs: " . $mysqli->error);
+        return 0;
+    }
+    return (int)($result->fetch_assoc()['total'] ?? 0);
+}
+
+// Renders a simple inline SVG bar chart from a day-bucketed series (see
+// get_activity_by_day/get_xp_by_day) - no charting library is loaded
+// anywhere in this app (the songbook stats page hand-draws its own pie
+// chart the same way, for the same reason), so this is plain, dependency-
+// free SVG. $series items are ['date' => 'Y-m-d', $valueKey => number].
+// $labelEvery skips date labels on narrow charts (e.g. 30 daily bars) so
+// they don't overlap - only every Nth bar gets a label underneath.
+function render_admin_bar_chart_svg(array $series, string $valueKey, string $color = '#4361ee', int $labelEvery = 1): string {
+    $width = 700;
+    $height = 160;
+    $labelHeight = 18;
+    $count = count($series);
+    if ($count === 0) {
+        return '<p class="text-muted small mb-0">Žiadne dáta.</p>';
+    }
+
+    $max = max(1, ...array_map(fn($item) => $item[$valueKey], $series));
+    $gap = 4;
+    $barWidth = max(1, ($width - ($count - 1) * $gap) / $count);
+
+    $svg = '<svg viewBox="0 0 ' . $width . ' ' . ($height + $labelHeight) . '" style="width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">';
+    foreach ($series as $i => $item) {
+        $value = $item[$valueKey];
+        $barHeight = ($value / $max) * ($height - 4);
+        $x = $i * ($barWidth + $gap);
+        $y = $height - $barHeight;
+        $dateObj = date_create($item['date']);
+        $title = htmlspecialchars(($dateObj ? date_format($dateObj, 'd.m.Y') : $item['date']) . ': ' . $value);
+
+        $svg .= '<rect x="' . round($x, 1) . '" y="' . round($y, 1) . '" width="' . round($barWidth, 1) . '" height="' . round(max(0, $barHeight), 1) . '" rx="2" fill="' . $color . '"><title>' . $title . '</title></rect>';
+
+        if ($labelEvery > 0 && $i % $labelEvery === 0 && $dateObj) {
+            $labelX = round($x + $barWidth / 2, 1);
+            $svg .= '<text x="' . $labelX . '" y="' . ($height + 13) . '" font-size="9" fill="#6c757d" text-anchor="middle">' . htmlspecialchars(date_format($dateObj, 'd.m')) . '</text>';
+        }
+    }
+    $svg .= '</svg>';
+    return $svg;
+}
+
+// Hand-drawn SVG pie chart (arc <path> elements), same technique and math
+// as the songbook stats page's JS pie chart (buildStatsPieChart in
+// songbook.php) - no charting library loaded anywhere in this app. $slices
+// = [['label'=>string,'count'=>int], ...]. A single 100%-share slice draws
+// as a full circle via two half-arcs, since one <path> arc command can't
+// sweep a full 360deg.
+function render_admin_pie_chart_svg(array $slices, int $size = 140, array $colors = []): string {
+    $colors = $colors ?: ['#4361ee', '#f72585', '#4cc9f0', '#f8961e', '#43aa8b', '#9b5de5', '#ffca3a', '#ef476f', '#06d6a0', '#118ab2'];
+    $total = array_sum(array_column($slices, 'count'));
+    $radius = $size / 2;
+    $cx = $radius;
+    $cy = $radius;
+
+    $svg = '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 ' . $size . ' ' . $size . '" xmlns="http://www.w3.org/2000/svg">';
+
+    if ($total <= 0) {
+        $svg .= '<circle cx="' . $cx . '" cy="' . $cy . '" r="' . ($radius - 2) . '" fill="none" stroke="#ccc" stroke-width="2" />';
+        return $svg . '</svg>';
+    }
+
+    $angle = -M_PI / 2; // 12 o'clock, sweeping clockwise
+    foreach ($slices as $i => $slice) {
+        $count = (float)$slice['count'];
+        if ($count <= 0) continue;
+        $fraction = $count / $total;
+        $nextAngle = $angle + $fraction * 2 * M_PI;
+        $color = $colors[$i % count($colors)];
+        $title = htmlspecialchars($slice['label'] . ': ' . $slice['count']);
+
+        if ($fraction >= 0.9999) {
+            $svg .= '<path d="M ' . $cx . ' ' . ($cy - $radius) . ' A ' . $radius . ' ' . $radius . ' 0 1 1 ' . ($cx - 0.01) . ' ' . ($cy - $radius)
+                . ' Z" fill="' . $color . '"><title>' . $title . '</title></path>';
+        } else {
+            $x1 = round($cx + $radius * cos($angle), 2);
+            $y1 = round($cy + $radius * sin($angle), 2);
+            $x2 = round($cx + $radius * cos($nextAngle), 2);
+            $y2 = round($cy + $radius * sin($nextAngle), 2);
+            $largeArc = $fraction > 0.5 ? 1 : 0;
+            $svg .= '<path d="M ' . $cx . ' ' . $cy . ' L ' . $x1 . ' ' . $y1 . ' A ' . $radius . ' ' . $radius . ' 0 ' . $largeArc . ' 1 ' . $x2 . ' ' . $y2
+                . ' Z" fill="' . $color . '" stroke="#fff" stroke-width="1.5"><title>' . $title . '</title></path>';
+        }
+        $angle = $nextAngle;
+    }
+
+    return $svg . '</svg>';
+}
+
+// Pie chart + a matching color-swatch legend (label, count, percentage),
+// side by side - zero-count slices are dropped from both before rendering,
+// so e.g. a difficulty bucket nobody uses doesn't waste a legend row or
+// claim a color.
+function render_admin_pie_with_legend(array $slices, int $size = 140, array $colors = []): string {
+    $slices = array_values(array_filter($slices, fn($s) => $s['count'] > 0));
+    if (!$slices) {
+        return '<p class="text-muted small mb-0">Žiadne dáta.</p>';
+    }
+    $colors = $colors ?: ['#4361ee', '#f72585', '#4cc9f0', '#f8961e', '#43aa8b', '#9b5de5', '#ffca3a', '#ef476f', '#06d6a0', '#118ab2'];
+    $total = array_sum(array_column($slices, 'count'));
+
+    $legend = '<div class="mt-2 mt-md-0">';
+    foreach ($slices as $i => $slice) {
+        $color = $colors[$i % count($colors)];
+        $percent = $total > 0 ? round(($slice['count'] / $total) * 100) : 0;
+        $legend .= '<div class="d-flex align-items-center gap-2 small mb-1">'
+            . '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' . $color . ';flex:0 0 auto;"></span>'
+            . '<span class="flex-grow-1">' . htmlspecialchars($slice['label']) . '</span>'
+            . '<span class="text-muted">' . $slice['count'] . ' (' . $percent . '%)</span>'
+            . '</div>';
+    }
+    $legend .= '</div>';
+
+    return '<div class="d-flex align-items-center gap-3 flex-wrap">'
+        . '<div style="flex:0 0 auto;">' . render_admin_pie_chart_svg($slices, $size, $colors) . '</div>'
+        . '<div class="flex-grow-1" style="min-width:140px;">' . $legend . '</div>'
+        . '</div>';
+}
+
+// Renders one "label ---bar--- count" row, Bootstrap-only (no inline-style
+// html2canvas constraints here, unlike the songbook stats page - this is a
+// normal server-rendered page). Returns HTML rather than echoing so it can
+// also be reused inside JSON fragments returned by the stats AJAX endpoint.
+function render_stat_bar_row(string $label, int $count, int $max, string $barClass = 'bg-primary'): string {
+    $percent = $max > 0 ? round(($count / $max) * 100) : 0;
+    return '<div class="d-flex align-items-center gap-2 mb-2">'
+        . '<div class="small text-truncate" style="width:160px;flex:0 0 auto;">' . htmlspecialchars($label) . '</div>'
+        . '<div class="progress flex-grow-1" style="height:10px;">'
+        . '<div class="progress-bar ' . htmlspecialchars($barClass) . '" style="width:' . $percent . '%;"></div>'
+        . '</div>'
+        . '<div class="small text-muted text-end" style="width:40px;flex:0 0 auto;">' . $count . '</div>'
+        . '</div>';
 }
 
 function get_all_groups(mysqli $mysqli) {
