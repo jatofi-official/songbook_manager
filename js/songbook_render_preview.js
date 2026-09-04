@@ -42,9 +42,67 @@ const A4_FONT_SIZE_PX = 14; // matches .a4-page's own font-size (styles/a4_page.
 // Mono - that's a harmless bit of unused space, whereas growing the font
 // would grow its width too, past whatever margin the separate width-fit
 // scale below already assumed.
+function buildProportionalBody(content, fontFamily, fontSizePx, markerScale) {
+  const monoCharWidth = createDomMeasurer('Fira Mono, monospace', fontSizePx)('M', false);
+  const measure = createDomMeasurer(fontFamily, fontSizePx);
+  const div = document.createElement('div');
+  div.className = 'song-body-proportional';
+  div.style.fontFamily = fontFamily;
+  div.style.fontSize = fontSizePx + 'px';
+  div.innerHTML = renderSongProportional(content, monoCharWidth, measure, markerScale);
+  return div;
+}
+
+// The largest font-size scale (<=1, relative to A4_FONT_SIZE_PX) `content`
+// can render at within availableWidthPx without exceeding either its own
+// real Fira Mono height (the exact height song_ordering.js already
+// measured, and split pages against, for this same chunk at this same
+// availableWidthPx - see measureHeight, song_ordering.js) or availableWidthPx
+// itself (chord-row/lyric-row never wrap - a wrapped line would no longer
+// line up with the chord row positioned above it, see chord_font_layout.js
+// - so a line wider than availableWidthPx has to be shrunk to fit rather
+// than left to overflow the page/column edge). MEASURES rather than
+// predicts: building the real chord-row/lyric-row HTML and reading back its
+// actual getBoundingClientRect().height sidesteps having to guess how tall
+// a given font/glyph combination renders.
+function computeBodyFontScale(content, fontFamily, availableWidthPx, tempContainer) {
+  const targetHeight = measureHeight(content, tempContainer, availableWidthPx);
+
+  const monoCharWidth = createDomMeasurer('Fira Mono, monospace', A4_FONT_SIZE_PX)('M', false);
+  const measureAtBase = createDomMeasurer(fontFamily, A4_FONT_SIZE_PX);
+  const probe = document.createElement('div');
+  probe.className = 'song-body-proportional';
+  probe.style.fontFamily = fontFamily;
+  probe.style.fontSize = A4_FONT_SIZE_PX + 'px';
+  probe.innerHTML = renderSongProportional(content, monoCharWidth, measureAtBase);
+  tempContainer.appendChild(probe);
+  const naturalHeight = probe.getBoundingClientRect().height;
+  tempContainer.removeChild(probe);
+  // Never scales UP even if a font happens to measure shorter than Fira
+  // Mono at the base size - that's just some harmless unused space, whereas
+  // scaling up would grow the font's width too, past whatever margin the
+  // width-fit check below assumed.
+  const heightScale = naturalHeight > 0 ? Math.min(1, targetHeight / naturalHeight) : 1;
+
+  let widthScale = 1;
+  String(content ?? '').split(/\r?\n/).forEach(line => {
+    if (!line.trim()) return;
+    const width = measureAtBase(line, isChordLine(line));
+    if (width > availableWidthPx) widthScale = Math.min(widthScale, availableWidthPx / width);
+  });
+
+  return Math.min(heightScale, widthScale);
+}
+
+// Builds a full-width, single-column song body - either the original
+// monospace <pre> (fontKey === 'monospace'/unrecognized) or a
+// proportional-font chord/lyric-row block (see computeBodyFontScale/
+// buildProportionalBody). For a two-column body, see
+// buildTwoColumnSongBodies instead - the two columns must share ONE
+// font-size rather than each computing their own.
 function buildSongBodyElement(content, fontKey, availableWidthPx, tempContainer) {
-  const pre = document.createElement('pre');
   if (!fontKey || fontKey === 'monospace' || !SONG_FONT_STACKS[fontKey]) {
+    const pre = document.createElement('pre');
     pre.style.margin = 0;
     pre.innerHTML = renderSong(content);
     return pre;
@@ -56,46 +114,41 @@ function buildSongBodyElement(content, fontKey, availableWidthPx, tempContainer)
   // tiny, Verdana's is already large) - see markerFontSizeStyle,
   // chord_font_layout.js.
   const markerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
+  const scale = computeBodyFontScale(content, fontFamily, availableWidthPx, tempContainer);
+  return buildProportionalBody(content, fontFamily, A4_FONT_SIZE_PX * scale, markerScale);
+}
 
-  const buildAt = (fontSizePx) => {
-    const monoCharWidth = createDomMeasurer('Fira Mono, monospace', fontSizePx)('M', false);
-    const measure = createDomMeasurer(fontFamily, fontSizePx);
-    const div = document.createElement('div');
-    div.className = 'song-body-proportional';
-    div.style.fontFamily = fontFamily;
-    div.style.fontSize = fontSizePx + 'px';
-    div.innerHTML = renderSongProportional(content, monoCharWidth, measure, markerScale);
-    return div;
+// Builds both halves of a two-column song body at a SINGLE shared font
+// size, rather than each column picking its own via computeBodyFontScale
+// independently - which is what buildSongBodyElement would do if just
+// called twice, and let the right column render visibly smaller than the
+// left (or vice versa) whenever it happened to need more shrinking (denser
+// text, one long chord line, etc.), even though they're the same song at
+// the same column width. Uses the smaller (more restrictive) of the two
+// columns' own required scales, so both halves stay within their real Fira
+// Mono budget - the same guarantee buildSongBodyElement gives a single
+// column, just shared across both instead of computed twice independently.
+function buildTwoColumnSongBodies(leftContent, rightContent, fontKey, columnWidthPx, tempContainer) {
+  if (!fontKey || fontKey === 'monospace' || !SONG_FONT_STACKS[fontKey]) {
+    const buildPre = (content) => {
+      const pre = document.createElement('pre');
+      pre.style.margin = 0;
+      pre.innerHTML = renderSong(content);
+      return pre;
+    };
+    return { left: buildPre(leftContent), right: buildPre(rightContent) };
+  }
+
+  const fontFamily = SONG_FONT_STACKS[fontKey];
+  const markerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
+  const leftScale = computeBodyFontScale(leftContent, fontFamily, columnWidthPx, tempContainer);
+  const rightScale = computeBodyFontScale(rightContent, fontFamily, columnWidthPx, tempContainer);
+  const fontSizePx = A4_FONT_SIZE_PX * Math.min(leftScale, rightScale);
+
+  return {
+    left: buildProportionalBody(leftContent, fontFamily, fontSizePx, markerScale),
+    right: buildProportionalBody(rightContent, fontFamily, fontSizePx, markerScale)
   };
-
-  // The exact height song_ordering.js already measured (and split pages
-  // against) for this same chunk of lines, in Fira Mono at this same
-  // availableWidthPx - see measureHeight (song_ordering.js, a global
-  // function shared across these scripts). This is the target, not just an
-  // upper bound to reason about.
-  const targetHeight = measureHeight(content, tempContainer, availableWidthPx);
-
-  const probe = buildAt(A4_FONT_SIZE_PX);
-  tempContainer.appendChild(probe);
-  const naturalHeight = probe.getBoundingClientRect().height;
-  tempContainer.removeChild(probe);
-
-  const heightScale = naturalHeight > 0 ? Math.min(1, targetHeight / naturalHeight) : 1;
-
-  // Width-fit scale: chord-row/lyric-row never wrap (a wrapped line would no
-  // longer line up with the chord row positioned above it - see
-  // chord_font_layout.js), so a line wider than availableWidthPx has to be
-  // shrunk to fit rather than left to overflow the page/column edge.
-  const measureAtBase = createDomMeasurer(fontFamily, A4_FONT_SIZE_PX);
-  let widthScale = 1;
-  String(content ?? '').split(/\r?\n/).forEach(line => {
-    if (!line.trim()) return;
-    const width = measureAtBase(line, isChordLine(line));
-    if (width > availableWidthPx) widthScale = Math.min(widthScale, availableWidthPx / width);
-  });
-
-  const fontSizePx = A4_FONT_SIZE_PX * Math.min(heightScale, widthScale);
-  return buildAt(fontSizePx);
 }
 
 function renderA4Preview(songs, orderedIds, options = {}) {
@@ -300,13 +353,15 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         const columns = document.createElement('div');
         columns.className = 'd-flex';
 
+        const columnBodies = buildTwoColumnSongBodies(partSong.left_content, partSong.right_content, fontKey, columnWidthPx, tempContainer);
+
         const leftCol = document.createElement('div');
         leftCol.className = 'left-column flex-grow-1 pe-3';
-        leftCol.appendChild(buildSongBodyElement(partSong.left_content, fontKey, columnWidthPx, tempContainer));
+        leftCol.appendChild(columnBodies.left);
 
         const rightCol = document.createElement('div');
         rightCol.className = 'right-column flex-grow-1 ps-3';
-        rightCol.appendChild(buildSongBodyElement(partSong.right_content, fontKey, columnWidthPx, tempContainer));
+        rightCol.appendChild(columnBodies.right);
 
         columns.appendChild(leftCol);
         columns.appendChild(rightCol);
