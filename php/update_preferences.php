@@ -22,7 +22,7 @@ if (!in_array($theme, ['light', 'dark', 'system'], true)) {
 }
 
 $songFont = $input['song_font'] ?? 'monospace';
-if (!in_array($songFont, ['monospace', 'calibri', 'arial', 'verdana', 'georgia', 'times'], true)) {
+if (!in_array($songFont, ['monospace', 'calibri', 'corbel', 'candara', 'arial', 'verdana', 'georgia', 'times'], true)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'Invalid song font.']);
     exit;

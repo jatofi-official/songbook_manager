@@ -287,6 +287,8 @@ function enhanceSongDiv(el) {
 // this is what actually renders once JS takes over).
 const SONG_FONT_STACKS = {
     calibri: "Calibri, 'Segoe UI', Candara, Verdana, sans-serif",
+    corbel: "Corbel, Candara, 'Segoe UI', Calibri, sans-serif",
+    candara: "Candara, Corbel, 'Segoe UI', Calibri, sans-serif",
     arial: "Arial, Helvetica, sans-serif",
     verdana: "Verdana, Geneva, sans-serif",
     georgia: "Georgia, 'Times New Roman', serif",

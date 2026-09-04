@@ -21,6 +21,8 @@ error_reporting(E_ALL);
 $songbookFontOptions = [
     'monospace' => 'Monospace (original)',
     'calibri'   => 'Calibri',
+    'corbel'    => 'Corbel',
+    'candara'   => 'Candara',
     'arial'     => 'Arial',
     'verdana'   => 'Verdana',
     'georgia'   => 'Georgia',

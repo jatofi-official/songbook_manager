@@ -232,7 +232,7 @@ if (isset($_GET['id'])) {
 
         <?php
             $songFont = $_SESSION['song_font'] ?? 'monospace';
-            if (!in_array($songFont, ['monospace', 'calibri', 'arial', 'verdana', 'georgia', 'times'], true)) {
+            if (!in_array($songFont, ['monospace', 'calibri', 'corbel', 'candara', 'arial', 'verdana', 'georgia', 'times'], true)) {
                 $songFont = 'monospace';
             }
         ?>

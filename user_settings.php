@@ -196,6 +196,8 @@ $public_profile = get_public_profile_settings($mysqli,$_SESSION["id"]);
 									<?php foreach ([
 										'monospace' => 'Monospace (original)',
 										'calibri' => 'Calibri',
+										'corbel' => 'Corbel',
+										'candara' => 'Candara',
 										'arial' => 'Arial',
 										'verdana' => 'Verdana',
 										'georgia' => 'Georgia',
