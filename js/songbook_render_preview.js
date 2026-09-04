@@ -16,8 +16,8 @@ const A4_FONT_SIZE_PX = 14; // matches .a4-page's own font-size (styles/a4_page.
 // How far .lyric-row's line-height (nominally 1.5, see styles/a4_page.css)
 // can be compressed - down to 1.5 * 0.65 = 0.975, close to a single line's
 // own height with no extra leading at all - before fitting a chunk's height
-// is allowed to touch font-size at all (see computeRequiredRowScale/
-// computeGlobalRowScale). Deliberately close to the tightest a line-height
+// is allowed to touch font-size at all (see computePageRowScale).
+// Deliberately close to the tightest a line-height
 // can go without visually colliding: pushing this low lets row-height
 // compression alone absorb close to as much slack as it can, keeping the
 // rendered layout's density close to the original monospace version (same
@@ -26,13 +26,13 @@ const A4_FONT_SIZE_PX = 14; // matches .a4-page's own font-size (styles/a4_page.
 // avoid. Still a real floor, not zero: Czech/Slovak diacritics (ě, č, ř, ů)
 // sit closer to neighboring lines than plain Latin text does, so going any
 // tighter risks visible collisions between lines.
-const ROW_SCALE_FLOOR = 0.7;
+const ROW_SCALE_FLOOR = 0.65;
 
 // Builds one song body element - a full-width single-column body, or one
 // half of a two-column body - as either the original monospace <pre>
 // (fontKey === 'monospace'/unrecognized) or a proportional-font chord/lyric
 // -row block, painted at fontSizePx/rowScale. Pure paint step - see
-// computeGlobalRowScale/computeChunkSafetyScale for how those are decided.
+// computePageRowScale/computeChunkSafetyScale for how those are decided.
 function buildProportionalBody(content, fontFamily, fontSizePx, markerScale, rowScale) {
   const monoCharWidth = createDomMeasurer('Fira Mono, monospace', fontSizePx)('M', false);
   const measure = createDomMeasurer(fontFamily, fontSizePx);
@@ -41,7 +41,7 @@ function buildProportionalBody(content, fontFamily, fontSizePx, markerScale, row
   div.style.fontFamily = fontFamily;
   div.style.fontSize = fontSizePx + 'px';
   // Read by .lyric-row (styles/a4_page.css) to compress its line-height -
-  // see ROW_SCALE_FLOOR/computeRequiredRowScale for why line-height, not
+  // see ROW_SCALE_FLOOR/computePageRowScale for why line-height, not
   // font-size, is the primary way a chunk's height is brought down to fit.
   div.style.setProperty('--a4-row-scale', rowScale ?? 1);
   div.innerHTML = renderSongProportional(content, monoCharWidth, measure, markerScale);
@@ -67,7 +67,7 @@ function measureProportionalHeight(content, fontFamily, fontSizePx, markerScale,
 // shrunk to fit rather than left to overflow the page/column edge. Unlike
 // height, width has no separate "line-height" lever - font-size is the only
 // thing that affects it, so this stays a font-size scale even though height
-// fitting (see computeRequiredRowScale) no longer is.
+// fitting (see computePageRowScale) no longer is.
 function computeWidthScale(content, fontFamily, fontSizePx, availableWidthPx) {
   const measure = createDomMeasurer(fontFamily, fontSizePx);
   let widthScale = 1;
@@ -79,61 +79,25 @@ function computeWidthScale(content, fontFamily, fontSizePx, availableWidthPx) {
   return widthScale;
 }
 
-// The rowScale (see ROW_SCALE_FLOOR) this one chunk needs, at a FIXED
-// fontSizePx, to fit within its own EXACT Fira Mono height - the same
-// height song_ordering.js already measured (measureHeight, a global
-// function it exposes) and used to decide which lines land in this chunk,
-// and therefore which page/which other songs it shares a page with. That's
-// deliberately a tighter target than "fits somewhere on a full page": this
-// chunk's real rendered height has to match what monospace would have used
-// for the SAME lines, not just avoid overflowing an empty page - otherwise
-// a proportional font's real footprint being even a little taller than
-// monospace's can push a song that monospace packed onto a shared page
-// (with another song right after it) onto a page of its own instead, once
-// the render loop's own real-height overflow check sees the difference -
-// i.e. the songbook's actual page layout silently changes with the font,
-// which is exactly what switching fonts is supposed to never do (see
-// buildProportionalBody's own compatibility comment).
+// Runs the SAME page-break accounting the real render loop below uses
+// (packHeight: monospace header + monospace body height + margin, squeeze
+// if the overflow is small enough, otherwise start a new page) but without
+// painting anything - purely to discover which chunks land on which page
+// before any row-scale/font-size decision is made. Since packHeight is
+// entirely monospace-based (font-independent), this simulation and the real
+// loop always agree on where pages break, so a page index computed here
+// lines up exactly with currentPageNum in the real loop later.
 //
-// Returns 1 if it already fits at full spacing, or ROW_SCALE_FLOOR if even
-// fully compressed it still wouldn't fit (in which case
-// computeChunkSafetyScale's font-size fallback has to cover the rest).
-// Solved exactly from two real measurements (at rowScale 1 and
-// ROW_SCALE_FLOOR) rather than guessed/iterated: a chunk's total height is
-// a LINEAR function of rowScale - only .lyric-row's line-height varies with
-// it (everything else, chord-row heights and marker-spacing margins, stays
-// fixed relative to font-size alone, see styles/a4_page.css) - so two
-// points on that line are enough to solve for the exact rowScale that hits
-// the target, rather than only being able to try the floor and see if
-// that's enough.
-function computeRequiredRowScale(content, fontFamily, fontSizePx, markerScale, availableWidthPx, tempContainer) {
-  const targetHeight = measureHeight(content, tempContainer, availableWidthPx);
-  const heightAtFull = measureProportionalHeight(content, fontFamily, fontSizePx, markerScale, 1, tempContainer);
-  if (heightAtFull <= targetHeight) return 1;
-
-  const heightAtFloor = measureProportionalHeight(content, fontFamily, fontSizePx, markerScale, ROW_SCALE_FLOOR, tempContainer);
-  // No measurable slack to compress (e.g. content with no lyric-rows at
-  // all, only chord-rows) - avoid dividing by ~0 below.
-  if (heightAtFloor >= heightAtFull) return ROW_SCALE_FLOOR;
-  if (heightAtFloor > targetHeight) return ROW_SCALE_FLOOR; // still doesn't fit even fully compressed
-
-  const rowScale = 1 + (targetHeight - heightAtFull) * (ROW_SCALE_FLOOR - 1) / (heightAtFloor - heightAtFull);
-  return Math.min(1, Math.max(ROW_SCALE_FLOOR, rowScale));
-}
-
-// One consistent lyric-row line-height compression (rowScale) for the WHOLE
-// songbook, computed as the smallest rowScale ANY chunk in this render
-// needs (see computeRequiredRowScale) - rather than letting each chunk pick
-// its own, which would make songs with more slack in their own page budget
-// render with visibly looser spacing than tightly-packed ones sharing the
-// same page. A second, lightweight pass over the same songs/parts the main
-// render loop below builds for real - mirrors song_ordering.js's own
-// separate orderSongs() pre-pass, which independently measures the same
-// songs for a different reason (page/order estimation) ahead of the real
-// render. fontSizePx is fixed and shared throughout the whole book - this
-// only searches for how much row-height compression is needed on top of it.
-function computeGlobalRowScale(processedSongs, orderedIds, fontFamily, fontSizePx, markerScale, tempContainer, pageContentWidth, columnWidthPx) {
-  let rowScale = 1;
+// Needed because row-height compression is now decided PER PAGE (see
+// computePageRowScale), not per book: a single book-wide rowScale (the
+// previous approach) took the smallest scale ANY chunk anywhere needed, so
+// one dense outlier song forced near-floor compression onto every other
+// song in the book too, even ones on mostly-empty pages with room to
+// spare. Grouping by page first lets each page's songs be compressed only
+// as much as THAT page's own content actually requires.
+function simulateMonospacePageGroups(processedSongs, orderedIds, tempContainer, pageContentWidth, columnWidthPx, contentBudget, blockMarginBottom) {
+  const pages = [[]];
+  let currentHeight = 0;
 
   for (const id of orderedIds) {
     const song = processedSongs.find(s => s.id === id);
@@ -153,38 +117,106 @@ function computeGlobalRowScale(processedSongs, orderedIds, fontFamily, fontSizeP
 
     const songParts = splitPageIfNeeded(song, tempContainer, headerHeight);
     songParts.forEach(partSong => {
-      const widthPx = partSong.right_content ? columnWidthPx : pageContentWidth;
-      rowScale = Math.min(rowScale, computeRequiredRowScale(partSong.left_content, fontFamily, fontSizePx, markerScale, widthPx, tempContainer));
-      if (partSong.right_content) {
-        rowScale = Math.min(rowScale, computeRequiredRowScale(partSong.right_content, fontFamily, fontSizePx, markerScale, widthPx, tempContainer));
+      const monospaceBodyHeight = partSong.right_content
+        ? Math.max(
+            measureHeight(partSong.left_content, tempContainer, columnWidthPx),
+            measureHeight(partSong.right_content, tempContainer, columnWidthPx)
+          )
+        : measureHeight(partSong.left_content, tempContainer, pageContentWidth);
+      let packHeight = (partSong.continuation ? 0 : headerHeight) + monospaceBodyHeight + blockMarginBottom;
+
+      let overflow = (currentHeight + packHeight) - contentBudget;
+      if (overflow > 0 && currentHeight > 0 && overflow <= blockMarginBottom && overflow <= MAX_MARGIN_SQUEEZE_PX) {
+        packHeight -= overflow;
+        overflow = 0;
       }
+
+      if (overflow > 0) {
+        pages.push([]);
+        currentHeight = 0;
+      }
+
+      pages[pages.length - 1].push({ partSong, headerHeight });
+      currentHeight += packHeight;
     });
   }
 
-  return rowScale;
+  return pages;
 }
 
-// Extra per-chunk font-size scale (<=1) - only below 1 if `content`, at the
-// shared fontSizePx/rowScale the rest of the songbook is using, still
-// doesn't fit its own exact Fira Mono height (see computeRequiredRowScale)
-// or availableWidthPx by itself. Height was already brought down as far as
-// row-height compression safely can (rowScale, capped globally at
-// ROW_SCALE_FLOOR) before this is ever consulted - this is the last-resort
-// exception for a genuine outlier chunk, not the normal path, which is why
-// it's computed per-chunk (in the real render loop) rather than as part of
-// the global pre-pass.
-function computeChunkSafetyScale(content, fontFamily, fontSizePx, rowScale, markerScale, availableWidthPx, tempContainer) {
-  const targetHeight = measureHeight(content, tempContainer, availableWidthPx);
-  const naturalHeight = measureProportionalHeight(content, fontFamily, fontSizePx, markerScale, rowScale, tempContainer);
-  const heightScale = naturalHeight > 0 ? Math.min(1, targetHeight / naturalHeight) : 1;
+// Total real proportional height of every chunk on one page, at a given
+// rowScale - the aggregate equivalent of measureProportionalHeight for a
+// whole page's worth of songs at once.
+function pageBodyHeightAt(pageEntries, fontFamily, fontSizePx, markerScale, rowScale, blockMarginBottom, tempContainer) {
+  return pageEntries.reduce((total, { partSong, headerHeight }) => {
+    const bodyHeight = partSong.right_content
+      ? Math.max(
+          measureProportionalHeight(partSong.left_content, fontFamily, fontSizePx, markerScale, rowScale, tempContainer),
+          measureProportionalHeight(partSong.right_content, fontFamily, fontSizePx, markerScale, rowScale, tempContainer)
+        )
+      : measureProportionalHeight(partSong.left_content, fontFamily, fontSizePx, markerScale, rowScale, tempContainer);
+    return total + (partSong.continuation ? 0 : headerHeight) + bodyHeight + blockMarginBottom;
+  }, 0);
+}
+
+// The rowScale (see ROW_SCALE_FLOOR) this ONE page's songs need, together,
+// at a FIXED fontSizePx, to fit within contentBudget - the page's own real
+// budget, not any individual song's. Returns { rowScale, fits }: fits is
+// true whenever the page's real AGGREGATE height (every chunk on it,
+// summed) is brought to or under contentBudget by rowScale alone - the
+// overwhelmingly common case, and when true, no individual chunk needs any
+// further per-chunk shrinking (computeChunkSafetyScale skips its height
+// check entirely for this page - see the render loop). fits is only false
+// when even ROW_SCALE_FLOOR isn't enough for the page as a whole, in which
+// case the render loop's own per-chunk fallback (a running "how much real
+// room is left on this page" budget) has to cover the remainder.
+//
+// Solved exactly from two real measurements (pageBodyHeightAt at rowScale 1
+// and at ROW_SCALE_FLOOR) rather than guessed/iterated - a page's total
+// height is a LINEAR function of rowScale (see pageBodyHeightAt/
+// buildProportionalBody), so two points on that line are enough to solve
+// for the exact rowScale that hits contentBudget.
+function computePageRowScale(pageEntries, fontFamily, fontSizePx, markerScale, contentBudget, blockMarginBottom, tempContainer) {
+  const heightAtFull = pageBodyHeightAt(pageEntries, fontFamily, fontSizePx, markerScale, 1, blockMarginBottom, tempContainer);
+  if (heightAtFull <= contentBudget) return { rowScale: 1, fits: true };
+
+  const heightAtFloor = pageBodyHeightAt(pageEntries, fontFamily, fontSizePx, markerScale, ROW_SCALE_FLOOR, blockMarginBottom, tempContainer);
+  // No measurable slack to compress (e.g. a page of chord-only content, no
+  // lyric-rows at all) - avoid dividing by ~0 below.
+  if (heightAtFloor >= heightAtFull) return { rowScale: ROW_SCALE_FLOOR, fits: heightAtFloor <= contentBudget };
+  if (heightAtFloor > contentBudget) return { rowScale: ROW_SCALE_FLOOR, fits: false }; // still doesn't fit even fully compressed
+
+  const rowScale = 1 + (contentBudget - heightAtFull) * (ROW_SCALE_FLOOR - 1) / (heightAtFloor - heightAtFull);
+  return { rowScale: Math.min(1, Math.max(ROW_SCALE_FLOOR, rowScale)), fits: true };
+}
+
+// Extra per-chunk font-size scale (<=1) - width is always checked (chord-
+// row/lyric-row never wrap, so a too-wide line has no other way to fit),
+// but height is only checked against heightTarget when it's finite.
+// heightTarget is Infinity whenever computePageRowScale already confirmed
+// this WHOLE page fits at the shared rowScale (the overwhelmingly common
+// case) - trusting that page-level solve completely rather than also
+// comparing this one chunk against its own individual Fira Mono height, the
+// bug an earlier version of this function had: a chunk that renders a bit
+// taller than ITS OWN narrow monospace slice got shrunk even when the page
+// as a whole had plenty of real room to spare (other chunks on the same
+// page using less than their own share). heightTarget is only ever a real
+// finite number - the actual remaining room on the current page - for the
+// rare page where even ROW_SCALE_FLOOR wasn't enough (computePageRowScale's
+// fits: false); see the render loop for how that's computed.
+function computeChunkSafetyScale(content, fontFamily, fontSizePx, rowScale, markerScale, availableWidthPx, heightTarget, tempContainer) {
   const widthScale = computeWidthScale(content, fontFamily, fontSizePx, availableWidthPx);
+  if (!Number.isFinite(heightTarget)) return widthScale;
+
+  const naturalHeight = measureProportionalHeight(content, fontFamily, fontSizePx, markerScale, rowScale, tempContainer);
+  const heightScale = naturalHeight > 0 ? Math.min(1, heightTarget / naturalHeight) : 1;
   return Math.min(heightScale, widthScale);
 }
 
 // Builds a full-width, single-column song body - either the original
 // monospace <pre> (fontKey === 'monospace'/unrecognized) or a
 // proportional-font chord/lyric-row block at the shared fontSizePx/rowScale
-// the whole songbook is using (see computeGlobalRowScale) - painted via
+// the whole songbook is using (see computePageRowScale) - painted via
 // buildProportionalBody. Still runs one final per-chunk safety check
 // (computeChunkSafetyScale): on the rare chunk whose own content doesn't
 // fit even at that shared size/spacing (an outlier denser than what the
@@ -197,7 +229,7 @@ function computeChunkSafetyScale(content, fontFamily, fontSizePx, rowScale, mark
 // (1 for monospace, or whenever the shared size already fit) is surfaced so
 // the render loop's debug label can flag when a song's font-size had to be
 // shrunk below the book's shared size for this one outlier chunk.
-function buildSongBodyElement(content, fontKey, availableWidthPx, fontSizePx, rowScale, tempContainer) {
+function buildSongBodyElement(content, fontKey, availableWidthPx, fontSizePx, rowScale, heightTarget, tempContainer) {
   if (!fontKey || fontKey === 'monospace' || !SONG_FONT_STACKS[fontKey]) {
     const pre = document.createElement('pre');
     pre.style.margin = 0;
@@ -211,7 +243,7 @@ function buildSongBodyElement(content, fontKey, availableWidthPx, fontSizePx, ro
   // tiny, Verdana's is already large) - see markerFontSizeStyle,
   // chord_font_layout.js.
   const markerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
-  const safetyScale = computeChunkSafetyScale(content, fontFamily, fontSizePx, rowScale, markerScale, availableWidthPx, tempContainer);
+  const safetyScale = computeChunkSafetyScale(content, fontFamily, fontSizePx, rowScale, markerScale, availableWidthPx, heightTarget, tempContainer);
   return { el: buildProportionalBody(content, fontFamily, fontSizePx * safetyScale, markerScale, rowScale), safetyScale };
 }
 
@@ -228,7 +260,7 @@ function buildSongBodyElement(content, fontKey, availableWidthPx, fontSizePx, ro
 // Returns { left, right, safetyScale } - see buildSongBodyElement for why
 // safetyScale is surfaced (debug labeling); shared by both columns here
 // since they're built at one common size.
-function buildTwoColumnSongBodies(leftContent, rightContent, fontKey, columnWidthPx, fontSizePx, rowScale, tempContainer) {
+function buildTwoColumnSongBodies(leftContent, rightContent, fontKey, columnWidthPx, fontSizePx, rowScale, heightTarget, tempContainer) {
   if (!fontKey || fontKey === 'monospace' || !SONG_FONT_STACKS[fontKey]) {
     const buildPre = (content) => {
       const pre = document.createElement('pre');
@@ -241,8 +273,8 @@ function buildTwoColumnSongBodies(leftContent, rightContent, fontKey, columnWidt
 
   const fontFamily = SONG_FONT_STACKS[fontKey];
   const markerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
-  const leftSafety = computeChunkSafetyScale(leftContent, fontFamily, fontSizePx, rowScale, markerScale, columnWidthPx, tempContainer);
-  const rightSafety = computeChunkSafetyScale(rightContent, fontFamily, fontSizePx, rowScale, markerScale, columnWidthPx, tempContainer);
+  const leftSafety = computeChunkSafetyScale(leftContent, fontFamily, fontSizePx, rowScale, markerScale, columnWidthPx, heightTarget, tempContainer);
+  const rightSafety = computeChunkSafetyScale(rightContent, fontFamily, fontSizePx, rowScale, markerScale, columnWidthPx, heightTarget, tempContainer);
   const safetyScale = Math.min(leftSafety, rightSafety);
   const finalFontSizePx = fontSizePx * safetyScale;
 
@@ -303,17 +335,45 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 
   // Font-size for the chosen "Songbook font": fixed and the same everywhere
   // (SONG_FONT_FIXED_SCALE, song_render.js) - never shrunk for height
-  // reasons. Fitting height is instead the job of bodyRowScale, one
-  // consistent lyric-row line-height compression for the whole book (see
-  // computeGlobalRowScale) - computed once here, up front, over every
-  // song/chunk this render will build. No-op ('monospace'/no font chosen)
+  // reasons. Fitting height is instead the job of pageRowScales, one
+  // lyric-row line-height compression PER PAGE (see computePageRowScale) -
+  // computed once here, up front, by first simulating where monospace would
+  // put every page break (simulateMonospacePageGroups), then solving each
+  // resulting page's own required rowScale. Per-page rather than one number
+  // for the whole book: a single book-wide value would take the smallest
+  // scale ANY chunk anywhere needed, so one dense outlier song forced
+  // near-floor compression onto every other song too, even ones on mostly-
+  // empty pages with real room to spare. No-op ('monospace'/no font chosen)
   // skips the pre-pass entirely.
   const isProportionalFont = fontKey && fontKey !== 'monospace' && SONG_FONT_STACKS[fontKey];
   const bodyFontSizePx = A4_FONT_SIZE_PX * (SONG_FONT_FIXED_SCALE[fontKey] ?? 1);
   const bodyMarkerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
-  const bodyRowScale = isProportionalFont
-    ? computeGlobalRowScale(processedSongs, orderedIds, SONG_FONT_STACKS[fontKey], bodyFontSizePx, bodyMarkerScale, tempContainer, pageContentWidth, columnWidthPx)
-    : 1;
+
+  // Fixed regardless of content/font (Bootstrap's .mb-4), measured once so
+  // both the simulation pass and computePageRowScale can use it without
+  // needing a real songDiv built yet.
+  const blockMarginBottomPx = (() => {
+    const probe = document.createElement('div');
+    probe.className = 'song-block mb-4';
+    tempContainer.appendChild(probe);
+    const value = parseFloat(getComputedStyle(probe).marginBottom) || 0;
+    tempContainer.removeChild(probe);
+    return value;
+  })();
+
+  // Each entry is { rowScale, fits } - see computePageRowScale. Indexed by
+  // page number - 1; the real loop below always agrees with the simulation
+  // on page numbering (packHeight is font-independent), so
+  // pageRowScaleInfo[currentPageNum - 1] is always the right page's info.
+  const pageRowScaleInfo = isProportionalFont
+    ? simulateMonospacePageGroups(processedSongs, orderedIds, tempContainer, pageContentWidth, columnWidthPx, contentBudget, blockMarginBottomPx)
+      .map(pageEntries => computePageRowScale(pageEntries, SONG_FONT_STACKS[fontKey], bodyFontSizePx, bodyMarkerScale, contentBudget, blockMarginBottomPx, tempContainer))
+    : [];
+  const rowScaleForPage = (pageNum) => pageRowScaleInfo[pageNum - 1]?.rowScale ?? 1;
+  // false only for the rare page where even ROW_SCALE_FLOOR wasn't enough
+  // for its full aggregate content - see computeChunkSafetyScale for what
+  // happens then (a running per-chunk remaining-budget fallback).
+  const pageFitsAtRowScale = (pageNum) => pageRowScaleInfo[pageNum - 1]?.fits ?? true;
 
   let currentPageNum = 1;
 
@@ -451,156 +511,35 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         songDiv.style.backgroundColor = '#fdfdfd';
       }
 
-      if (!partSong.continuation) {
-        const header = createSongHeader(partSong, {
-          blackAndWhite, showDifficulty, showTags, showInstruments, ignoredInstrument,
-          locked: allowClicking && isLocked,
-          lockedName: isLocked ? lockNames[String(partSong.id)].name : null
-        });
-        songDiv.appendChild(header);
-      }
-
-      // 1 unless the per-chunk safety fallback (computeChunkSafetyScale)
-      // had to shrink this song's font-size below the book's shared
-      // bodyFontSizePx - see the debug label below.
-      let bodySafetyScale = 1;
-
-      if (!partSong.right_content) {
-        const body = buildSongBodyElement(partSong.left_content, fontKey, pageContentWidth, bodyFontSizePx, bodyRowScale, tempContainer);
-        bodySafetyScale = body.safetyScale;
-        songDiv.appendChild(body.el);
-      } else {
-        songDiv.classList.add('split-song');
-        songDiv.style.display = 'flex';
-        songDiv.style.flexDirection = 'column';
-
-        const columns = document.createElement('div');
-        columns.className = 'd-flex';
-
-        const columnBodies = buildTwoColumnSongBodies(partSong.left_content, partSong.right_content, fontKey, columnWidthPx, bodyFontSizePx, bodyRowScale, tempContainer);
-        bodySafetyScale = columnBodies.safetyScale;
-
-        const leftCol = document.createElement('div');
-        leftCol.className = 'left-column flex-grow-1 pe-3';
-        leftCol.appendChild(columnBodies.left);
-
-        const rightCol = document.createElement('div');
-        rightCol.className = 'right-column flex-grow-1 ps-3';
-        rightCol.appendChild(columnBodies.right);
-
-        columns.appendChild(leftCol);
-        columns.appendChild(rightCol);
-        songDiv.appendChild(columns);
-      }
-
-      tempContainer.appendChild(songDiv);
-
-      // Measure max line width. Reads the raw content strings directly
-      // (not the rendered DOM) since a proportional-font body (fontKey !==
-      // 'monospace' - see buildSongBodyElement) is chord-row/lyric-row divs,
-      // not a <pre> whose textContent reconstructs line breaks - this stays
-      // correct regardless of which body element type was actually built.
-      let maxLineWidth = 0;
-      [partSong.left_content, partSong.right_content].filter(Boolean).forEach(content => {
-        content.split('\n').forEach(line => {
-          const trimmed = line.replace(/\s+$/, '');
-          const span = document.createElement('span');
-          span.style.visibility = 'hidden';
-          span.style.position = 'absolute';
-          span.style.whiteSpace = 'pre';
-          span.style.fontFamily = 'Fira Mono, monospace';
-          span.style.fontSize = '14px';
-          span.textContent = trimmed;
-          tempContainer.appendChild(span);
-          const w = span.getBoundingClientRect().width;
-          tempContainer.removeChild(span);
-          if (w > maxLineWidth) maxLineWidth = w;
-        });
-      });
-
-      // getBoundingClientRect() never includes margin, so songDiv's own
-      // mb-4 bottom margin (the gap the page actually reserves before the
-      // next block) has to be added back in explicitly. Left out, this
-      // under-counts every song block's real footprint - harmless for one
-      // song, but with many small songs on a page the missed margins add up
-      // and the loop packs more songs onto a page than actually fit.
-      const blockMarginBottom = parseFloat(getComputedStyle(songDiv).marginBottom) || 0;
-      // Real rendered height, in the chosen font - shown in debug labels and
-      // used to size the debug overlay, but NOT used to decide page breaks
-      // (see packHeight below) - that's the whole point of packHeight.
-      let blockHeight = songDiv.getBoundingClientRect().height + blockMarginBottom;
-
-      // The height used to decide whether this block fits the current page
-      // is always the MONOSPACE height of this exact chunk (measureHeight,
-      // song_ordering.js - the same measurement song_ordering.js already
-      // used when deciding which lines belong in this chunk), regardless of
-      // the chosen font. That's what makes the proportional-font render's
-      // page/song grouping identical to a monospace render's: row-height
-      // compression (buildProportionalBody/computeChunkSafetyScale) aims
-      // each chunk's real height AT this same monospace target, but a
-      // single row-scale shared across the whole book (for visually
-      // consistent spacing) means most chunks land a bit SHORTER than their
-      // own target rather than exactly on it - harmless visually (a little
-      // extra blank space at the bottom of a page here and there), but it
-      // would silently change which page a song lands on if page-break
-      // decisions were based on that real, chunk-by-chunk-varying height
-      // instead of this fixed, font-independent one.
+      // Page-break decision happens BEFORE the header/body are painted, not
+      // after, so that the row-scale picked for THIS chunk (rowScaleForPage,
+      // below) always matches the page it actually lands on. packHeight
+      // needs no real DOM to compute - it's entirely monospace measurements
+      // (measureHeight, song_ordering.js) plus the fixed .mb-4 margin
+      // (blockMarginBottomPx, computed once above) - the same inputs
+      // simulateMonospacePageGroups already used to decide page breaks
+      // ahead of time, so this reproduces that exact same decision live.
+      // That's what makes the proportional-font render's page/song grouping
+      // identical to a monospace render's, regardless of how the chosen
+      // font's real height compares.
       const monospaceBodyHeight = partSong.right_content
         ? Math.max(
             measureHeight(partSong.left_content, tempContainer, columnWidthPx),
             measureHeight(partSong.right_content, tempContainer, columnWidthPx)
           )
         : measureHeight(partSong.left_content, tempContainer, pageContentWidth);
-      let packHeight = (partSong.continuation ? 0 : headerHeight) + monospaceBodyHeight + blockMarginBottom;
-
-      // Debug-only breakdown so an over-tall measurement can be traced to
-      // its actual source (header vs. single body vs. one specific column)
-      // instead of only seeing the combined total.
-      let debugBreakdown = '';
-      if (debug) {
-        const headerEl = songDiv.querySelector('.song-header');
-        const headerElHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
-        if (partSong.right_content) {
-          const leftColEl = songDiv.querySelector('.left-column');
-          const rightColEl = songDiv.querySelector('.right-column');
-          const leftColHeight = leftColEl ? leftColEl.getBoundingClientRect().height : 0;
-          const rightColHeight = rightColEl ? rightColEl.getBoundingClientRect().height : 0;
-          debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Left: ${leftColHeight.toFixed(0)}px Right: ${rightColHeight.toFixed(0)}px)`;
-        } else {
-          const bodyEl = songDiv.querySelector('pre, .song-body-proportional');
-          const bodyHeight = bodyEl ? bodyEl.getBoundingClientRect().height : 0;
-          debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Body: ${bodyHeight.toFixed(0)}px)`;
-        }
-
-        // Font-size/row-scale info for the chosen "Songbook font" - see
-        // bodyFontSizePx/bodyRowScale (fixed/shared across the whole book)
-        // and bodySafetyScale (buildSongBodyElement/buildTwoColumnSongBodies
-        // - only below 1 if THIS song's own content didn't fit even at that
-        // shared size, and had to shrink further on top of it).
-        if (isProportionalFont) {
-          const actualFontSizePx = bodyFontSizePx * bodySafetyScale;
-          const shrunkNote = bodySafetyScale < 1
-            ? ` FONT SHRUNK: ${actualFontSizePx.toFixed(1)}px (${(bodySafetyScale * 100).toFixed(0)}% of shared ${bodyFontSizePx.toFixed(1)}px)`
-            : ` Font: ${actualFontSizePx.toFixed(1)}px (shared, unshrunk)`;
-          debugBreakdown += ` [RowScale: ${(bodyRowScale * 100).toFixed(0)}%${shrunkNote}]`;
-        }
-      }
-
-      tempContainer.removeChild(songDiv);
+      let packHeight = (partSong.continuation ? 0 : headerHeight) + monospaceBodyHeight + blockMarginBottomPx;
 
       let overflow = (currentHeight + packHeight) - contentBudget;
 
       // If this block only misses fitting on the current (non-empty) page
       // by a small margin - no more than its own bottom spacing, and no more
       // than MAX_MARGIN_SQUEEZE_PX - squeeze that spacing down instead of
-      // pushing it to a whole new page. Squeezes packHeight (the figure
-      // page breaks are actually decided from) and blockHeight (the real
-      // rendered figure, kept in sync for the debug label/overlay) together.
-      if (overflow > 0 && currentHeight > 0 && overflow <= blockMarginBottom && overflow <= MAX_MARGIN_SQUEEZE_PX) {
-        const squeezedMarginBottom = blockMarginBottom - overflow;
+      // pushing it to a whole new page.
+      if (overflow > 0 && currentHeight > 0 && overflow <= blockMarginBottomPx && overflow <= MAX_MARGIN_SQUEEZE_PX) {
+        const squeezedMarginBottom = blockMarginBottomPx - overflow;
         songDiv.style.setProperty('margin-bottom', squeezedMarginBottom + 'px', 'important');
         packHeight -= overflow;
-        blockHeight -= overflow;
         pageSqueezePx += overflow;
         overflow = 0;
       }
@@ -639,6 +578,127 @@ function renderA4Preview(songs, orderedIds, options = {}) {
           line.style.zIndex = '10';
           currentPage.appendChild(line);
         }
+      }
+
+      // currentPageNum is now final for this chunk (the overflow check
+      // above already moved to a new page if needed), so this is the
+      // correct page's own row-scale to paint with - see
+      // simulateMonospacePageGroups/computePageRowScale.
+      const pageRowScale = rowScaleForPage(currentPageNum);
+      // Infinity (no extra per-chunk shrink) unless this page's aggregate
+      // content still doesn't fit even at ROW_SCALE_FLOOR - see
+      // computeChunkSafetyScale for why a chunk is never compared against
+      // its OWN individual monospace height any more. currentHeight here is
+      // still this page's running total from BEFORE this chunk, so this is
+      // exactly how much real room is left for it (and everything after it
+      // on this page) to share.
+      const heightTarget = pageFitsAtRowScale(currentPageNum) ? Infinity : Math.max(0, contentBudget - currentHeight);
+
+      if (!partSong.continuation) {
+        const header = createSongHeader(partSong, {
+          blackAndWhite, showDifficulty, showTags, showInstruments, ignoredInstrument,
+          locked: allowClicking && isLocked,
+          lockedName: isLocked ? lockNames[String(partSong.id)].name : null
+        });
+        songDiv.appendChild(header);
+      }
+
+      // 1 unless the per-chunk safety fallback (computeChunkSafetyScale)
+      // had to shrink this song's font-size below this page's shared
+      // bodyFontSizePx - see the debug label below.
+      let bodySafetyScale = 1;
+
+      if (!partSong.right_content) {
+        const body = buildSongBodyElement(partSong.left_content, fontKey, pageContentWidth, bodyFontSizePx, pageRowScale, heightTarget, tempContainer);
+        bodySafetyScale = body.safetyScale;
+        songDiv.appendChild(body.el);
+      } else {
+        songDiv.classList.add('split-song');
+        songDiv.style.display = 'flex';
+        songDiv.style.flexDirection = 'column';
+
+        const columns = document.createElement('div');
+        columns.className = 'd-flex';
+
+        const columnBodies = buildTwoColumnSongBodies(partSong.left_content, partSong.right_content, fontKey, columnWidthPx, bodyFontSizePx, pageRowScale, heightTarget, tempContainer);
+        bodySafetyScale = columnBodies.safetyScale;
+
+        const leftCol = document.createElement('div');
+        leftCol.className = 'left-column flex-grow-1 pe-3';
+        leftCol.appendChild(columnBodies.left);
+
+        const rightCol = document.createElement('div');
+        rightCol.className = 'right-column flex-grow-1 ps-3';
+        rightCol.appendChild(columnBodies.right);
+
+        columns.appendChild(leftCol);
+        columns.appendChild(rightCol);
+        songDiv.appendChild(columns);
+      }
+
+      // Debug-only: real rendered height/breakdown, measured via a
+      // throwaway attachment to tempContainer (songDiv isn't attached to
+      // the real page yet). Purely informational now - packHeight (already
+      // decided above) is what actually determined this chunk's page, not
+      // this real measurement.
+      let maxLineWidth = 0;
+      let blockHeight = 0;
+      let debugBreakdown = '';
+      if (debug) {
+        tempContainer.appendChild(songDiv);
+
+        // Reads the raw content strings directly (not the rendered DOM)
+        // since a proportional-font body (fontKey !== 'monospace' - see
+        // buildSongBodyElement) is chord-row/lyric-row divs, not a <pre>
+        // whose textContent reconstructs line breaks - this stays correct
+        // regardless of which body element type was actually built.
+        [partSong.left_content, partSong.right_content].filter(Boolean).forEach(content => {
+          content.split('\n').forEach(line => {
+            const trimmed = line.replace(/\s+$/, '');
+            const span = document.createElement('span');
+            span.style.visibility = 'hidden';
+            span.style.position = 'absolute';
+            span.style.whiteSpace = 'pre';
+            span.style.fontFamily = 'Fira Mono, monospace';
+            span.style.fontSize = '14px';
+            span.textContent = trimmed;
+            tempContainer.appendChild(span);
+            const w = span.getBoundingClientRect().width;
+            tempContainer.removeChild(span);
+            if (w > maxLineWidth) maxLineWidth = w;
+          });
+        });
+
+        blockHeight = songDiv.getBoundingClientRect().height + blockMarginBottomPx;
+
+        const headerEl = songDiv.querySelector('.song-header');
+        const headerElHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+        if (partSong.right_content) {
+          const leftColEl = songDiv.querySelector('.left-column');
+          const rightColEl = songDiv.querySelector('.right-column');
+          const leftColHeight = leftColEl ? leftColEl.getBoundingClientRect().height : 0;
+          const rightColHeight = rightColEl ? rightColEl.getBoundingClientRect().height : 0;
+          debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Left: ${leftColHeight.toFixed(0)}px Right: ${rightColHeight.toFixed(0)}px)`;
+        } else {
+          const bodyEl = songDiv.querySelector('pre, .song-body-proportional');
+          const bodyHeight = bodyEl ? bodyEl.getBoundingClientRect().height : 0;
+          debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Body: ${bodyHeight.toFixed(0)}px)`;
+        }
+
+        // Font-size/row-scale info for the chosen "Songbook font" - see
+        // bodyFontSizePx/pageRowScale (fixed per book / per page) and
+        // bodySafetyScale (buildSongBodyElement/buildTwoColumnSongBodies -
+        // only below 1 if THIS song's own content didn't fit even at that
+        // shared page size, and had to shrink further on top of it).
+        if (isProportionalFont) {
+          const actualFontSizePx = bodyFontSizePx * bodySafetyScale;
+          const shrunkNote = bodySafetyScale < 1
+            ? ` FONT SHRUNK: ${actualFontSizePx.toFixed(1)}px (${(bodySafetyScale * 100).toFixed(0)}% of shared ${bodyFontSizePx.toFixed(1)}px)`
+            : ` Font: ${actualFontSizePx.toFixed(1)}px (shared, unshrunk)`;
+          debugBreakdown += ` [Page RowScale: ${(pageRowScale * 100).toFixed(0)}%${shrunkNote}]`;
+        }
+
+        tempContainer.removeChild(songDiv);
       }
 
       const wrapper = document.createElement('div');
