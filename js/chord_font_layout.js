@@ -183,83 +183,47 @@ function isMarkerToken(text) {
     return /^®:?$/.test(String(text ?? "").trim());
 }
 
-// Extra vertical breathing room added around an isolated ® marker row - see
-// spacingFor/markerSpacingStyle. A margin (not padding): margin adds space
-// around a box regardless of whether the box's OWN content is in normal
-// flow (a lyric-row's text) or absolutely positioned (a chord-row's
-// chord-token - see computeChordPositions/renderChordRow), so the same
-// technique works unmodified for either row type.
-const MARKER_SPACING_EM = 0.4;
-
-// Whether a marker row needs MARKER_SPACING_EM of extra space on the side
-// facing `neighborLine` (the raw source line immediately above/below it, or
-// undefined past the start/end of the content). A chord line already gives
-// natural separation from its own row's height/positioning, and a blank
-// line already IS a paragraph break - adding more space on top of either
-// would just be redundant. Only an ordinary, non-blank lyric line sitting
-// directly against the marker actually needs the extra room.
-function needsMarkerSpacing(neighborLine) {
-    if (neighborLine === undefined) return false;
-    if (isChordLine(neighborLine)) return false;
-    if (neighborLine.trim() === '') return false;
-    return true;
-}
-
-// { above, below } spacing needs for the row rendering lines[idx] - see
-// needsMarkerSpacing. Computed here (not inside renderChordRow/
-// renderLyricRow) since only renderSongProportional walks the whole `lines`
-// array and knows what source line really sits on each side, regardless of
-// how the OUTPUT rows happen to be grouped (a chord+lyric pair consumes two
-// source lines per two rows, but the row-to-source-line mapping is always
-// 1:1, so lines[idx-1]/lines[idx+1] are always the right thing to check).
-function spacingFor(lines, idx) {
-    return {
-        above: needsMarkerSpacing(idx > 0 ? lines[idx - 1] : undefined),
-        below: needsMarkerSpacing(idx < lines.length - 1 ? lines[idx + 1] : undefined)
-    };
-}
-
-// Inline style fragment (possibly empty) applying MARKER_SPACING_EM per
-// spacingFor's result - but only when this row actually has a marker in it;
-// an ordinary chord/lyric row never gets this extra space regardless of
-// what's next to it.
-function markerSpacingStyle(hasMarker, spacing) {
-    if (!hasMarker || !spacing) return "";
-    let style = "";
-    if (spacing.above) style += `margin-top:${MARKER_SPACING_EM}em;`;
-    if (spacing.below) style += `margin-bottom:${MARKER_SPACING_EM}em;`;
-    return style;
-}
-
-// Inline font-size for a ® marker glyph/token, given the caller's chosen
-// markerScale (see SONG_FONT_STACKS/SONG_FONT_MARKER_SCALE, song_render.js -
-// a per-font multiplier, since fonts don't agree on how big their OWN ®
-// glyph already is: Calibri's is tiny and needs a big boost, Verdana's is
-// already large and needs none - a single fixed multiplier either left
-// Calibri's ® too small or made Verdana's comically oversized). Defaults to
-// 1 (no boost) if the caller doesn't pass one, e.g. existing callers/tests
-// that predate this parameter.
-function markerFontSizeStyle(markerScale) {
+// Inline style boosting how big a ® marker glyph/token renders, given the
+// caller's chosen markerScale (see SONG_FONT_STACKS/SONG_FONT_MARKER_SCALE,
+// song_render.js - a per-font multiplier, since fonts don't agree on how
+// big their OWN ® glyph already is: Calibri's is tiny and needs a big
+// boost, Verdana's is already large and needs none - a single fixed
+// multiplier either left Calibri's ® too small or made Verdana's comically
+// oversized). Defaults to 1 (no boost) if the caller doesn't pass one, e.g.
+// existing callers/tests that predate this parameter.
+//
+// A plain `font-size` change - NOT `transform: scale()` (an earlier version
+// of this used transform instead, on the theory that changing font-size
+// distorts a glyph's own baseline/layout metrics unpredictably per font).
+// That reasoning held back when this glyph was positioned purely by inline
+// vertical-align. It no longer is: renderChordRow/renderLyricRow now wrap
+// this glyph in its own box that's manually placed via
+// top:50%/transform:translateY(-50%), centered against that box's OWN real
+// rendered height - so however tall the boosted glyph actually renders,
+// centering adapts to it automatically, whatever the mechanism.
+// `transform: scale()` turned out to be the wrong mechanism for the boost
+// itself, though: it enlarges symmetrically around the box's geometric
+// center, and a font's ® glyph doesn't necessarily sit ink-centered within
+// that box in the first place (how far off varies by font) - scaling from
+// the wrong center amplifies that pre-existing offset, worse the bigger the
+// scale, which is exactly why Calibri (markerScale 1.5, the largest in use)
+// still looked wrong while Verdana (1, no boost at all) and Arial (1.15,
+// barely any) didn't show it. A `font-size` change has no such artificial
+// center to be wrong about - the glyph renders the same way any
+// differently-sized character natively does - and the box it renders into
+// auto-sizes to fit it, so the translateY(-50%) centering above still
+// captures its true height correctly either way.
+function markerScaleStyle(markerScale) {
     const scale = typeof markerScale === "number" && markerScale > 0 ? markerScale : 1;
-    // Always set explicitly (even at 1, "no boost") rather than only when
-    // != 1 - the .chorus-marker-symbol/.chord-token-marker CSS rules
-    // (styles/a4_page.css, styles/songs_styles.css) intentionally carry no
-    // font-size of their own, so this inline style is the only thing
-    // controlling it; leaving it unset here for the common "no boost" case
-    // would silently fall back to whatever font-size those classes (or
-    // anything cascading into them later) happen to declare.
+    // Always set explicitly (even at scale 1, "no boost") - nothing else
+    // declares a font-size for this glyph, so leaving it unset would just
+    // silently fall back to whatever font-size cascades in from elsewhere.
     return `font-size:${scale}em;`;
 }
 
-function renderChordRow(positions, spacing, markerScale) {
+function renderChordRow(positions, markerScale) {
     if (!positions.length) return '<div class="chord-row"></div>';
-    // A lone marker token ("®"/"®:" with nothing else on its chord line) is
-    // a chorus marker standing on its own, not a real chord - see the
-    // chord-token-marker rule (styles/a4_page.css, styles/songs_styles.css)
-    // for why it needs different treatment than an actual chord symbol.
-    const hasMarker = positions.some(p => isMarkerToken(p.text));
-    const style = markerSpacingStyle(hasMarker, spacing);
-    const markerStyle = markerFontSizeStyle(markerScale);
+    const markerStyle = markerScaleStyle(markerScale);
     const spans = positions
         // "chord-token", not "chord" - .chord is already a pre-existing,
         // differently-styled class in styles.css/songs_styles.css (used
@@ -267,7 +231,21 @@ function renderChordRow(positions, spacing, markerScale) {
         .map(({ text, x }) => {
             const marker = isMarkerToken(text);
             const tokenClass = marker ? "chord-token chord-token-marker" : "chord-token";
-            const tokenStyle = `left:${Math.round(x)}px;`;
+            // Regular chord tokens stay pinned to top:0 (see .chord-token,
+            // styles/a4_page.css & songs_styles.css) - they need to sit at a
+            // consistent baseline above the lyric text below them. A marker
+            // token instead gets centered on the row's own height
+            // (top:50%/translateY(-50%), relative to .chord-row's
+            // position:relative box): different fonts' ® glyphs don't agree
+            // on where they sit within their own line box (some render
+            // noticeably high or low relative to their nominal font-size),
+            // so pinning to top:0 like a real chord left it looking
+            // consistently too high or too low depending on the font.
+            // Centering by the marker span's own actual rendered height
+            // sidesteps needing to know per-font metrics at all.
+            const tokenStyle = marker
+                ? `left:${Math.round(x)}px;top:50%;transform:translateY(-50%);`
+                : `left:${Math.round(x)}px;`;
             // The marker boost (markerStyle) is meant for the ® glyph
             // itself, which some fonts render tiny - not for a trailing
             // ":" that's sometimes written after it ("®:"). Scaling the
@@ -285,7 +263,7 @@ function renderChordRow(positions, spacing, markerScale) {
             return `<span class="${tokenClass}" style="${tokenStyle}">${inner}</span>`;
         })
         .join("");
-    return `<div class="chord-row"${style ? ` style="${style}"` : ""}>${spans}</div>`;
+    return `<div class="chord-row">${spans}</div>`;
 }
 
 // Same inline-{chord}/® handling as renderSong() in song_render.js, just
@@ -293,28 +271,56 @@ function renderChordRow(positions, spacing, markerScale) {
 // `rowOffset` (see computeChordPositions) shifts the lyric text right by the
 // same amount its paired chord-row's chords were shifted, so an unanchored
 // chord that needed extra room still lines up with the (also-shifted)
-// anchored chord's real syllable. `spacing` - see spacingFor. `markerScale`
-// - see markerFontSizeStyle.
-function renderLyricRow(line, rowOffset, spacing, markerScale) {
-    const hasMarker = String(line ?? "").indexOf("®") !== -1;
-    const markerStyle = markerFontSizeStyle(markerScale);
-    const escaped = escapeHtml(line)
-        // chorus-marker-symbol - see the CSS rule (styles/a4_page.css,
-        // styles/songs_styles.css) for why the ® glyph gets its own explicit
-        // size (via markerStyle, an inline override so it can vary per font
-        // - see markerFontSizeStyle) instead of just riding along at the
-        // surrounding text's size: some fonts (Calibri notably) render the
-        // registered-trademark glyph tiny, barely legible against the rest
-        // of the line. Only applies here - renderSong() (song_render.js,
-        // the plain monospace <pre> path) keeps its own unstyled
-        // `<strong>®</strong>`, since a monospace font's ® is never resized
-        // by this feature at all (see buildSongBodyElement/applyTranspose,
-        // which only ever reach this proportional-font path for a
-        // NON-monospace font choice).
-        .replace(/®/g, `<strong class="chorus-marker-symbol" style="${markerStyle}">®</strong>`)
+// anchored chord's real syllable. `markerScale` - see markerScaleStyle.
+// `measure` (same `measure(text, isChord) -> pixels` function passed
+// everywhere else here) is used to place ® manually - see below.
+function renderLyricRow(line, rowOffset, markerScale, measure) {
+    const raw = String(line ?? "");
+    const escaped = escapeHtml(raw)
+        // The VISIBLE ® is rendered separately below as an absolutely-
+        // positioned overlay, measured and placed exactly like a chord
+        // token (see computeChordPositions/renderChordRow) instead of
+        // relying on inline vertical-align - inline alignment of a
+        // differently-sized glyph is relative to the surrounding text's
+        // own font metrics (x-height, baseline, line-height), which don't
+        // just vary by font but can end up inconsistent line to line
+        // depending on exactly what else is on the line, which is what
+        // made it look like it was "moving all over the place" rather than
+        // being off by a single fixed, fixable amount. Measuring and
+        // placing it explicitly, the same way a chord symbol is placed
+        // above its lyric line, sidesteps that entirely - it doesn't rely
+        // on the text layout engine's own alignment rules at all.
+        //
+        // This hidden copy is left in the normal flow purely so the
+        // surrounding text still reserves its natural (unscaled) glyph
+        // width and doesn't reflow when the real, visible overlay is added
+        // on top of it.
+        .replace(/®/g, `<span class="chorus-marker-symbol" style="visibility:hidden;">®</span>`)
         .replace(/\{([^}]+)\}/g, (match, inner) => ` <strong>${inner}</strong> `);
-    const style = markerSpacingStyle(hasMarker, spacing) + (rowOffset > 0 ? `margin-left:${Math.round(rowOffset)}px;` : "");
-    return `<div class="lyric-row"${style ? ` style="${style}"` : ""}>${escaped || "&nbsp;"}</div>`;
+
+    let overlays = "";
+    if (typeof measure === "function") {
+        const markerStyle = markerScaleStyle(markerScale);
+        let idx = raw.indexOf("®");
+        while (idx !== -1) {
+            // Prefix measured against the RAW line (® included as a normal-
+            // width character, same as the hidden placeholder above
+            // reserves) so this lines up with how the surrounding text
+            // actually flows, including any earlier ® on the same line.
+            const x = measure(raw.slice(0, idx), false);
+            // Outer span: position only (left/top/translateY), sized
+            // normally (untransformed) so translateY(-50%) centers a
+            // predictable, normal-glyph-sized box on the row - same
+            // two-layer split as renderChordRow's marker token (position
+            // on the outer, transform: scale() on the inner) so the two
+            // transforms don't have to be composed on one element.
+            overlays += `<span style="position:absolute;left:${Math.round(x)}px;top:50%;transform:translateY(-50%);"><span class="chorus-marker-symbol chord-token-marker" style="${markerStyle}">®</span></span>`;
+            idx = raw.indexOf("®", idx + 1);
+        }
+    }
+
+    const style = `position:relative;` + (rowOffset > 0 ? `margin-left:${Math.round(rowOffset)}px;` : "");
+    return `<div class="lyric-row" style="${style}">${escaped || "&nbsp;"}${overlays}</div>`;
 }
 
 // Renders full song content as proportional-font-safe HTML: each
@@ -324,7 +330,7 @@ function renderLyricRow(line, rowOffset, spacing, markerScale) {
 // place every chord. A lone chord line (no lyric line immediately below it)
 // still gets a chord-row, just positioned by monospace-equivalent column
 // spacing instead of lyric text (see computeChordPositions). `markerScale` -
-// see markerFontSizeStyle; optional, defaults to no boost.
+// see markerScaleStyle; optional, defaults to no boost.
 function renderSongProportional(content, monoCharWidth, measure, markerScale) {
     const lines = String(content ?? "").split(/\r?\n/);
     const out = [];
@@ -339,10 +345,10 @@ function renderSongProportional(content, monoCharWidth, measure, markerScale) {
             const lyricLine = nextIsLyric ? next : null;
 
             const { positions, rowOffset } = computeChordPositions(line, lyricLine, monoCharWidth, measure);
-            out.push(renderChordRow(positions, spacingFor(lines, i), markerScale));
+            out.push(renderChordRow(positions, markerScale));
 
             if (nextIsLyric) {
-                out.push(renderLyricRow(next, rowOffset, spacingFor(lines, i + 1), markerScale));
+                out.push(renderLyricRow(next, rowOffset, markerScale, measure));
                 i += 2;
                 continue;
             }
@@ -351,7 +357,7 @@ function renderSongProportional(content, monoCharWidth, measure, markerScale) {
             continue;
         }
 
-        out.push(renderLyricRow(line, 0, spacingFor(lines, i), markerScale));
+        out.push(renderLyricRow(line, 0, markerScale, measure));
         i += 1;
     }
 

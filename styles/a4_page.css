@@ -115,11 +115,13 @@
    No font-size here deliberately: how much bigger ® needs to render varies
    per font (Calibri's native ® is tiny and needs a big boost; Verdana's is
    already large and needs none), so that's set as an inline style
-   per-instance instead (markerFontSizeStyle, SONG_FONT_MARKER_SCALE in
+   per-instance instead (markerScaleStyle, SONG_FONT_MARKER_SCALE in
    song_render.js) - this rule only carries the parts that don't vary by
-   font. (The extra vertical spacing around an isolated marker row is
-   likewise computed per-instance in JS - see spacingFor/markerSpacingStyle
-   - and applied as an inline margin.) */
+   font. vertical-align below doesn't actually do the centering (that glyph
+   is positioned manually via top:50%/translateY(-50%), same technique as a
+   real chord token - see renderChordRow/renderLyricRow) but is left in
+   place as a harmless default for wherever this class is used without that
+   wrapper. */
 .a4-page .chorus-marker-symbol,
 .a4-page .chord-token-marker {
   line-height: 1;

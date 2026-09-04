@@ -221,7 +221,7 @@ test('renderSongProportional pairs a chord line with the lyric line directly bel
         html,
         '<div class="chord-row"><span class="chord-token" style="left:0px;">C</span>'
         + '<span class="chord-token" style="left:40px;">G</span></div>'
-        + '<div class="lyric-row">Amazing grace</div>'
+        + '<div class="lyric-row" style="position:relative;">Amazing grace</div>'
     );
 });
 
@@ -243,7 +243,14 @@ test('renderSongProportional escapes HTML and keeps inline {chord} / ® handling
     assert.equal(html.includes('<b>'), false);
     assert.equal(html.includes('&lt;b&gt;'), true);
     assert.equal(html.includes('<strong>Am F</strong>'), true);
-    assert.equal(html.includes('<strong class="chorus-marker-symbol" style="font-size:1em;">®</strong>'), true);
+    // The visible ® is now a manually-positioned overlay (see renderLyricRow) -
+    // a hidden placeholder stays in the flowing text purely to reserve its width.
+    assert.equal(html.includes('<span class="chorus-marker-symbol" style="visibility:hidden;">®</span>'), true);
+    assert.equal(
+        html.includes('<span style="position:absolute;left:190px;top:50%;transform:translateY(-50%);">'
+            + '<span class="chorus-marker-symbol chord-token-marker" style="font-size:1em;">®</span></span>'),
+        true
+    );
 });
 
 test('renderSongProportional preserves blank lyric lines', () => {
@@ -251,9 +258,9 @@ test('renderSongProportional preserves blank lyric lines', () => {
     const html = renderSongProportional('Verse one\n\nVerse two', 10, measure);
     assert.equal(
         html,
-        '<div class="lyric-row">Verse one</div>'
-        + '<div class="lyric-row">&nbsp;</div>'
-        + '<div class="lyric-row">Verse two</div>'
+        '<div class="lyric-row" style="position:relative;">Verse one</div>'
+        + '<div class="lyric-row" style="position:relative;">&nbsp;</div>'
+        + '<div class="lyric-row" style="position:relative;">Verse two</div>'
     );
 });
 
@@ -264,6 +271,6 @@ test('renderSongProportional shifts the lyric row right by rowOffset when its ch
         html,
         '<div class="chord-row"><span class="chord-token" style="left:0px;">Em</span>'
         + '<span class="chord-token" style="left:42px;">G</span></div>'
-        + '<div class="lyric-row" style="margin-left:32px;">     Run</div>'
+        + '<div class="lyric-row" style="position:relative;margin-left:32px;">     Run</div>'
     );
 });
