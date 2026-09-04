@@ -336,7 +336,7 @@ const SONG_FONT_MARKER_SCALE = {
 // songbook content shows it consistently needs the safety cap anyway.
 const SONG_FONT_FIXED_SCALE = {
     calibri: 1.2,
-    corbel: 1,
+    corbel: 1.2,
     candara: 1,
     arial: 1,
     verdana: 1.1,

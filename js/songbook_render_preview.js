@@ -26,7 +26,7 @@ const A4_FONT_SIZE_PX = 14; // matches .a4-page's own font-size (styles/a4_page.
 // avoid. Still a real floor, not zero: Czech/Slovak diacritics (ě, č, ř, ů)
 // sit closer to neighboring lines than plain Latin text does, so going any
 // tighter risks visible collisions between lines.
-const ROW_SCALE_FLOOR = 0.65;
+const ROW_SCALE_FLOOR = 0.7;
 
 // Builds one song body element - a full-width single-column body, or one
 // half of a two-column body - as either the original monospace <pre>
