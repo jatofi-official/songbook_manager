@@ -1,11 +1,19 @@
 // Central European (Czech/Slovak) chord notation uses "H" for natural B and
 // "B" for A#/Bb. If a song also contains an explicit "Bb" chord, that song is
 // using international notation instead, so plain "B" then means natural B.
+// German/Czech sheets also sometimes flatten a root with a trailing "s"
+// instead of "b" (Es = E-flat, As = A-flat, Ges = G-flat, etc.) - treated as
+// an alias for "b" everywhere below (see noteToSemitone). The accidental
+// alternatives below use `s(?!us)` rather than a bare `s` specifically so
+// "Esus"/"Esus4" (E, quality "sus"/"sus4") isn't misread as "Es" (E-flat)
+// plus a quality starting with "us" - "sus"/"susN" is far more common than
+// an actual flat root immediately followed by "us", so that's the case to
+// protect.
 const CHORD_NOTE_NAMES_CZ = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B", "H"];
 const CHORD_NOTE_NAMES_INTL = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const CHORD_BASE_SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9 };
-const CHORD_TOKEN_REGEX = /^(\()?([A-GH])(#|b)?([^/\s)]*)(?:\/([A-GH])(#|b)?)?(\))?$/i;
-const CHORD_LINE_TOKEN_REGEX = /^(\(?[A-GH](?:#|b)?(?:(?:maj|min|mi|m|dim|aug|sus|add)?[0-9]*(?:sus|add)?[0-9]*(?:\+|-)?)(?:\/[A-GH](?:#|b)?)?\)?|®:|®|:|\/:|:\/|-|x[0-9]+)$/i;
+const CHORD_TOKEN_REGEX = /^(\()?([A-GH])(#|b|s(?!us))?([^/\s)]*)(?:\/([A-GH])(#|b|s(?!us))?)?(\))?$/i;
+const CHORD_LINE_TOKEN_REGEX = /^(\(?[A-GH](?:#|b|s(?!us))?(?:(?:maj|min|mi|m|dim|aug|sus|add)?[0-9]*(?:sus|add)?[0-9]*(?:\+|-)?)(?:\/[A-GH](?:#|b|s(?!us))?)?\)?|®:|®|:|\/:|:\/|-|x[0-9]+)$/i;
 
 function escapeHtml(value) {
     return String(value)
@@ -22,15 +30,18 @@ function detectUseInternationalNotation(content) {
 
 function noteToSemitone(letter, accidental, useInternational) {
     letter = letter.toUpperCase();
+    // "s" (Es, As, Ges...) is a German/Czech-notation flat, same as "b" - see
+    // CHORD_TOKEN_REGEX's own comment.
+    const isFlat = !!accidental && (accidental.toLowerCase() === "b" || accidental.toLowerCase() === "s");
     if (letter === "H") return 11;
     if (letter === "B") {
-        if (accidental && accidental.toLowerCase() === "b") return 10;
+        if (isFlat) return 10;
         return useInternational ? 11 : 10;
     }
     const base = CHORD_BASE_SEMITONE[letter];
     if (base === undefined) return null;
     if (accidental === "#") return (base + 1) % 12;
-    if (accidental && accidental.toLowerCase() === "b") return (base + 11) % 12;
+    if (isFlat) return (base + 11) % 12;
     return base;
 }
 

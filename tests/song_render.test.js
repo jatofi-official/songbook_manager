@@ -15,6 +15,21 @@ test('recognizes Czech/Slovak chord lines and rejects lyrics', () => {
     assert.equal(isChordLine(''), false);
 });
 
+test('recognizes German/Czech "s" flat suffix (Es, As...) without misreading "sus" chords', () => {
+    assert.equal(isChordLine('Esdim  Asm  Es'), true);
+    // "sus"/"susN" must still parse as a quality, not "s" (flat) + "us...".
+    assert.equal(isChordLine('Esus4  Csus2'), true);
+});
+
+test('transposes the "s" flat suffix (Es = E-flat) correctly, distinct from "sus" chords', () => {
+    assert.equal(transposeChordToken('Esdim', 0, false), 'D#dim');
+    assert.equal(transposeChordToken('Esdim', 2, false), 'Fdim');
+    assert.equal(transposeChordToken('As', 0, false), 'G#');
+    // Esus4 is E (natural) + "sus4", not "Es" (E-flat) + "us4".
+    assert.equal(transposeChordToken('Esus4', 0, false), 'Esus4');
+    assert.equal(transposeChordToken('Esus4', 2, false), 'F#sus4');
+});
+
 test('transposes Czech/Slovak notes, flats, slash chords and inline chords', () => {
     assert.equal(transposeChordToken('H7', 1, false), 'C7');
     assert.equal(transposeChordToken('B', 2, false), 'C');
