@@ -91,8 +91,22 @@
   white-space: nowrap;
 }
 
+/* --a4-row-scale (set inline by buildProportionalBody, songbook_render_
+   preview.js) compresses ONLY .lyric-row's line-height, not .chord-row's
+   own height above - chord-row's 0.85em is already close to the minimum a
+   bold glyph at the page's font-size needs without visually clipping, so
+   compressing it further risks the chord symbol overlapping the lyric line
+   below it. .lyric-row's nominal 1.5 line-height (matching .a4-page's own,
+   now explicit here instead of just inherited, so it can be multiplied)
+   has real slack - plain text doesn't need nearly that much breathing room
+   to stay legible - so it's the primary way a chunk's height is brought
+   down to fit its page/column budget, before font-size is touched at all
+   (see computeGlobalRowScale/computeRequiredRowScale). Defaults to 1 (no
+   compression) - unset for the non-A4 (song.php) use of this same engine,
+   which has no fixed page budget to compress for in the first place. */
 .a4-page .lyric-row {
   white-space: pre;
+  line-height: calc(1.5 * var(--a4-row-scale, 1));
 }
 
 /* ® chorus-marker glyph - see chord_font_layout.js's renderChordRow/

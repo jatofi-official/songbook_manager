@@ -314,6 +314,36 @@ const SONG_FONT_MARKER_SCALE = {
     times: 1.3
 };
 
+// A fixed font-size scale per font (relative to the A4 renderer's own base
+// size - A4_FONT_SIZE_PX, songbook_render_preview.js), used INSTEAD of
+// measuring each song/column's own content and picking whatever scale just
+// barely fits it (see buildSongBodyElement/buildTwoColumnSongBodies,
+// songbook_render_preview.js - the previous approach). That per-chunk
+// measurement made every song, and even the two columns of the SAME song,
+// potentially render at a different size from one another depending on how
+// dense their own content happened to be - individually correct, but
+// visually inconsistent across a songbook. A flat, pre-chosen number per
+// font is simple and always consistent instead. All 1 (full size, no
+// pre-shrink) - proportional fonts are generally already narrower per
+// character than a fixed-pitch monospace font (which reserves the same
+// width for every character, including narrow ones like "i"), so most
+// content shouldn't need shrinking below the page's own font-size at all.
+// computeBodyFontScale (songbook_render_preview.js) is still consulted as a
+// safety cap below this value - not to pre-shrink by default, but so a
+// genuinely too-wide/tall chunk (an unusually long line, a wide font like
+// Verdana on a dense line) still shrinks just that one chunk instead of
+// overflowing the page. Tune a font's own number down from 1 only if real
+// songbook content shows it consistently needs the safety cap anyway.
+const SONG_FONT_FIXED_SCALE = {
+    calibri: 1.2,
+    corbel: 1,
+    candara: 1,
+    arial: 1,
+    verdana: 1.1,
+    georgia: 1,
+    times: 1
+};
+
 // Renders proportional-font-safe HTML into `el` via chord_font_layout.js:
 // chords get repositioned by measured text width (not column count) so they
 // stay above the right point in the lyrics.
