@@ -295,6 +295,25 @@ const SONG_FONT_STACKS = {
     times: "'Times New Roman', Times, serif"
 };
 
+// How much bigger than the surrounding text the ® chorus-marker symbol
+// renders (see chord_font_layout.js's renderLyricRow/renderChordRow,
+// isMarkerToken) - a single fixed multiplier doesn't work here because
+// fonts don't agree on how big their OWN ® glyph already is: Calibri's is
+// famously tiny (close to a subscript), so it needs a big boost to read
+// clearly, while Verdana's is already a large, bold, easily-legible glyph -
+// applying Calibri's boost to it made ® comically oversized. 1 (no boost)
+// is the safe default for an unlisted font, since UNDER-sizing ® is a much
+// smaller problem (still legible, just a bit small) than over-sizing it.
+const SONG_FONT_MARKER_SCALE = {
+    calibri: 1.5,
+    corbel: 1.5,
+    candara: 1.5,
+    arial: 1.15,
+    verdana: 1,
+    georgia: 1.3,
+    times: 1.3
+};
+
 // Renders proportional-font-safe HTML into `el` via chord_font_layout.js:
 // chords get repositioned by measured text width (not column count) so they
 // stay above the right point in the lyrics.
@@ -324,7 +343,8 @@ function renderProportionalInto(el, content, fontKey) {
     const monoCharWidth = createDomMeasurer("monospace", baseFontSize)("M", false);
 
     const measure = createDomMeasurer(fontFamily, baseFontSize);
-    el.innerHTML = renderSongProportional(content, monoCharWidth, measure);
+    const markerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
+    el.innerHTML = renderSongProportional(content, monoCharWidth, measure, markerScale);
     el.style.fontFamily = fontFamily;
     el.style.fontSize = baseFontSize + "px";
     // Line breaks are now real block-level rows (.chord-row/.lyric-row), not

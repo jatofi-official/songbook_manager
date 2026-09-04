@@ -51,6 +51,11 @@ function buildSongBodyElement(content, fontKey, availableWidthPx, tempContainer)
   }
 
   const fontFamily = SONG_FONT_STACKS[fontKey];
+  // SONG_FONT_MARKER_SCALE (song_render.js) - per-font ® size boost, since
+  // fonts don't agree on how big their own ® glyph already is (Calibri's is
+  // tiny, Verdana's is already large) - see markerFontSizeStyle,
+  // chord_font_layout.js.
+  const markerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
 
   const buildAt = (fontSizePx) => {
     const monoCharWidth = createDomMeasurer('Fira Mono, monospace', fontSizePx)('M', false);
@@ -59,7 +64,7 @@ function buildSongBodyElement(content, fontKey, availableWidthPx, tempContainer)
     div.className = 'song-body-proportional';
     div.style.fontFamily = fontFamily;
     div.style.fontSize = fontSizePx + 'px';
-    div.innerHTML = renderSongProportional(content, monoCharWidth, measure);
+    div.innerHTML = renderSongProportional(content, monoCharWidth, measure, markerScale);
     return div;
   };
 

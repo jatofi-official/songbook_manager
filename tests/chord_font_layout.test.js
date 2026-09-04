@@ -243,7 +243,7 @@ test('renderSongProportional escapes HTML and keeps inline {chord} / ® handling
     assert.equal(html.includes('<b>'), false);
     assert.equal(html.includes('&lt;b&gt;'), true);
     assert.equal(html.includes('<strong>Am F</strong>'), true);
-    assert.equal(html.includes('<strong>®</strong>'), true);
+    assert.equal(html.includes('<strong class="chorus-marker-symbol" style="font-size:1em;">®</strong>'), true);
 });
 
 test('renderSongProportional preserves blank lyric lines', () => {

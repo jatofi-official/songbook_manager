@@ -213,6 +213,21 @@ body {
     white-space: pre;
 }
 
+/* ® chorus-marker glyph - see chord_font_layout.js's renderChordRow/
+   renderLyricRow (isMarkerToken). No font-size here deliberately: how much
+   bigger ® needs to render varies per font (Calibri's native ® is tiny and
+   needs a big boost; Verdana's is already large and needs none), so that's
+   set as an inline style per-instance instead (markerFontSizeStyle,
+   SONG_FONT_MARKER_SCALE in song_render.js) - this rule only carries the
+   parts that don't vary by font. (The extra vertical spacing around an
+   isolated marker row is likewise computed per-instance in JS - see
+   spacingFor/markerSpacingStyle - and applied as an inline margin.) */
+.chorus-marker-symbol,
+.chord-token-marker {
+    line-height: 1;
+    vertical-align: middle;
+}
+
 #content {
     font-family: monospace;
     width: 100%;
