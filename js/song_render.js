@@ -376,7 +376,41 @@ const SONG_FONT_FIXED_SCALE = {
 // the unnecessary shrink in the first place does.
 function renderProportionalInto(el, content, fontKey) {
     const fontFamily = SONG_FONT_STACKS[fontKey] || SONG_FONT_STACKS.calibri;
-    const baseFontSize = parseFloat(window.getComputedStyle(el).fontSize) || 16;
+
+    // Chord token positions are baked into the HTML as absolute pixel
+    // offsets (chord_font_layout.js renderChordRow), measured against
+    // whatever font-size is used to render THIS call. If something later
+    // shrinks the container by only mutating el.style.fontSize (e.g. a
+    // mobile fit-to-width pass), those baked-in px offsets don't scale down
+    // with it - the lyric text shrinks and reflows underneath while the
+    // chords stay put, drifting out of alignment. So the fit-to-width step
+    // has to happen HERE, before chord positions are measured/rendered, not
+    // as a separate pass afterward (mirrors how the A4 renderer always
+    // renders at its final font-size from the start - see
+    // buildProportionalBody, songbook_render_preview.js).
+    //
+    // The size to fit FROM has to be the true nominal/unshrunk size, captured
+    // once and reused - not "whatever el.style.fontSize currently is", or
+    // repeated calls (each transpose) would each shrink further from the
+    // last call's already-shrunk result instead of re-fitting fresh content
+    // against the real available width.
+    if (el.dataset.nominalFontSize === undefined) {
+        el.dataset.nominalFontSize = String(parseFloat(window.getComputedStyle(el).fontSize) || 16);
+    }
+    const nominalFontSize = parseFloat(el.dataset.nominalFontSize);
+
+    // computeWidthScale (songbook_render_preview.js) measures every line at
+    // the target font/size against the container's real width - same
+    // technique/units as the chord positions about to be measured with it,
+    // so the two agree by construction. Only reachable on pages that load
+    // songbook_render_preview.js alongside this file (song.php, songs.php);
+    // guard so a proportional-font div elsewhere degrades to the nominal
+    // size instead of throwing.
+    const availableWidthPx = el.clientWidth || nominalFontSize * 40;
+    const widthScale = typeof computeWidthScale === "function"
+        ? computeWidthScale(content, fontFamily, nominalFontSize, availableWidthPx)
+        : 1;
+    const baseFontSize = Math.max(8, Math.floor(nominalFontSize * widthScale));
 
     // Still needed (unrelated to the shrink question above) to extrapolate
     // chord positions past the end of a short/absent lyric line - see
@@ -404,12 +438,27 @@ function applyTranspose(el, steps) {
     const songFont = el.dataset.songFont;
 
     if (songFont && songFont !== "monospace" && SONG_FONT_STACKS[songFont]) {
+        // renderProportionalInto re-fits to the container width itself on
+        // every call (see its own comment) - transposed chord names can be
+        // longer/shorter than the originals (e.g. "C" -> "C#", "Asus2" ->
+        // "H"), so the ideal fit-to-width size can genuinely change between
+        // transposes, not just at initial load.
         renderProportionalInto(el, transposed, songFont);
     } else {
         el.style.removeProperty("font-family");
         el.style.removeProperty("font-size");
         el.style.whiteSpace = "pre-wrap";
         el.innerHTML = renderSong(transposed);
+        // Mirrors the proportional branch above: the monospace <pre> path's
+        // mobile fit-to-width shrink (adjustFontSizeToFitWidth) was
+        // previously only ever run once, right after initial page load
+        // (song.php) - a later transpose left the (possibly still-shrunk,
+        // if this branch's removeProperty above didn't apply because the
+        // font never changed) or freshly-reset-to-natural-size content
+        // without re-checking it still actually fits the phone's width.
+        if (typeof adjustFontSizeToFitWidth === "function") {
+            adjustFontSizeToFitWidth(el);
+        }
     }
 
     document.querySelectorAll("[data-transpose-label]").forEach(label => {
