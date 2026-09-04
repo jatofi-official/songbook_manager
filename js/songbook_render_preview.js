@@ -192,12 +192,17 @@ function computeChunkSafetyScale(content, fontFamily, fontSizePx, rowScale, mark
 // further, rather than silently overflowing the page. For a two-column
 // body, see buildTwoColumnSongBodies instead - the two columns must share
 // ONE size.
+//
+// Returns { el, safetyScale } rather than just the element - safetyScale
+// (1 for monospace, or whenever the shared size already fit) is surfaced so
+// the render loop's debug label can flag when a song's font-size had to be
+// shrunk below the book's shared size for this one outlier chunk.
 function buildSongBodyElement(content, fontKey, availableWidthPx, fontSizePx, rowScale, tempContainer) {
   if (!fontKey || fontKey === 'monospace' || !SONG_FONT_STACKS[fontKey]) {
     const pre = document.createElement('pre');
     pre.style.margin = 0;
     pre.innerHTML = renderSong(content);
-    return pre;
+    return { el: pre, safetyScale: 1 };
   }
 
   const fontFamily = SONG_FONT_STACKS[fontKey];
@@ -207,7 +212,7 @@ function buildSongBodyElement(content, fontKey, availableWidthPx, fontSizePx, ro
   // chord_font_layout.js.
   const markerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
   const safetyScale = computeChunkSafetyScale(content, fontFamily, fontSizePx, rowScale, markerScale, availableWidthPx, tempContainer);
-  return buildProportionalBody(content, fontFamily, fontSizePx * safetyScale, markerScale, rowScale);
+  return { el: buildProportionalBody(content, fontFamily, fontSizePx * safetyScale, markerScale, rowScale), safetyScale };
 }
 
 // Builds both halves of a two-column song body at a SINGLE shared font
@@ -220,6 +225,9 @@ function buildSongBodyElement(content, fontKey, availableWidthPx, fontSizePx, ro
 // required scales, so both halves stay within budget - the same guarantee
 // buildSongBodyElement gives a single column, just shared across both
 // instead of computed twice independently.
+// Returns { left, right, safetyScale } - see buildSongBodyElement for why
+// safetyScale is surfaced (debug labeling); shared by both columns here
+// since they're built at one common size.
 function buildTwoColumnSongBodies(leftContent, rightContent, fontKey, columnWidthPx, fontSizePx, rowScale, tempContainer) {
   if (!fontKey || fontKey === 'monospace' || !SONG_FONT_STACKS[fontKey]) {
     const buildPre = (content) => {
@@ -228,18 +236,20 @@ function buildTwoColumnSongBodies(leftContent, rightContent, fontKey, columnWidt
       pre.innerHTML = renderSong(content);
       return pre;
     };
-    return { left: buildPre(leftContent), right: buildPre(rightContent) };
+    return { left: buildPre(leftContent), right: buildPre(rightContent), safetyScale: 1 };
   }
 
   const fontFamily = SONG_FONT_STACKS[fontKey];
   const markerScale = SONG_FONT_MARKER_SCALE[fontKey] ?? 1;
   const leftSafety = computeChunkSafetyScale(leftContent, fontFamily, fontSizePx, rowScale, markerScale, columnWidthPx, tempContainer);
   const rightSafety = computeChunkSafetyScale(rightContent, fontFamily, fontSizePx, rowScale, markerScale, columnWidthPx, tempContainer);
-  const finalFontSizePx = fontSizePx * Math.min(leftSafety, rightSafety);
+  const safetyScale = Math.min(leftSafety, rightSafety);
+  const finalFontSizePx = fontSizePx * safetyScale;
 
   return {
     left: buildProportionalBody(leftContent, fontFamily, finalFontSizePx, markerScale, rowScale),
-    right: buildProportionalBody(rightContent, fontFamily, finalFontSizePx, markerScale, rowScale)
+    right: buildProportionalBody(rightContent, fontFamily, finalFontSizePx, markerScale, rowScale),
+    safetyScale
   };
 }
 
@@ -450,8 +460,15 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         songDiv.appendChild(header);
       }
 
+      // 1 unless the per-chunk safety fallback (computeChunkSafetyScale)
+      // had to shrink this song's font-size below the book's shared
+      // bodyFontSizePx - see the debug label below.
+      let bodySafetyScale = 1;
+
       if (!partSong.right_content) {
-        songDiv.appendChild(buildSongBodyElement(partSong.left_content, fontKey, pageContentWidth, bodyFontSizePx, bodyRowScale, tempContainer));
+        const body = buildSongBodyElement(partSong.left_content, fontKey, pageContentWidth, bodyFontSizePx, bodyRowScale, tempContainer);
+        bodySafetyScale = body.safetyScale;
+        songDiv.appendChild(body.el);
       } else {
         songDiv.classList.add('split-song');
         songDiv.style.display = 'flex';
@@ -461,6 +478,7 @@ function renderA4Preview(songs, orderedIds, options = {}) {
         columns.className = 'd-flex';
 
         const columnBodies = buildTwoColumnSongBodies(partSong.left_content, partSong.right_content, fontKey, columnWidthPx, bodyFontSizePx, bodyRowScale, tempContainer);
+        bodySafetyScale = columnBodies.safetyScale;
 
         const leftCol = document.createElement('div');
         leftCol.className = 'left-column flex-grow-1 pe-3';
@@ -552,6 +570,19 @@ function renderA4Preview(songs, orderedIds, options = {}) {
           const bodyEl = songDiv.querySelector('pre, .song-body-proportional');
           const bodyHeight = bodyEl ? bodyEl.getBoundingClientRect().height : 0;
           debugBreakdown = ` (Header: ${headerElHeight.toFixed(0)}px Body: ${bodyHeight.toFixed(0)}px)`;
+        }
+
+        // Font-size/row-scale info for the chosen "Songbook font" - see
+        // bodyFontSizePx/bodyRowScale (fixed/shared across the whole book)
+        // and bodySafetyScale (buildSongBodyElement/buildTwoColumnSongBodies
+        // - only below 1 if THIS song's own content didn't fit even at that
+        // shared size, and had to shrink further on top of it).
+        if (isProportionalFont) {
+          const actualFontSizePx = bodyFontSizePx * bodySafetyScale;
+          const shrunkNote = bodySafetyScale < 1
+            ? ` FONT SHRUNK: ${actualFontSizePx.toFixed(1)}px (${(bodySafetyScale * 100).toFixed(0)}% of shared ${bodyFontSizePx.toFixed(1)}px)`
+            : ` Font: ${actualFontSizePx.toFixed(1)}px (shared, unshrunk)`;
+          debugBreakdown += ` [RowScale: ${(bodyRowScale * 100).toFixed(0)}%${shrunkNote}]`;
         }
       }
 
