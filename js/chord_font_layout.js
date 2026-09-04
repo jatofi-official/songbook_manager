@@ -267,8 +267,22 @@ function renderChordRow(positions, spacing, markerScale) {
         .map(({ text, x }) => {
             const marker = isMarkerToken(text);
             const tokenClass = marker ? "chord-token chord-token-marker" : "chord-token";
-            const tokenStyle = `left:${Math.round(x)}px;` + (marker ? markerStyle : "");
-            return `<span class="${tokenClass}" style="${tokenStyle}">${escapeHtml(text)}</span>`;
+            const tokenStyle = `left:${Math.round(x)}px;`;
+            // The marker boost (markerStyle) is meant for the ® glyph
+            // itself, which some fonts render tiny - not for a trailing
+            // ":" that's sometimes written after it ("®:"). Scaling the
+            // whole token up (as this used to do) blew the colon up to the
+            // same oversized font-size too, which - combined with this
+            // span's line-height:1/vertical-align:middle (see the
+            // chord-token-marker CSS rule) sized for the SMALL font-size,
+            // not the boosted one - made it sit at a visibly wrong
+            // baseline, floating away from the ® next to it. Only wrap the
+            // ® character itself in the boosted size; any trailing text
+            // renders at the row's normal chord size.
+            const inner = marker
+                ? escapeHtml(text).replace(/®/, `<span class="chorus-marker-symbol" style="${markerStyle}">®</span>`)
+                : escapeHtml(text);
+            return `<span class="${tokenClass}" style="${tokenStyle}">${inner}</span>`;
         })
         .join("");
     return `<div class="chord-row"${style ? ` style="${style}"` : ""}>${spans}</div>`;
