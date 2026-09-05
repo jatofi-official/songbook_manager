@@ -45,23 +45,52 @@ function parseChordTokens(chordLine) {
 }
 
 // Width (in the target font) of `referenceLine` up to `upToColumn`
-// characters in. If the chord sits past the end of a short (or entirely
-// absent) lyric line - e.g. a trailing chord after the last word, or an
-// instrumental-only chord line with no lyric line at all - the remaining
-// distance is extrapolated using `monoCharWidth` (one column = one original
-// monospace character width), NOT the proportional font's own space-character
-// width. A proportional font's space is usually much narrower than a
-// monospace character, so measuring extrapolated distance with it collapses
-// chords far closer together than their original column spacing intended -
-// this is what made pure chord-only lines (and trailing chords past a short
-// lyric) look garbled/bunched up.
-function measurePrefixWidth(referenceLine, upToColumn, monoCharWidth, measureNormal) {
+// characters in.
+//
+// `anchored` (whether THIS chord sits directly on a real, non-space lyric
+// character - see computeChordPositions) changes how a purely blank prefix
+// gets measured, because the two cases mean different things:
+//
+// - Anchored: the real lyric row renders this exact prefix as real text
+//   (white-space:pre - see renderLyricRow), so the chord has to land exactly
+//   above wherever the browser actually puts that real character, which
+//   means measuring the prefix - blanks included - proportionally, in the
+//   SAME font, so it matches.
+// - Unanchored: nothing at this column ties it to any specific rendered
+//   character, so there's no real position it has to match. A run of blank
+//   columns here is usually acting as pure alignment PADDING (e.g. several
+//   chords positioned far to the right, above a lyric line that's mostly
+//   leading spaces before the words start - "                    ... nanana
+//   ..." - or a chord sitting past the end of a short/absent lyric line
+//   entirely, or an instrumental-only chord line with no lyric line at
+//   all), placed assuming a FIXED monospace column width. Measuring that
+//   padding's actual rendered width in a proportional font (whose space
+//   glyph is usually much narrower) collapses it closer together than the
+//   original column spacing intended, bunching every chord positioned over
+//   it noticeably closer together than it should be - so this falls back to
+//   `monoCharWidth` (one column = one original monospace character width)
+//   for any blank run trailing right up to `upToColumn`. A real word
+//   appearing earlier in the line still measures proportionally either way,
+//   since that's genuine content.
+function measurePrefixWidth(referenceLine, upToColumn, monoCharWidth, measureNormal, anchored) {
     const line = String(referenceLine ?? "");
-    if (upToColumn <= line.length) {
-        return measureNormal(line.slice(0, upToColumn));
+    const prefix = upToColumn <= line.length ? line.slice(0, upToColumn) : line;
+
+    if (anchored) {
+        return measureNormal(prefix);
     }
-    const extraColumns = upToColumn - line.length;
-    return measureNormal(line) + extraColumns * monoCharWidth;
+
+    let lastRealIndex = -1;
+    for (let i = prefix.length - 1; i >= 0; i--) {
+        if (prefix[i] !== " ") {
+            lastRealIndex = i;
+            break;
+        }
+    }
+
+    const realPart = lastRealIndex === -1 ? "" : prefix.slice(0, lastRealIndex + 1);
+    const blankColumns = upToColumn - realPart.length;
+    return measureNormal(realPart) + blankColumns * monoCharWidth;
 }
 
 // Returns [{ text, x }] - each chord token from `chordLine` with the pixel
@@ -103,11 +132,14 @@ function computeChordPositions(chordLine, lyricLine, monoCharWidth, measure) {
     const reference = lyricLine != null ? lyricLine : "";
     const measureNormal = (text) => measure(text, false);
 
-    const positions = parseChordTokens(chordLine).map(({ text, column }) => ({
-        text,
-        x: measurePrefixWidth(reference, column, monoCharWidth, measureNormal),
-        anchored: lyricLine != null && column < lyricLine.length && lyricLine[column] !== " "
-    }));
+    const positions = parseChordTokens(chordLine).map(({ text, column }) => {
+        const anchored = lyricLine != null && column < lyricLine.length && lyricLine[column] !== " ";
+        return {
+            text,
+            x: measurePrefixWidth(reference, column, monoCharWidth, measureNormal, anchored),
+            anchored
+        };
+    });
 
     const minGap = measure(" ", false);
     for (let i = 1; i < positions.length; i++) {
@@ -117,15 +149,29 @@ function computeChordPositions(chordLine, lyricLine, monoCharWidth, measure) {
 
         if (positions[i].anchored && !positions[i - 1].anchored) {
             // Keep the anchored chord exactly where it is; move the
-            // unanchored one out of its way instead. Deliberately NOT
-            // clamped to >= 0 here - see rowOffset below.
-            let newPrevX = positions[i].x - minGap - prevWidth;
-            if (i - 2 >= 0) {
-                // Don't let that push it into whatever comes before IT.
-                const prevPrevWidth = measure(positions[i - 2].text, true);
-                newPrevX = Math.max(newPrevX, positions[i - 2].x + prevPrevWidth + minGap);
+            // unanchored run before it out of its way instead - the WHOLE
+            // contiguous run of unanchored chords immediately preceding it
+            // (not just the single one right next to it), shifted as one
+            // rigid block by the same amount. Shifting only the immediate
+            // neighbor used to just relocate the overlap one step further
+            // back whenever 3+ unanchored chords needed to fit before a
+            // single fixed anchor (e.g. several chords positioned over
+            // blank lead-in space, ending at a short lyric melisma) -
+            // each got pushed just far enough to clear its own immediate
+            // neighbor, with no guarantee that reached far enough back to
+            // also clear the one before THAT, so two of them could still
+            // end up landing on top of each other. Shifting the whole run
+            // by one uniform delta instead preserves whatever spacing they
+            // already had relative to EACH OTHER (already resolved in
+            // earlier iterations of this same loop) while only changing
+            // their position relative to the fixed anchor. Deliberately
+            // NOT clamped to >= 0 here - see rowOffset below.
+            const delta = (positions[i].x - minGap - prevWidth) - positions[i - 1].x;
+            let j = i - 1;
+            while (j >= 0 && !positions[j].anchored) {
+                positions[j].x += delta;
+                j--;
             }
-            positions[i - 1].x = newPrevX;
         } else {
             positions[i].x = minX;
         }

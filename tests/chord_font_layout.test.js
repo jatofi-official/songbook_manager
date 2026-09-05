@@ -58,6 +58,33 @@ test('measurePrefixWidth extrapolates past the end of a short/absent reference u
     assert.equal(measurePrefixWidth(null, 4, 12, measure), 4 * 12);
 });
 
+test('measurePrefixWidth extrapolates an unanchored blank run WITHIN the reference line too, not just past its end', () => {
+    // Mirrors a real reported case: several chords positioned far to the
+    // right, above a lyric line that's mostly leading spaces before a short
+    // melisma ("... nanana ..."). None of those chords are anchored to a
+    // real character, so the leading blank padding under them has to
+    // extrapolate via monoCharWidth the same way a chord past a short
+    // line's end already did - not via the font's own (usually much
+    // narrower) proportional space width, which used to bunch them all
+    // closer together than their original columns intended.
+    const measure = fixedWidthMeasurer(2); // narrow proportional space
+    const monoCharWidth = 10;
+    const reference = '                    ... nanana ...'; // 20 leading spaces
+    assert.equal(measurePrefixWidth(reference, 20, monoCharWidth, measure, false), 20 * monoCharWidth);
+});
+
+test('measurePrefixWidth measures an anchored blank run proportionally, matching the real rendered lyric text', () => {
+    // The opposite case: a chord IS anchored to a real character, and
+    // everything before it on the line is blank padding. The real lyric
+    // row renders that padding as real text (white-space:pre), so the
+    // chord has to match wherever the browser actually puts that
+    // character - which means the narrow proportional space width, NOT
+    // monoCharWidth, even though the prefix itself is blank.
+    const measure = fixedWidthMeasurer(2);
+    const monoCharWidth = 10;
+    assert.equal(measurePrefixWidth('     Run', 5, monoCharWidth, measure, true), 5 * 2);
+});
+
 test('measurePrefixWidth extrapolation ignores the proportional font\'s own (narrower) space width', () => {
     // This is the actual bug: a proportional font's space is usually much
     // narrower than a monospace character, so extrapolating with measure(' ')
@@ -160,6 +187,34 @@ test('computeChordPositions keeps an anchored chord exactly on its lyric syllabl
     assert.equal(positions[1].x, gNaturalX + rowOffset); // "G" keeps its natural offset relative to the lyric
     // no overlap: "Em"'s rendered span ends right where "G" starts (or before)
     assert.ok(positions[0].x + measure('Em', true) + measure(' ', false) <= positions[1].x);
+});
+
+test('computeChordPositions cascades the shift through a whole run of unanchored chords before a fixed anchor, not just the immediate neighbor', () => {
+    // Mirrors a real reported case: several unanchored chords (positioned
+    // far to the right, over blank lead-in space before a short lyric
+    // melisma) rendered overlapping each other. Only pushing the SINGLE
+    // chord immediately before the anchor used to leave earlier ones in
+    // the same run still colliding with each other, since each only ever
+    // got shifted far enough to clear its own immediate neighbor.
+    //
+    //   Am  Bm  Cm  Dm      <- "Am"/"Bm"/"Cm" unanchored, "Dm" anchored on "x"
+    //             x
+    const measure = (text, isChord) => text.length * (isChord ? 20 : 2);
+    const monoCharWidth = 10;
+    const lyricLine = '            x'; // 12 leading spaces, "x" at column 12
+    const { positions, rowOffset } = computeChordPositions('Am  Bm  Cm  Dm', lyricLine, monoCharWidth, measure);
+
+    const chordWidth = measure('Am', true); // 40 - same for all 4 (2-char labels)
+    const gap = measure(' ', false); // 2
+    // Every consecutive pair should end up exactly minGap apart - not just
+    // the last pair before "Dm", all three.
+    for (let i = 1; i < positions.length; i++) {
+        assert.equal(positions[i].x - positions[i - 1].x, chordWidth + gap);
+    }
+    // "Dm" still keeps its natural offset relative to the lyric ("x" at
+    // column 12) plus the row shift, same guarantee as the two-chord case.
+    const dmNaturalX = 12 * 2;
+    assert.equal(positions[3].x, dmNaturalX + rowOffset);
 });
 
 test('computeChordPositions does not alter spacing that already has enough room', () => {
