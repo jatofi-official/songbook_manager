@@ -129,15 +129,40 @@ test('computeChordPositions handles a chord-only line (no lyric line) via monoCh
     assert.equal(rowOffset, 0);
 });
 
-test('computeChordPositions keeps a chord-only line spaced by the ORIGINAL monospace width, not the proportional font\'s own space width', () => {
-    // Proportional font's space (2px) is much narrower than the monospace
-    // font it's replacing (10px) - previously this made instrumental/
-    // chord-only lines look garbled/bunched together.
+test('computeChordPositions spaces a chord-only line by the PROPORTIONAL font\'s own space width, not the original monospace column width', () => {
+    // A chord-only line (no lyric row at all - e.g. an instrumental
+    // passage) has no lyric text to align to, so monoCharWidth (the
+    // ORIGINAL monospace column width) isn't the right measure of intended
+    // spacing either - it stretches the row out wider than this font
+    // actually needs, since chord labels are typically narrower
+    // proportionally too. The only real signal left is how many literal
+    // space characters the chord line itself has, measured in THIS font.
+    const measure = (text) => [...text].reduce((sum, ch) => sum + (ch === ' ' ? 2 : 10), 0);
+    const monoCharWidth = 10; // deliberately much wider than the font's own 2px space
+    const { positions } = computeChordPositions('C    G', null, monoCharWidth, measure);
+    // "G" is at column 5: "C" (10px, normal weight) + 4 spaces (2px each) = 18,
+    // not 5 * monoCharWidth (50).
+    assert.equal(positions[1].x, 18);
+});
+
+test('computeChordPositions treats a BLANK (but present) lyric line the same as no lyric line at all', () => {
+    // Mirrors a real reported case: a chord-only line immediately followed
+    // by an empty line before the next real lyric (common before a section
+    // like a chorus marker) rendered stretched out in one place but not
+    // another. renderSongProportional's pairing logic (isChordLine('') is
+    // false) treats that blank line as "the lyric line" rather than
+    // leaving this chord-only - lyricLine ends up as "" (present, but
+    // entirely blank), which is NOT strictly null, so it used to still
+    // take the "unanchored chord within a real lyric line" branch
+    // (monoCharWidth-extrapolated blank padding) instead of the tighter
+    // chord-only proportional spacing above, even though a blank line has
+    // exactly as little to anchor to as no lyric line at all.
     const measure = (text) => [...text].reduce((sum, ch) => sum + (ch === ' ' ? 2 : 10), 0);
     const monoCharWidth = 10;
-    const { positions } = computeChordPositions('C    G', null, monoCharWidth, measure);
-    // "G" is at column 5 -> 5 * monoCharWidth = 50, not 5 * narrow-space (10)
-    assert.equal(positions[1].x, 50);
+    const withNullLyric = computeChordPositions('C    G', null, monoCharWidth, measure);
+    const withBlankLyric = computeChordPositions('C    G', '', monoCharWidth, measure);
+    assert.deepEqual(withBlankLyric.positions, withNullLyric.positions);
+    assert.equal(withBlankLyric.positions[1].x, 18); // not 50 (5 * monoCharWidth)
 });
 
 test('computeChordPositions places a chord past the end of a short lyric line correctly', () => {

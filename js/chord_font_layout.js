@@ -96,10 +96,22 @@ function measurePrefixWidth(referenceLine, upToColumn, monoCharWidth, measureNor
 // Returns [{ text, x }] - each chord token from `chordLine` with the pixel
 // offset (from the start of the line box) it should render at, so it sits
 // above the same point in `lyricLine` it was aligned to in the original
-// monospace layout. `lyricLine` may be null/undefined (a chord-only line,
-// e.g. an intro/interlude with no words under it) - handled the same way as
-// a lyric line that's simply shorter than the chord line (see
-// measurePrefixWidth).
+// monospace layout.
+//
+// `lyricLine` may be null/undefined - a genuinely chord-only line, e.g. an
+// instrumental intro/interlude with no lyric row under it at all. That's
+// handled differently from an ordinary chord sitting over blank space
+// within a real lyric line (see measurePrefixWidth's `anchored` doc): with
+// no lyric text anywhere to align to, `monoCharWidth` (the ORIGINAL
+// monospace column width) isn't the right measure of intended spacing
+// either - it stretches the row out to the monospace version's absolute
+// pixel width, which is usually noticeably wider than this font actually
+// needs, since chord labels themselves are typically narrower proportionally
+// too. The only signal left for how far apart chords should sit is how many
+// literal space characters the chord line ITSELF has between them, so a
+// chord-only line measures proportionally straight off its own text - same
+// mechanism `measurePrefixWidth` already uses for a real anchored chord,
+// just measuring the chord line as the "reference" instead of a lyric line.
 //
 // A second pass then enforces a minimum gap between each chord's own
 // (bold-measured) rendered width and the next chord's position: a
@@ -129,14 +141,39 @@ function measurePrefixWidth(referenceLine, upToColumn, monoCharWidth, measureNor
 // sync with each other - only their shared position relative to the page
 // moves, not their position relative to each other.
 function computeChordPositions(chordLine, lyricLine, monoCharWidth, measure) {
-    const reference = lyricLine != null ? lyricLine : "";
+    // A lyric line that's present but entirely blank (e.g. a chord line
+    // immediately followed by an empty line before the next real lyric -
+    // isChordLine('') is false, so the pairing logic in
+    // renderSongProportional treats that blank line as "the lyric line"
+    // rather than leaving this chord-only) has exactly as little to anchor
+    // to as no lyric line at all - every column in it is blank, so every
+    // chord would be unanchored anyway. Treat it the same as the true
+    // chord-only case (proportional spacing off the chord line's own text)
+    // rather than the ordinary "unanchored chord within a real lyric line"
+    // case (monoCharWidth-extrapolated blank padding) - the whole point of
+    // that monoCharWidth fallback is to stay consistent with OTHER, real
+    // text elsewhere on the same line, which doesn't exist here.
+    const hasLyricLine = lyricLine != null && /\S/.test(lyricLine);
     const measureNormal = (text) => measure(text, false);
 
     const positions = parseChordTokens(chordLine).map(({ text, column }) => {
-        const anchored = lyricLine != null && column < lyricLine.length && lyricLine[column] !== " ";
+        if (!hasLyricLine) {
+            // No lyric line at all - measure straight off the chord line's
+            // own text, always proportionally (never monoCharWidth - see
+            // this function's own doc comment above). Reuses
+            // measurePrefixWidth's `anchored: true` branch for that, since
+            // it's the same "just measure the real prefix, blanks included,
+            // in this font" behavior - just with the chord line standing in
+            // as the reference text instead of a lyric line. Recorded as
+            // `anchored: false` below regardless, since there's no real
+            // lyric syllable to keep this chord pinned to for the overlap
+            // pass further down - an ordinary rightward clamp is enough.
+            return { text, x: measurePrefixWidth(chordLine, column, monoCharWidth, measureNormal, true), anchored: false };
+        }
+        const anchored = column < lyricLine.length && lyricLine[column] !== " ";
         return {
             text,
-            x: measurePrefixWidth(reference, column, monoCharWidth, measureNormal, anchored),
+            x: measurePrefixWidth(lyricLine, column, monoCharWidth, measureNormal, anchored),
             anchored
         };
     });
