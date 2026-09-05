@@ -2780,14 +2780,40 @@ async function addStatsPages(container, categoryIds, blackAndWhite, qrUrl) {
     }
   }
 
-  // A single standalone page, same convention as real content's own page 1
-  // (createPage right-aligns an odd page's footer number) - a lone centered
-  // row, not paired with anything.
+  // Songbooks print double-sided, so every section is padded to an even
+  // page count - the same rule js/songbook_render_preview.js applies at the
+  // end of each category (see the padToEvenPages block in renderA4Preview).
+  // The stats section is always exactly one real page, so without this it
+  // was an odd-length section prepended in front of everything else,
+  // shifting every category after it by one physical sheet position and
+  // breaking their own "always start on the front of a fresh sheet"
+  // padding.
+  //
+  // The blank companion page gets its OWN centered row here, NOT the same
+  // row as the real stats page - page-pair rows group [even, odd] page
+  // numbers together (a physical book's left/right spread, e.g. pages
+  // 2-3, 4-5...), with page 1 always alone since there's no page 0 to
+  // pair it with on the left. That's exactly why a category's own first
+  // page prints alone, centered, on the right - and the stats page (also
+  // page 1 of its section) needs to keep that same look. Pairing it with
+  // its own blank page 2 side by side here would make it look like a
+  // [1,2] spread instead, which isn't how any other page 1 in this
+  // renderer displays. See songbook_render_preview.js's own padToEvenPages
+  // block for the identical new-standalone-row treatment of a category's
+  // trailing blank page.
+  const blankStatsPage = createPage(2, 'Štatistiky');
+  blankStatsPage.dataset.categoryLabel = 'Štatistiky';
+
   const fragment = document.createDocumentFragment();
   const row = document.createElement('div');
   row.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
   row.appendChild(page);
   fragment.appendChild(row);
+
+  const blankRow = document.createElement('div');
+  blankRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+  blankRow.appendChild(blankStatsPage);
+  fragment.appendChild(blankRow);
 
   container.prepend(fragment);
 

@@ -893,26 +893,54 @@ function addTableOfContents(container) {
   const tocPageCount = pageEntrySlices.length;
   const fragment = document.createDocumentFragment();
 
-  for (let pageIndex = 0; pageIndex < tocPageCount; pageIndex += 2) {
-    const pair = document.createElement('div');
-    pair.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
-
-    for (let side = 0; side < 2 && pageIndex + side < tocPageCount; side++) {
-      const tocIndex = pageIndex + side;
-      const page = createPage(tocIndex + 1, 'Contents');
-      page.dataset.categoryLabel = 'Contents';
-
-      // Only the first contents page gets the heading - long songbooks can
-      // spill the listing onto several pages, and repeating a big "Contents"
-      // heading on every one of them just eats space without adding anything.
-      if (tocIndex === 0) {
-        page.contentEl.appendChild(heading.cloneNode(true));
-      }
-
-      pageEntrySlices[tocIndex].forEach(entry => page.contentEl.appendChild(buildTocRow(entry)));
-      pair.appendChild(page);
+  // Page-pair rows here follow the exact same [even, odd] convention as the
+  // rest of this renderer (see the main render loop's own pageRow creation
+  // and addStatsPages) - a physical book's spread pairs a left/verso (even)
+  // page with the right/recto (odd) page after it, e.g. 2-3, 4-5..., with
+  // page 1 always alone since there's no page 0 to its left. A new row
+  // starts on every EVEN page number; an odd page joins whatever row is
+  // already open. This used to instead pair [1,2], [3,4]..., which made the
+  // contents' own page 1 look like the left half of a spread with page 2
+  // instead of standing alone the way every other page 1 in this renderer
+  // (a category's first page, the stats page) does.
+  let row = null;
+  for (let tocIndex = 0; tocIndex < tocPageCount; tocIndex++) {
+    const pageNumber = tocIndex + 1;
+    if (!row || pageNumber % 2 === 0) {
+      row = document.createElement('div');
+      row.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+      fragment.appendChild(row);
     }
-    fragment.appendChild(pair);
+
+    const page = createPage(pageNumber, 'Contents');
+    page.dataset.categoryLabel = 'Contents';
+
+    // Only the first contents page gets the heading - long songbooks can
+    // spill the listing onto several pages, and repeating a big "Contents"
+    // heading on every one of them just eats space without adding anything.
+    if (tocIndex === 0) {
+      page.contentEl.appendChild(heading.cloneNode(true));
+    }
+
+    pageEntrySlices[tocIndex].forEach(entry => page.contentEl.appendChild(buildTocRow(entry)));
+    row.appendChild(page);
+  }
+
+  // Songbooks print double-sided, so - same as the stats section
+  // (addStatsPages) and every category (padToEvenPages in renderA4Preview) -
+  // the contents section is padded to an even page count too, or whatever
+  // comes after it (the stats section, or category 1) stops starting on the
+  // front of a fresh physical sheet. The blank page gets its own new,
+  // standalone row rather than joining the last real page's row, matching
+  // how a trailing unpaired page is handled everywhere else in this file.
+  if (tocPageCount % 2 === 1) {
+    const blankPageNumber = tocPageCount + 1;
+    const blankRow = document.createElement('div');
+    blankRow.className = 'page-pair d-flex justify-content-center gap-4 mb-5';
+    const blankPage = createPage(blankPageNumber, 'Contents');
+    blankPage.dataset.categoryLabel = 'Contents';
+    blankRow.appendChild(blankPage);
+    fragment.appendChild(blankRow);
   }
 
   // Content pages already carry their real, per-category page numbers from
