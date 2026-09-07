@@ -75,14 +75,12 @@ if (isset($_GET['id'])) {
                             </a>
                         <?php endif; ?>
                         
-                        <?php if(isset($_SESSION["user"])){ ?>
+                        <?php if(isset($_SESSION["user"]) && $canEditDelete){ ?>
                             <!-- Edit Button -->
                             <form method="GET" action="song.php" class="d-inline">
                                 <input type="hidden" name="id" value="<?= (int)$id ?>">
                                 <input type="hidden" name="edit" value="1">
-                                <button type="submit"
-                                        class="btn btn-secondary"
-                                        <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
+                                <button type="submit" class="btn btn-secondary">
                                     Edit
                                 </button>
                             </form>
@@ -95,7 +93,7 @@ if (isset($_GET['id'])) {
 
                                 <input type="hidden" name="redirect_params" value="<?= htmlspecialchars(http_build_query(array_diff_key($_GET, ['id' => '']))) ?>">
 
-                                <button type="submit" class="btn btn-danger" <?= !$canEditDelete ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : '' ?>>
+                                <button type="submit" class="btn btn-danger">
                                     Delete
                                 </button>
                             </form>

@@ -55,6 +55,13 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
+<?php if (($_GET['delete_failed'] ?? '') === '1'): ?>
+    <div class="alert alert-danger alert-dismissible fade show m-2" role="alert">
+        Could not delete the song. You may not have permission, or something went wrong.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
 <div class="row g-0">
     <!-- Song List -->
     <div class="col-md-5 col-lg-4 song-list-container">
