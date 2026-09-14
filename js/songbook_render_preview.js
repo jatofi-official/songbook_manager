@@ -803,8 +803,16 @@ function renderA4Preview(songs, orderedIds, options = {}) {
 }
 
 function renumberRenderedPages(container) {
-  Array.from(container.querySelectorAll('.a4-page')).forEach((page, index) => {
-    const pageNumber = index + 1;
+  let pageNumber = 0;
+  let previousCategory = null;
+  Array.from(container.querySelectorAll('.a4-page')).forEach((page) => {
+    const category = page.dataset.categoryLabel || '';
+    if (category !== previousCategory) {
+      pageNumber = 1;
+      previousCategory = category;
+    } else {
+      pageNumber += 1;
+    }
     let label = page.querySelector('.page-number');
     if (!label) {
       label = document.createElement('div');
@@ -812,7 +820,6 @@ function renumberRenderedPages(container) {
       label.style.cssText = 'position:absolute;bottom:20px;font-size:12px;color:#555';
       page.appendChild(label);
     }
-    const category = page.dataset.categoryLabel || '';
     label.textContent = category ? `${category} · ${pageNumber}` : String(pageNumber);
     label.style.left = pageNumber % 2 === 0 ? '30px' : 'auto';
     label.style.right = pageNumber % 2 === 0 ? 'auto' : '30px';
